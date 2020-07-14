@@ -1,0 +1,1055 @@
+
+R version 3.6.1 (2019-07-05) -- "Action of the Toes"
+Copyright (C) 2019 The R Foundation for Statistical Computing
+Platform: x86_64-pc-linux-gnu (64-bit)
+
+R is free software and comes with ABSOLUTELY NO WARRANTY.
+You are welcome to redistribute it under certain conditions.
+Type 'license()' or 'licence()' for distribution details.
+
+  Natural language support but running in an English locale
+
+R is a collaborative project with many contributors.
+Type 'contributors()' for more information and
+'citation()' on how to cite R or R packages in publications.
+
+Type 'demo()' for some demos, 'help()' for on-line help, or
+'help.start()' for an HTML browser interface to help.
+Type 'q()' to quit R.
+
+> 
+> library(data.table)
+> library(stringr)
+> 
+> library(ggplot2)
+> library(ggpubr)
+Loading required package: magrittr
+> library(ggpointdensity)
+> theme_set(theme_classic2())
+> library(ggcorrplot)
+> 
+> # ----------------------------------------------------------------------
+> # read in p-values for ASD
+> # ----------------------------------------------------------------------
+> 
+> pval.path = "../results/_pvalues"
+> 
+> pval.files = list.files(path=pval.path, pattern="ASD", full.names=TRUE)
+> pval.files
+ [1] "../results/_pvalues/ASD_CARseq_Astro.txt"
+ [2] "../results/_pvalues/ASD_CARseq_Exc.txt"  
+ [3] "../results/_pvalues/ASD_CARseq_Inh.txt"  
+ [4] "../results/_pvalues/ASD_CARseq_Micro.txt"
+ [5] "../results/_pvalues/ASD_CARseq_Oligo.txt"
+ [6] "../results/_pvalues/ASD_CARseq_OPC.txt"  
+ [7] "../results/_pvalues/ASD_DESeq2_bulk.txt" 
+ [8] "../results/_pvalues/ASD_TOAST_Astro.txt" 
+ [9] "../results/_pvalues/ASD_TOAST_Exc.txt"   
+[10] "../results/_pvalues/ASD_TOAST_Inh.txt"   
+[11] "../results/_pvalues/ASD_TOAST_Micro.txt" 
+[12] "../results/_pvalues/ASD_TOAST_Oligo.txt" 
+[13] "../results/_pvalues/ASD_TOAST_OPC.txt"   
+> 
+> f1 = pval.files[1]
+> pval.ASD = fread(f1)
+> lb = str_extract(basename(f1), "(?<=ASD_)\\w+_\\w+(?=.txt)")
+> names(pval.ASD)[3] = lb
+> 
+> dim(pval.ASD)
+[1] 19604     3
+> pval.ASD[1:2,]
+              gene_id gene_name CARseq_Astro
+1: ENSG00000000003.10    TSPAN6    0.1255027
+2:  ENSG00000000419.8      DPM1    0.6632756
+> 
+> length(unique(pval.ASD$gene_id))
+[1] 19604
+> length(unique(pval.ASD$gene_name))
+[1] 19547
+> 
+> for(f1 in pval.files[-1]){
++   d1 = fread(f1)
++   if(any(d1$gene_id != pval.ASD$gene_id)){
++     stop("gene_id do not match\n")
++   }
++   
++   bn = basename(f1)
++   lb = str_extract(bn, "(?<=ASD_)\\w+_\\w+(?=.txt)")
++   
++   pval.ASD[[lb]] = d1$pvalue
++ }
+> 
+> dim(pval.ASD)
+[1] 19604    15
+> pval.ASD[1:2,]
+              gene_id gene_name CARseq_Astro CARseq_Exc CARseq_Inh CARseq_Micro
+1: ENSG00000000003.10    TSPAN6    0.1255027  0.6046280 0.02933506    0.7002754
+2:  ENSG00000000419.8      DPM1    0.6632756  0.1739825 0.07872326    1.0000000
+   CARseq_Oligo CARseq_OPC  DESeq2_bulk TOAST_Astro TOAST_Exc TOAST_Inh
+1:    0.3585876          1 0.0001603225   0.9589563 0.8811683 0.7498910
+2:    0.4720418          1 0.6959505937   0.6538012 0.7786788 0.8705232
+   TOAST_Micro TOAST_Oligo TOAST_OPC
+1:   0.1313709   0.3853622 0.9883231
+2:   0.9372846   0.7714128 0.7818392
+> 
+> cor(pval.ASD[,3:8], pval.ASD[,9], use="pairwise.complete.obs")
+              DESeq2_bulk
+CARseq_Astro -0.036989869
+CARseq_Exc   -0.051299068
+CARseq_Inh   -0.060478843
+CARseq_Micro  0.005432037
+CARseq_Oligo -0.005881636
+CARseq_OPC   -0.045280929
+> cor(pval.ASD[,10:15], pval.ASD[,9], use="pairwise.complete.obs")
+             DESeq2_bulk
+TOAST_Astro -0.005860347
+TOAST_Exc    0.014312285
+TOAST_Inh    0.014066102
+TOAST_Micro  0.044796657
+TOAST_Oligo -0.002872492
+TOAST_OPC   -0.009589024
+> 
+> cr1 = cor(pval.ASD[,3:8], pval.ASD[,10:15], use="pairwise.complete.obs")
+> round(cr1,3)
+             TOAST_Astro TOAST_Exc TOAST_Inh TOAST_Micro TOAST_Oligo TOAST_OPC
+CARseq_Astro       0.067    -0.004     0.031      -0.008       0.027     0.098
+CARseq_Exc        -0.024     0.029     0.000       0.026      -0.043     0.019
+CARseq_Inh        -0.008     0.039     0.001       0.034      -0.034     0.017
+CARseq_Micro       0.022    -0.042     0.009       0.021       0.027     0.033
+CARseq_Oligo      -0.007     0.024    -0.022       0.024       0.033    -0.014
+CARseq_OPC         0.009     0.004    -0.015       0.020       0.060     0.075
+> summary(c(cr1))
+     Min.   1st Qu.    Median      Mean   3rd Qu.      Max. 
+-0.042999 -0.007449  0.019293  0.014645  0.029640  0.098162 
+> rownames(cr1) = gsub("CARseq_", "", rownames(cr1))
+> colnames(cr1) = gsub("TOAST_", "", colnames(cr1))
+> 
+> gc1 = ggcorrplot(cr1, lab = TRUE) + 
++   scale_fill_gradient2(low="blue", mid="white", high="red", 
++                        limit=c(-0.2, 0.2))
+Scale for 'fill' is already present. Adding another scale for 'fill', which
+will replace the existing scale.
+> gc1 = annotate_figure(gc1, bottom = text_grob("CARseq"), 
++                       left=text_grob("TOAST", rot = 90))
+> 
+> pdf("../figures/step_x_ASD_CARseq_vs_TOAST_cor.pdf", width=4.5, height=4)
+> print(gc1)
+> dev.off()
+pdf 
+  2 
+> 
+> # ----------------------------------------------------------------------
+> # read in p-values for SCZ
+> # ----------------------------------------------------------------------
+> 
+> pval.files = list.files(path=pval.path, pattern="SCZ", full.names=TRUE)
+> pval.files
+ [1] "../results/_pvalues/SCZ_CARseq_Astro.txt"
+ [2] "../results/_pvalues/SCZ_CARseq_Exc.txt"  
+ [3] "../results/_pvalues/SCZ_CARseq_Inh.txt"  
+ [4] "../results/_pvalues/SCZ_CARseq_Micro.txt"
+ [5] "../results/_pvalues/SCZ_CARseq_Oligo.txt"
+ [6] "../results/_pvalues/SCZ_CARseq_OPC.txt"  
+ [7] "../results/_pvalues/SCZ_DESeq2_bulk.txt" 
+ [8] "../results/_pvalues/SCZ_TOAST_Astro.txt" 
+ [9] "../results/_pvalues/SCZ_TOAST_Exc.txt"   
+[10] "../results/_pvalues/SCZ_TOAST_Inh.txt"   
+[11] "../results/_pvalues/SCZ_TOAST_Micro.txt" 
+[12] "../results/_pvalues/SCZ_TOAST_Oligo.txt" 
+[13] "../results/_pvalues/SCZ_TOAST_OPC.txt"   
+> 
+> f1 = pval.files[1]
+> pval.SCZ = fread(f1)
+> lb = str_extract(basename(f1), "(?<=SCZ_)\\w+_\\w+(?=.txt)")
+> names(pval.SCZ)[3] = lb
+> 
+> dim(pval.SCZ)
+[1] 20788     3
+> pval.SCZ[1:2,]
+           gene_id gene_name CARseq_Astro
+1: ENSG00000000003    TSPAN6    0.1300658
+2: ENSG00000000419      DPM1    0.3902564
+> 
+> length(unique(pval.SCZ$gene_id))
+[1] 20788
+> length(unique(pval.SCZ$gene_name))
+[1] 20635
+> 
+> for(f1 in pval.files[-1]){
++   d1 = fread(f1)
++   if(any(d1$gene_id != pval.SCZ$gene_id)){
++     stop("gene_id do not match\n")
++   }
++   
++   bn = basename(f1)
++   lb = str_extract(bn, "(?<=SCZ_)\\w+_\\w+(?=.txt)")
++   
++   pval.SCZ[[lb]] = d1$pvalue
++ }
+> 
+> dim(pval.SCZ)
+[1] 20788    15
+> pval.SCZ[1:2,]
+           gene_id gene_name CARseq_Astro CARseq_Exc CARseq_Inh CARseq_Micro
+1: ENSG00000000003    TSPAN6    0.1300658          1  1.0000000    0.3194471
+2: ENSG00000000419      DPM1    0.3902564          1  0.8710154    0.3720136
+   CARseq_Oligo CARseq_OPC DESeq2_bulk TOAST_Astro TOAST_Exc TOAST_Inh
+1:    0.1056792  1.0000000   0.5161834   0.3562478 0.6190847 0.5315646
+2:    0.3049213  0.4852172   0.2631114   0.7099771 0.5890104 0.3433181
+   TOAST_Micro TOAST_Oligo TOAST_OPC
+1:   0.1146229  0.69628999 0.5052720
+2:   0.3519124  0.08908203 0.6707108
+> 
+> cor(-log10(pval.SCZ[,3:8]), -log10(pval.SCZ[,9]), 
++     use="pairwise.complete.obs")
+             DESeq2_bulk
+CARseq_Astro 0.008162197
+CARseq_Exc   0.105379124
+CARseq_Inh   0.003143397
+CARseq_Micro 0.089037868
+CARseq_Oligo 0.037743464
+CARseq_OPC   0.004619052
+> cor(-log10(pval.SCZ[,10:15]), -log10(pval.SCZ[,9]), 
++     use="pairwise.complete.obs")
+             DESeq2_bulk
+TOAST_Astro -0.026791218
+TOAST_Exc    0.097577188
+TOAST_Inh    0.059739134
+TOAST_Micro  0.110130512
+TOAST_Oligo  0.039930072
+TOAST_OPC   -0.005573796
+> 
+> cr1 = cor(pval.SCZ[,3:8], pval.SCZ[,10:15], use="pairwise.complete.obs")
+> round(cr1,3)
+             TOAST_Astro TOAST_Exc TOAST_Inh TOAST_Micro TOAST_Oligo TOAST_OPC
+CARseq_Astro       0.005    -0.027     0.051       0.019       0.036     0.006
+CARseq_Exc         0.017     0.142     0.067      -0.028       0.035     0.014
+CARseq_Inh         0.059     0.034     0.057       0.014       0.016    -0.040
+CARseq_Micro      -0.050    -0.027     0.065       0.183       0.099    -0.012
+CARseq_Oligo      -0.039    -0.012     0.050       0.050       0.145    -0.041
+CARseq_OPC         0.071     0.021     0.017      -0.050      -0.023     0.034
+> summary(c(cr1))
+    Min.  1st Qu.   Median     Mean  3rd Qu.     Max. 
+-0.05009 -0.01509  0.01803  0.02662  0.05259  0.18254 
+> 
+> rownames(cr1) = gsub("CARseq_", "", rownames(cr1))
+> colnames(cr1) = gsub("TOAST_", "", colnames(cr1))
+> 
+> gc1 = ggcorrplot(cr1, lab = TRUE) + 
++   scale_fill_gradient2(low="blue", mid="white", high="red", 
++                        limit=c(-0.25, 0.25))
+Scale for 'fill' is already present. Adding another scale for 'fill', which
+will replace the existing scale.
+> gc1 = annotate_figure(gc1, bottom = text_grob("CARseq"), 
++                       left=text_grob("TOAST", rot = 90))
+> 
+> pdf("../figures/step_x_SCZ_CARseq_vs_TOAST_cor.pdf", width=4.5, height=4)
+> print(gc1)
+> dev.off()
+pdf 
+  2 
+> 
+> 
+> gs1 = ggplot(pval.SCZ,aes(x=-log10(CARseq_Astro),y=-log10(TOAST_Astro))) +
++   geom_pointdensity(size = 0.6) + scale_color_viridis_c() +
++   labs(x= "-log10(pval CARseq_Astro)", y= "-log10(pval TOAST_Astro)")
+> 
+> gs2 = ggplot(pval.SCZ,aes(x=-log10(CARseq_Exc),y=-log10(TOAST_Exc))) +
++   geom_pointdensity(size = 0.6) + scale_color_viridis_c() +
++   labs(x= "-log10(pval CARseq_Exc)", y= "-log10(pval TOAST_Exc)")
+> 
+> gs3 = ggplot(pval.SCZ,aes(x=-log10(CARseq_Inh),y=-log10(TOAST_Inh))) +
++   geom_pointdensity(size = 0.6) + scale_color_viridis_c() +
++   labs(x= "-log10(pval CARseq_Inh)", y= "-log10(pval TOAST_Inh)")
+> 
+> gs4 = ggplot(pval.SCZ,aes(x=-log10(CARseq_Micro),y=-log10(TOAST_Micro))) +
++   geom_pointdensity(size = 0.6) + scale_color_viridis_c() +
++   labs(x= "-log10(pval CARseq_Micro)", y= "-log10(pval TOAST_Micro)")
+> 
+> gs5 = ggplot(pval.SCZ,aes(x=-log10(CARseq_Oligo),y=-log10(TOAST_Oligo))) +
++   geom_pointdensity(size = 0.6) + scale_color_viridis_c() +
++   labs(x= "-log10(pval CARseq_Oligo)", y= "-log10(pval TOAST_Oligo)")
+> 
+> gs6 = ggplot(pval.SCZ,aes(x=-log10(CARseq_OPC),y=-log10(TOAST_OPC))) +
++   geom_pointdensity(size = 0.6) + scale_color_viridis_c() +
++   labs(x= "-log10(pval CARseq_OPC)", y= "-log10(pval TOAST_OPC)")
+> 
+> pdf(file="../figures/step_x_SCZ_CARseq_vs_TOAST_scatter.pdf", width=13.5, height=7)
+> ggarrange(gs1, gs2, gs3, gs4, gs5, gs6, 
++           ncol = 3, nrow = 2)
+Warning messages:
+1: Removed 10 rows containing non-finite values (stat_pointdensity). 
+2: Removed 10 rows containing non-finite values (stat_pointdensity). 
+3: Removed 10 rows containing non-finite values (stat_pointdensity). 
+4: Removed 10 rows containing non-finite values (stat_pointdensity). 
+5: Removed 10 rows containing non-finite values (stat_pointdensity). 
+6: Removed 10 rows containing non-finite values (stat_pointdensity). 
+> dev.off()
+pdf 
+  2 
+> 
+> 
+> # ----------------------------------------------------------------------
+> # compare p-values between SCZ and ASD
+> # ----------------------------------------------------------------------
+> 
+> dim(pval.SCZ)
+[1] 20788    15
+> pval.SCZ[1:2,]
+           gene_id gene_name CARseq_Astro CARseq_Exc CARseq_Inh CARseq_Micro
+1: ENSG00000000003    TSPAN6    0.1300658          1  1.0000000    0.3194471
+2: ENSG00000000419      DPM1    0.3902564          1  0.8710154    0.3720136
+   CARseq_Oligo CARseq_OPC DESeq2_bulk TOAST_Astro TOAST_Exc TOAST_Inh
+1:    0.1056792  1.0000000   0.5161834   0.3562478 0.6190847 0.5315646
+2:    0.3049213  0.4852172   0.2631114   0.7099771 0.5890104 0.3433181
+   TOAST_Micro TOAST_Oligo TOAST_OPC
+1:   0.1146229  0.69628999 0.5052720
+2:   0.3519124  0.08908203 0.6707108
+> 
+> dim(pval.ASD)
+[1] 19604    15
+> pval.ASD[1:2,]
+              gene_id gene_name CARseq_Astro CARseq_Exc CARseq_Inh CARseq_Micro
+1: ENSG00000000003.10    TSPAN6    0.1255027  0.6046280 0.02933506    0.7002754
+2:  ENSG00000000419.8      DPM1    0.6632756  0.1739825 0.07872326    1.0000000
+   CARseq_Oligo CARseq_OPC  DESeq2_bulk TOAST_Astro TOAST_Exc TOAST_Inh
+1:    0.3585876          1 0.0001603225   0.9589563 0.8811683 0.7498910
+2:    0.4720418          1 0.6959505937   0.6538012 0.7786788 0.8705232
+   TOAST_Micro TOAST_Oligo TOAST_OPC
+1:   0.1313709   0.3853622 0.9883231
+2:   0.9372846   0.7714128 0.7818392
+> 
+> pval.ASD$gene_id = str_extract(pval.ASD$gene_id, "\\S+(?=\\.\\d+)")
+> dim(pval.ASD)
+[1] 19604    15
+> pval.ASD[1:2,]
+           gene_id gene_name CARseq_Astro CARseq_Exc CARseq_Inh CARseq_Micro
+1: ENSG00000000003    TSPAN6    0.1255027  0.6046280 0.02933506    0.7002754
+2: ENSG00000000419      DPM1    0.6632756  0.1739825 0.07872326    1.0000000
+   CARseq_Oligo CARseq_OPC  DESeq2_bulk TOAST_Astro TOAST_Exc TOAST_Inh
+1:    0.3585876          1 0.0001603225   0.9589563 0.8811683 0.7498910
+2:    0.4720418          1 0.6959505937   0.6538012 0.7786788 0.8705232
+   TOAST_Micro TOAST_Oligo TOAST_OPC
+1:   0.1313709   0.3853622 0.9883231
+2:   0.9372846   0.7714128 0.7818392
+> 
+> table(pval.ASD$gene_id %in% pval.SCZ$gene_id)
+
+FALSE  TRUE 
+ 1690 17914 
+> 
+> pvals = merge(pval.SCZ, pval.ASD, by="gene_id", 
++               suffixes = c(".SCZ", ".ASD"))
+> dim(pvals)
+[1] 17914    29
+> pvals[1:2,]
+           gene_id gene_name.SCZ CARseq_Astro.SCZ CARseq_Exc.SCZ CARseq_Inh.SCZ
+1: ENSG00000000003        TSPAN6        0.1300658              1      1.0000000
+2: ENSG00000000419          DPM1        0.3902564              1      0.8710154
+   CARseq_Micro.SCZ CARseq_Oligo.SCZ CARseq_OPC.SCZ DESeq2_bulk.SCZ
+1:        0.3194471        0.1056792      1.0000000       0.5161834
+2:        0.3720136        0.3049213      0.4852172       0.2631114
+   TOAST_Astro.SCZ TOAST_Exc.SCZ TOAST_Inh.SCZ TOAST_Micro.SCZ TOAST_Oligo.SCZ
+1:       0.3562478     0.6190847     0.5315646       0.1146229      0.69628999
+2:       0.7099771     0.5890104     0.3433181       0.3519124      0.08908203
+   TOAST_OPC.SCZ gene_name.ASD CARseq_Astro.ASD CARseq_Exc.ASD CARseq_Inh.ASD
+1:     0.5052720        TSPAN6        0.1255027      0.6046280     0.02933506
+2:     0.6707108          DPM1        0.6632756      0.1739825     0.07872326
+   CARseq_Micro.ASD CARseq_Oligo.ASD CARseq_OPC.ASD DESeq2_bulk.ASD
+1:        0.7002754        0.3585876              1    0.0001603225
+2:        1.0000000        0.4720418              1    0.6959505937
+   TOAST_Astro.ASD TOAST_Exc.ASD TOAST_Inh.ASD TOAST_Micro.ASD TOAST_Oligo.ASD
+1:       0.9589563     0.8811683     0.7498910       0.1313709       0.3853622
+2:       0.6538012     0.7786788     0.8705232       0.9372846       0.7714128
+   TOAST_OPC.ASD
+1:     0.9883231
+2:     0.7818392
+> 
+> names(pvals)
+ [1] "gene_id"          "gene_name.SCZ"    "CARseq_Astro.SCZ" "CARseq_Exc.SCZ"  
+ [5] "CARseq_Inh.SCZ"   "CARseq_Micro.SCZ" "CARseq_Oligo.SCZ" "CARseq_OPC.SCZ"  
+ [9] "DESeq2_bulk.SCZ"  "TOAST_Astro.SCZ"  "TOAST_Exc.SCZ"    "TOAST_Inh.SCZ"   
+[13] "TOAST_Micro.SCZ"  "TOAST_Oligo.SCZ"  "TOAST_OPC.SCZ"    "gene_name.ASD"   
+[17] "CARseq_Astro.ASD" "CARseq_Exc.ASD"   "CARseq_Inh.ASD"   "CARseq_Micro.ASD"
+[21] "CARseq_Oligo.ASD" "CARseq_OPC.ASD"   "DESeq2_bulk.ASD"  "TOAST_Astro.ASD" 
+[25] "TOAST_Exc.ASD"    "TOAST_Inh.ASD"    "TOAST_Micro.ASD"  "TOAST_Oligo.ASD" 
+[29] "TOAST_OPC.ASD"   
+> 
+> 
+> cr1 = cor(-log10(pvals[,3:8]), -log10(pvals[,17:22]), 
++           use="pairwise.complete.obs")
+> cr2 = cor(-log10(pvals[,10:15]), -log10(pvals[,24:29]), 
++           use="pairwise.complete.obs")
+> 
+> rownames(cr1) = gsub("CARseq_", "", rownames(cr1))
+> colnames(cr1) = gsub("CARseq_", "", colnames(cr1))
+> 
+> rownames(cr2) = gsub("TOAST_", "", rownames(cr2))
+> colnames(cr2) = gsub("TOAST_", "", colnames(cr2))
+> 
+> cor.test(-log10(pvals[,CARseq_Astro.SCZ]), 
++          -log10(pvals[,CARseq_Astro.ASD]))
+
+	Pearson's product-moment correlation
+
+data:  -log10(pvals[, CARseq_Astro.SCZ]) and -log10(pvals[, CARseq_Astro.ASD])
+t = 10.836, df = 17847, p-value < 2.2e-16
+alternative hypothesis: true correlation is not equal to 0
+95 percent confidence interval:
+ 0.06625581 0.09540518
+sample estimates:
+       cor 
+0.08084778 
+
+> 
+> cor.test(-log10(pvals[,TOAST_Astro.SCZ]), 
++          -log10(pvals[,TOAST_Astro.ASD]))
+
+	Pearson's product-moment correlation
+
+data:  -log10(pvals[, TOAST_Astro.SCZ]) and -log10(pvals[, TOAST_Astro.ASD])
+t = 3.1299, df = 17912, p-value = 0.001752
+alternative hypothesis: true correlation is not equal to 0
+95 percent confidence interval:
+ 0.008738501 0.038010321
+sample estimates:
+       cor 
+0.02337942 
+
+> 
+> 
+> cor.test(-log10(pvals[,CARseq_Micro.SCZ]), 
++          -log10(pvals[,CARseq_Micro.ASD]))
+
+	Pearson's product-moment correlation
+
+data:  -log10(pvals[, CARseq_Micro.SCZ]) and -log10(pvals[, CARseq_Micro.ASD])
+t = 19.178, df = 17847, p-value < 2.2e-16
+alternative hypothesis: true correlation is not equal to 0
+95 percent confidence interval:
+ 0.1276958 0.1564446
+sample estimates:
+      cor 
+0.1421001 
+
+> 
+> cor.test(-log10(pvals[,TOAST_Micro.SCZ]), 
++          -log10(pvals[,TOAST_Micro.ASD]))
+
+	Pearson's product-moment correlation
+
+data:  -log10(pvals[, TOAST_Micro.SCZ]) and -log10(pvals[, TOAST_Micro.ASD])
+t = 4.0779, df = 17912, p-value = 4.564e-05
+alternative hypothesis: true correlation is not equal to 0
+95 percent confidence interval:
+ 0.01581842 0.04507908
+sample estimates:
+       cor 
+0.03045528 
+
+> 
+> summary(c(cr1))
+    Min.  1st Qu.   Median     Mean  3rd Qu.     Max. 
+-0.08343 -0.01508  0.02227  0.01873  0.05118  0.14210 
+> summary(c(cr2))
+    Min.  1st Qu.   Median     Mean  3rd Qu.     Max. 
+-0.05908 -0.01383  0.01470  0.00650  0.02779  0.04717 
+> 
+> 
+> round(cr1, 2)
+          Astro.ASD Exc.ASD Inh.ASD Micro.ASD Oligo.ASD OPC.ASD
+Astro.SCZ      0.08   -0.02    0.00      0.04      0.05    0.00
+Exc.SCZ       -0.01   -0.02   -0.04      0.00      0.02   -0.01
+Inh.SCZ       -0.04    0.06    0.06     -0.08     -0.03    0.01
+Micro.SCZ      0.05   -0.05   -0.03      0.14      0.03    0.03
+Oligo.SCZ      0.03    0.02    0.02      0.00      0.09    0.02
+OPC.SCZ        0.05    0.06    0.08     -0.04      0.02    0.06
+> rownames(cr1) = gsub(".SCZ", "", rownames(cr1), fixed=TRUE)
+> colnames(cr1) = gsub(".ASD", "", colnames(cr1), fixed=TRUE)
+> 
+> gc1 = ggcorrplot(cr1, lab = TRUE) + 
++   scale_fill_gradient2(low="blue", mid="white", high="red", 
++                        limit=c(-0.2, 0.2))
+Scale for 'fill' is already present. Adding another scale for 'fill', which
+will replace the existing scale.
+> gc1 = annotate_figure(gc1, bottom = text_grob("Schizophrenia"), 
++                       left=text_grob("ASD", rot = 90))
+> 
+> pdf("../figures/step_x_SCZ_vs_ASD_CARseq_cor.pdf", width=4.5, height=4)
+> print(gc1)
+> dev.off()
+pdf 
+  2 
+> 
+> round(cr2, 2)
+          Astro.ASD Exc.ASD Inh.ASD Micro.ASD Oligo.ASD OPC.ASD
+Astro.SCZ      0.02    0.02    0.03     -0.05      0.03   -0.06
+Exc.SCZ        0.05    0.04    0.04     -0.01      0.02    0.00
+Inh.SCZ        0.02    0.00    0.03     -0.02     -0.04   -0.02
+Micro.SCZ     -0.01    0.02    0.01      0.03      0.02    0.00
+Oligo.SCZ      0.02    0.01    0.04      0.01     -0.01   -0.02
+OPC.SCZ        0.03    0.00    0.03     -0.03      0.04   -0.03
+> rownames(cr2) = gsub(".SCZ", "", rownames(cr2), fixed=TRUE)
+> colnames(cr2) = gsub(".ASD", "", colnames(cr2), fixed=TRUE)
+> 
+> gc2 = ggcorrplot(cr2, lab = TRUE) +   
++   scale_fill_gradient2(low="blue", mid="white", high="red", 
++                        limit=c(-0.2, 0.2))
+Scale for 'fill' is already present. Adding another scale for 'fill', which
+will replace the existing scale.
+> gc2 = annotate_figure(gc2, bottom = text_grob("Schizophrenia"), 
++                       left=text_grob("ASD", rot = 90))
+> pdf("../figures/step_x_SCZ_vs_ASD_TOAST_cor.pdf", width=4.5, height=4)
+> print(gc2)
+> dev.off()
+pdf 
+  2 
+> 
+> gs1 = ggplot(pvals,aes(x=-log10(CARseq_Astro.SCZ),y=-log10(CARseq_Astro.ASD))) +
++   geom_pointdensity(size = 0.6) + scale_color_viridis_c() +
++   labs(x= "-log10(pval Astro) for SCZ", y= "-log10(pval Astro) for ASD")
+> 
+> gs2 = ggplot(pvals,aes(x=-log10(CARseq_Exc.SCZ),y=-log10(CARseq_Exc.ASD))) +
++   geom_pointdensity(size = 0.6) + scale_color_viridis_c() +
++   labs(x= "-log10(pval Exc) for SCZ", y= "-log10(pval Exc) for ASD")
+> 
+> gs3 = ggplot(pvals,aes(x=-log10(CARseq_Inh.SCZ),y=-log10(CARseq_Inh.ASD))) +
++   geom_pointdensity(size = 0.6) + scale_color_viridis_c() +
++   labs(x= "-log10(pval Inh) for SCZ", y= "-log10(pval Inh) for ASD")
+> 
+> gs4 = ggplot(pvals,aes(x=-log10(CARseq_Micro.SCZ),y=-log10(CARseq_Micro.ASD))) +
++   geom_pointdensity(size = 0.6) + scale_color_viridis_c() +
++   labs(x= "-log10(pval Micro) for SCZ", y= "-log10(pval Micro) for ASD")
+> 
+> gs5 = ggplot(pvals,aes(x=-log10(CARseq_Oligo.SCZ),y=-log10(CARseq_Oligo.ASD))) +
++   geom_pointdensity(size = 0.6) + scale_color_viridis_c() +
++   labs(x= "-log10(pval Oligo) for SCZ", y= "-log10(pval Oligo) for ASD")
+> 
+> gs6 = ggplot(pvals,aes(x=-log10(CARseq_OPC.SCZ),y=-log10(CARseq_OPC.ASD))) +
++   geom_pointdensity(size = 0.6) + scale_color_viridis_c() +
++   labs(x= "-log10(pval OPC) for SCZ", y= "-log10(pval OPC) for ASD")
+> 
+> pdf(file="../figures/step_x_SCZ_vs_ASD_CARseq_scatter.pdf", width=13.5, height=7)
+> ggarrange(gs1, gs2, gs3, gs4, gs5, gs6, 
++           ncol = 3, nrow = 2)
+Warning messages:
+1: Removed 65 rows containing non-finite values (stat_pointdensity). 
+2: Removed 65 rows containing non-finite values (stat_pointdensity). 
+3: Removed 65 rows containing non-finite values (stat_pointdensity). 
+4: Removed 65 rows containing non-finite values (stat_pointdensity). 
+5: Removed 65 rows containing non-finite values (stat_pointdensity). 
+6: Removed 65 rows containing non-finite values (stat_pointdensity). 
+> dev.off()
+pdf 
+  2 
+> 
+> # ----------------------------------------------------------------------
+> # compare DESeq2 results between ASD and SCZ
+> # ----------------------------------------------------------------------
+> 
+> cor.test(-log10(pvals[,DESeq2_bulk.SCZ]), -log10(pvals[,DESeq2_bulk.ASD]))
+
+	Pearson's product-moment correlation
+
+data:  -log10(pvals[, DESeq2_bulk.SCZ]) and -log10(pvals[, DESeq2_bulk.ASD])
+t = 22.074, df = 17912, p-value < 2.2e-16
+alternative hypothesis: true correlation is not equal to 0
+95 percent confidence interval:
+ 0.1484481 0.1769605
+sample estimates:
+      cor 
+0.1627383 
+
+> 
+> table(pvals[,DESeq2_bulk.SCZ] < 0.05, pvals[,DESeq2_bulk.ASD] < 0.05)
+       
+        FALSE  TRUE
+  FALSE 12715  2342
+  TRUE   2140   717
+> 
+> # ----------------------------------------------------------------------
+> # check effect sizes
+> # ----------------------------------------------------------------------
+> 
+> asd = readRDS("../results/ASD_CARseq_ICeDT_seqSV4.rds")
+> sapply(asd, dim)
+$p
+[1] 19604     6
+
+$padj
+[1] 19604     6
+
+$shrunken_lfc
+[1] 19604     6
+
+$shrunken_lfcSE
+[1] 19604     6
+
+$shrunken_coefficients
+[1] 19604    28
+
+$shrunken_coefficientsSE
+[1] 19604    28
+
+$lfc
+[1] 19604     6
+
+$lfcSE
+[1] 19604     6
+
+$coefficients
+[1] 19604    22
+
+$coefficientsSE
+[1] 19604    22
+
+$overdispersion
+[1] 19604     1
+
+$lambda
+NULL
+
+$elapsed_time
+NULL
+
+> 
+> scz = readRDS("../results/SCZ_CARseq_ICeDT_SV2.rds")
+> sapply(scz, dim)
+$p
+[1] 20788     6
+
+$padj
+[1] 20788     6
+
+$shrunken_lfc
+[1] 20788     6
+
+$shrunken_lfcSE
+[1] 20788     6
+
+$shrunken_coefficients
+[1] 20788    37
+
+$shrunken_coefficientsSE
+[1] 20788    37
+
+$lfc
+[1] 20788     6
+
+$lfcSE
+[1] 20788     6
+
+$coefficients
+[1] 20788    31
+
+$coefficientsSE
+[1] 20788    31
+
+$overdispersion
+[1] 20788     1
+
+$lambda
+NULL
+
+$elapsed_time
+NULL
+
+> 
+> asd$shrunken_lfc[1:2,]
+     ASD_vs_Control:Astro ASD_vs_Control:Exc ASD_vs_Control:Inh
+[1,]           -0.3270118         0.02305324           1.325107
+[2,]           -0.5386447        -0.15301837           1.203269
+     ASD_vs_Control:Micro ASD_vs_Control:Oligo ASD_vs_Control:OPC
+[1,]          -0.05928163            0.5148784       0.0009376658
+[2,]           0.07411458            0.4043392      -0.0003816027
+> scz$shrunken_lfc[1:2,]
+                SCZ_vs_Control:Astro SCZ_vs_Control:Exc SCZ_vs_Control:Inh
+ENSG00000000003           -0.1579132       -0.002732276       0.0001091043
+ENSG00000000419           -0.1412473        0.008352195       0.2133330670
+                SCZ_vs_Control:Micro SCZ_vs_Control:Oligo SCZ_vs_Control:OPC
+ENSG00000000003            0.4612410            0.6124580       8.993219e-06
+ENSG00000000419            0.3981122           -0.2954299       3.886719e-01
+> 
+> asd$p[1:2,]
+         Astro       Exc        Inh     Micro     Oligo OPC
+[1,] 0.1255027 0.6046280 0.02933506 0.7002754 0.3585876   1
+[2,] 0.6632756 0.1739825 0.07872326 1.0000000 0.4720418   1
+> pval.ASD[1:2,]
+           gene_id gene_name CARseq_Astro CARseq_Exc CARseq_Inh CARseq_Micro
+1: ENSG00000000003    TSPAN6    0.1255027  0.6046280 0.02933506    0.7002754
+2: ENSG00000000419      DPM1    0.6632756  0.1739825 0.07872326    1.0000000
+   CARseq_Oligo CARseq_OPC  DESeq2_bulk TOAST_Astro TOAST_Exc TOAST_Inh
+1:    0.3585876          1 0.0001603225   0.9589563 0.8811683 0.7498910
+2:    0.4720418          1 0.6959505937   0.6538012 0.7786788 0.8705232
+   TOAST_Micro TOAST_Oligo TOAST_OPC
+1:   0.1313709   0.3853622 0.9883231
+2:   0.9372846   0.7714128 0.7818392
+> 
+> summary(asd$p[,1] - pval.ASD$CARseq_Astro)
+   Min. 1st Qu.  Median    Mean 3rd Qu.    Max.    NA's 
+      0       0       0       0       0       0      84 
+> 
+> asd.lfc = asd$shrunken_lfc
+> rownames(asd.lfc) = pval.ASD$gene_id
+> 
+> scz.lfc = scz$shrunken_lfc
+> 
+> gene.ids = intersect(rownames(asd.lfc), rownames(scz.lfc))
+> length(gene.ids)
+[1] 17914
+> 
+> df1 = data.frame(cbind(asd.lfc[match(gene.ids, rownames(asd.lfc)),],
++                        scz.lfc[match(gene.ids, rownames(scz.lfc)),]))
+> dim(df1)
+[1] 17914    12
+> df1[1:2,]
+                ASD_vs_Control.Astro ASD_vs_Control.Exc ASD_vs_Control.Inh
+ENSG00000000003           -0.3270118         0.02305324           1.325107
+ENSG00000000419           -0.5386447        -0.15301837           1.203269
+                ASD_vs_Control.Micro ASD_vs_Control.Oligo ASD_vs_Control.OPC
+ENSG00000000003          -0.05928163            0.5148784       0.0009376658
+ENSG00000000419           0.07411458            0.4043392      -0.0003816027
+                SCZ_vs_Control.Astro SCZ_vs_Control.Exc SCZ_vs_Control.Inh
+ENSG00000000003           -0.1579132       -0.002732276       0.0001091043
+ENSG00000000419           -0.1412473        0.008352195       0.2133330670
+                SCZ_vs_Control.Micro SCZ_vs_Control.Oligo SCZ_vs_Control.OPC
+ENSG00000000003            0.4612410            0.6124580       8.993219e-06
+ENSG00000000419            0.3981122           -0.2954299       3.886719e-01
+> 
+> cr1 = cor(df1[,1:6], df1[7:12], use="pairwise.complete.obs")
+> round(cr1,3)
+                     SCZ_vs_Control.Astro SCZ_vs_Control.Exc SCZ_vs_Control.Inh
+ASD_vs_Control.Astro                0.103             -0.052             -0.011
+ASD_vs_Control.Exc                  0.006              0.017              0.059
+ASD_vs_Control.Inh                 -0.086              0.044              0.018
+ASD_vs_Control.Micro               -0.024              0.058             -0.003
+ASD_vs_Control.Oligo               -0.088              0.078             -0.017
+ASD_vs_Control.OPC                  0.039             -0.017             -0.086
+                     SCZ_vs_Control.Micro SCZ_vs_Control.Oligo
+ASD_vs_Control.Astro               -0.038                0.057
+ASD_vs_Control.Exc                 -0.002               -0.037
+ASD_vs_Control.Inh                  0.004                0.027
+ASD_vs_Control.Micro                0.098               -0.015
+ASD_vs_Control.Oligo                0.058               -0.076
+ASD_vs_Control.OPC                 -0.042                0.035
+                     SCZ_vs_Control.OPC
+ASD_vs_Control.Astro             -0.097
+ASD_vs_Control.Exc               -0.013
+ASD_vs_Control.Inh                0.038
+ASD_vs_Control.Micro             -0.026
+ASD_vs_Control.Oligo              0.078
+ASD_vs_Control.OPC                0.047
+> 
+> gs1 = ggplot(df1,aes(x=SCZ_vs_Control.Astro,y=ASD_vs_Control.Astro)) +
++   geom_pointdensity(size = 0.6) + scale_color_viridis_c() +
++   labs(x= "lfc Astro for SCZ", y= "lfc Astro for ASD")
+> 
+> gs2 = ggplot(df1,aes(x=SCZ_vs_Control.Exc,y=ASD_vs_Control.Exc)) +
++   geom_pointdensity(size = 0.6) + scale_color_viridis_c() +
++   labs(x= "lfc Exc for SCZ", y= "lfc Exc for ASD")
+> 
+> gs3 = ggplot(df1,aes(x=SCZ_vs_Control.Inh,y=ASD_vs_Control.Inh)) +
++   geom_pointdensity(size = 0.6) + scale_color_viridis_c() +
++   labs(x= "lfc Inh for SCZ", y= "lfc Inh for ASD")
+> 
+> gs4 = ggplot(df1,aes(x=SCZ_vs_Control.Micro,y=ASD_vs_Control.Micro)) +
++   geom_pointdensity(size = 0.6) + scale_color_viridis_c() +
++   labs(x= "lfc Micro for SCZ", y= "lfc Micro for ASD")
+> 
+> gs5 = ggplot(df1,aes(x=SCZ_vs_Control.Oligo,y=ASD_vs_Control.Oligo)) +
++   geom_pointdensity(size = 0.6) + scale_color_viridis_c() +
++   labs(x= "lfc Oligo for SCZ", y= "lfc Oligo for ASD")
+> 
+> gs6 = ggplot(df1,aes(x=SCZ_vs_Control.OPC,y=ASD_vs_Control.OPC)) +
++   geom_pointdensity(size = 0.6) + scale_color_viridis_c() +
++   labs(x= "lfc OPC for SCZ", y= "lfc OPC for ASD")
+> 
+> pdf(file="../figures/step_x_SCZ_vs_ASD_CARseq_lfc.pdf", width=13.5, height=7)
+> ggarrange(gs1, gs2, gs3, gs4, gs5, gs6, 
++           ncol = 3, nrow = 2)
+Warning messages:
+1: Removed 61 rows containing non-finite values (stat_pointdensity). 
+2: Removed 61 rows containing non-finite values (stat_pointdensity). 
+3: Removed 61 rows containing non-finite values (stat_pointdensity). 
+4: Removed 61 rows containing non-finite values (stat_pointdensity). 
+5: Removed 61 rows containing non-finite values (stat_pointdensity). 
+6: Removed 61 rows containing non-finite values (stat_pointdensity). 
+> dev.off()
+pdf 
+  2 
+> 
+> # ----------------------------------------------------------------------
+> # check genes DE in both SCZ and ASD for Mcri
+> # ----------------------------------------------------------------------
+> 
+> table(pvals[,CARseq_Micro.SCZ] < 0.05, pvals[,CARseq_Micro.ASD] < 0.05)
+       
+        FALSE  TRUE
+  FALSE 15885   290
+  TRUE   1609    65
+> c1 = chisq.test(pvals[,CARseq_Micro.SCZ] < 0.05, pvals[,CARseq_Micro.ASD] < 0.05)
+> c1
+
+	Pearson's Chi-squared test with Yates' continuity correction
+
+data:  pvals[, CARseq_Micro.SCZ] < 0.05 and pvals[, CARseq_Micro.ASD] < 0.05
+X-squared = 32.93, df = 1, p-value = 9.554e-09
+
+> c1$expected
+       
+            FALSE     TRUE
+  FALSE 15853.294 321.7057
+  TRUE   1640.706  33.2943
+> 
+> table(pvals[,CARseq_Micro.SCZ] < 0.01, pvals[,CARseq_Micro.ASD] < 0.01)
+       
+        FALSE  TRUE
+  FALSE 17145    75
+  TRUE    622     7
+> c1 = chisq.test(pvals[,CARseq_Micro.SCZ] < 0.01, pvals[,CARseq_Micro.ASD] < 0.01)
+Warning message:
+In chisq.test(pvals[, CARseq_Micro.SCZ] < 0.01, pvals[, CARseq_Micro.ASD] <  :
+  Chi-squared approximation may be incorrect
+> c1
+
+	Pearson's Chi-squared test with Yates' continuity correction
+
+data:  pvals[, CARseq_Micro.SCZ] < 0.01 and pvals[, CARseq_Micro.ASD] < 0.01
+X-squared = 4.697, df = 1, p-value = 0.03022
+
+> c1$expected
+       
+             FALSE      TRUE
+  FALSE 17140.8897 79.110314
+  TRUE    626.1103  2.889686
+> 
+> df2 = cbind(pvals, df1)
+> select_cols = c("gene_id", "gene_name.SCZ", "CARseq_Micro.SCZ", "CARseq_Micro.ASD", 
++                 "SCZ_vs_Control.Micro", "ASD_vs_Control.Micro")
+> 
+> df3 = df2[CARseq_Micro.SCZ < 0.01 & CARseq_Micro.ASD < 0.01, ..select_cols]
+> df3[order(SCZ_vs_Control.Micro, ASD_vs_Control.Micro)]
+           gene_id gene_name.SCZ CARseq_Micro.SCZ CARseq_Micro.ASD
+1: ENSG00000078401          EDN1     1.759554e-03     0.0074510664
+2: ENSG00000142910       TINAGL1     8.088513e-03     0.0026985580
+3: ENSG00000105640        RPL18A     2.247533e-03     0.0007900581
+4: ENSG00000118785          SPP1     8.207066e-06     0.0024748865
+5: ENSG00000133048        CHI3L1     1.867687e-05     0.0097641574
+6: ENSG00000026508          CD44     1.823359e-05     0.0061291113
+7: ENSG00000250155 CTD-2353F22.1     6.126497e-04     0.0014012206
+   SCZ_vs_Control.Micro ASD_vs_Control.Micro
+1:           -1.4117829            -1.794445
+2:           -0.9445616            -2.202694
+3:           -0.6631483            -1.705663
+4:            0.5153606             1.099542
+5:            0.7939648             1.140324
+6:            0.8114200             1.658110
+7:            1.7102987             1.587194
+> 
+> df4 = df2[CARseq_Micro.SCZ < 0.05 & CARseq_Micro.ASD < 0.05, ..select_cols]
+> df4 = df4[order(SCZ_vs_Control.Micro, ASD_vs_Control.Micro)]
+> 
+> dim(df4)
+[1] 65  6
+> df4[1:2,]
+           gene_id gene_name.SCZ CARseq_Micro.SCZ CARseq_Micro.ASD
+1: ENSG00000187984      ANKRD19P      0.000200257       0.03946490
+2: ENSG00000225975    AC074138.3      0.009821504       0.01847676
+   SCZ_vs_Control.Micro ASD_vs_Control.Micro
+1:            -1.948210        -0.0007671127
+2:            -1.608837        -0.0011311357
+> names(df4)[2] = "gene_name"
+> 
+> fwrite(df4, "../results/DEG_Micro_in_both_SCZ_ASD.csv")
+> 
+> # ----------------------------------------------------------------------
+> # check genes DE in both SCZ and ASD for Olig
+> # ----------------------------------------------------------------------
+> 
+> table(pvals[,CARseq_Oligo.SCZ] < 0.05, pvals[,CARseq_Oligo.ASD] < 0.05)
+       
+        FALSE  TRUE
+  FALSE 14819   491
+  TRUE   2415   124
+> c1 = chisq.test(pvals[,CARseq_Oligo.SCZ] < 0.05, pvals[,CARseq_Oligo.ASD] < 0.05)
+> c1
+
+	Pearson's Chi-squared test with Yates' continuity correction
+
+data:  pvals[, CARseq_Oligo.SCZ] < 0.05 and pvals[, CARseq_Oligo.ASD] < 0.05
+X-squared = 17.904, df = 1, p-value = 2.323e-05
+
+> c1$expected
+       
+            FALSE      TRUE
+  FALSE 14782.483 527.51695
+  TRUE   2451.517  87.48305
+> 
+> table(pvals[,CARseq_Oligo.SCZ] < 0.02, pvals[,CARseq_Oligo.ASD] < 0.02)
+       
+        FALSE  TRUE
+  FALSE 16177   197
+  TRUE   1445    30
+> c1 = chisq.test(pvals[,CARseq_Oligo.SCZ] < 0.02, pvals[,CARseq_Oligo.ASD] < 0.02)
+> c1
+
+	Pearson's Chi-squared test with Yates' continuity correction
+
+data:  pvals[, CARseq_Oligo.SCZ] < 0.02 and pvals[, CARseq_Oligo.ASD] < 0.02
+X-squared = 6.7908, df = 1, p-value = 0.009163
+
+> c1$expected
+       
+            FALSE      TRUE
+  FALSE 16165.759 208.24125
+  TRUE   1456.241  18.75875
+> 
+> table(pvals[,CARseq_Oligo.SCZ] < 0.03, pvals[,CARseq_Oligo.ASD] < 0.03)
+       
+        FALSE  TRUE
+  FALSE 15662   295
+  TRUE   1836    56
+> c1 = chisq.test(pvals[,CARseq_Oligo.SCZ] < 0.03, pvals[,CARseq_Oligo.ASD] < 0.03)
+> c1
+
+	Pearson's Chi-squared test with Yates' continuity correction
+
+data:  pvals[, CARseq_Oligo.SCZ] < 0.03 and pvals[, CARseq_Oligo.ASD] < 0.03
+X-squared = 10.263, df = 1, p-value = 0.001357
+
+> c1$expected
+       
+            FALSE      TRUE
+  FALSE 15643.206 313.79388
+  TRUE   1854.794  37.20612
+> 
+> 
+> df2 = cbind(pvals, df1)
+> select_cols = c("gene_id", "gene_name.SCZ", "CARseq_Oligo.SCZ", "CARseq_Oligo.ASD", 
++                 "SCZ_vs_Control.Oligo", "ASD_vs_Control.Oligo")
+> 
+> df3 = df2[CARseq_Oligo.SCZ < 0.02 & CARseq_Oligo.ASD < 0.02, ..select_cols]
+> df3[order(SCZ_vs_Control.Oligo, ASD_vs_Control.Oligo)]
+            gene_id gene_name.SCZ CARseq_Oligo.SCZ CARseq_Oligo.ASD
+ 1: ENSG00000176407         KCMF1     6.270823e-03      0.009789880
+ 2: ENSG00000127328        RAB3IP     1.367291e-06      0.011017582
+ 3: ENSG00000147883        CDKN2B     1.144846e-02      0.004169388
+ 4: ENSG00000186298        PPP1CC     3.764839e-03      0.005779306
+ 5: ENSG00000056097           ZFR     2.154437e-04      0.011619490
+ 6: ENSG00000107949         BCCIP     9.687793e-03      0.012587497
+ 7: ENSG00000126804         ZBTB1     1.853490e-02      0.004181821
+ 8: ENSG00000072210       ALDH3A2     1.901217e-02      0.006717512
+ 9: ENSG00000170903       MSANTD4     1.187618e-02      0.014669875
+10: ENSG00000176386         CDC26     3.757639e-03      0.016644134
+11: ENSG00000112031        MTRF1L     9.052463e-03      0.008030307
+12: ENSG00000188529        SRSF10     7.868482e-03      0.008720549
+13: ENSG00000184432         COPB2     2.009743e-03      0.009236797
+14: ENSG00000234545       FAM133B     1.984563e-02      0.004873292
+15: ENSG00000123505          AMD1     1.506679e-04      0.013340410
+16: ENSG00000188706        ZDHHC9     1.869108e-02      0.013807047
+17: ENSG00000162949        CAPN13     5.581615e-03      0.012144515
+18: ENSG00000179455         MKRN3     1.978575e-02      0.004344688
+19: ENSG00000243083 RP11-433A10.1     1.002570e-02      0.010102193
+20: ENSG00000084733         RAB10     1.732909e-02      0.002688179
+21: ENSG00000177830         CHID1     1.704774e-02      0.016855770
+22: ENSG00000204228       HSD17B8     4.325971e-03      0.015031331
+23: ENSG00000108641          B9D1     7.159134e-03      0.009412786
+24: ENSG00000105426         PTPRS     8.687604e-03      0.012599729
+25: ENSG00000146090      RASGEF1C     5.328639e-03      0.007202332
+26: ENSG00000173950        XXYLT1     1.968363e-02      0.011196722
+27: ENSG00000102931        ARL2BP     2.735817e-03      0.001377600
+28: ENSG00000185090        MANEAL     1.892898e-02      0.014253198
+29: ENSG00000138777          PPA2     7.406544e-03      0.015251370
+30: ENSG00000256060     TRAPPC2P1     3.730492e-03      0.015778271
+            gene_id gene_name.SCZ CARseq_Oligo.SCZ CARseq_Oligo.ASD
+    SCZ_vs_Control.Oligo ASD_vs_Control.Oligo
+ 1:           -1.3552361           1.17406345
+ 2:           -1.3314067           0.70108165
+ 3:           -1.1889008           1.83424975
+ 4:           -1.1831797           0.82090192
+ 5:           -1.1552133           0.91604504
+ 6:           -1.0186819           1.43262376
+ 7:           -0.8806433           1.38980606
+ 8:           -0.7930630           0.95606208
+ 9:           -0.7529565           0.81304431
+10:           -0.7431742           1.26051780
+11:           -0.6768079           0.96800471
+12:           -0.6548236           0.77568394
+13:           -0.5085067           0.70223531
+14:           -0.4885597           0.93601478
+15:           -0.3667467           0.39497821
+16:           -0.1016767          -0.16595861
+17:            0.1539728          -0.28168393
+18:            0.1709038          -0.48289176
+19:            0.2191164          -0.44399980
+20:            0.3264595           0.69178362
+21:            0.6027237          -0.97730481
+22:            0.7206041          -1.72537330
+23:            0.7809680          -1.55110400
+24:            0.7834544          -1.44182818
+25:            0.8380756          -0.01026259
+26:            0.8910935          -1.76301308
+27:            0.8983826           0.97581269
+28:            0.9402281          -1.49307127
+29:            0.9833718           0.81147628
+30:            1.4485859           1.58380038
+    SCZ_vs_Control.Oligo ASD_vs_Control.Oligo
+> 
+> df4 = df2[CARseq_Oligo.SCZ < 0.05 & CARseq_Oligo.ASD < 0.05, ..select_cols]
+> df4 = df4[order(SCZ_vs_Control.Oligo, ASD_vs_Control.Oligo)]
+> 
+> dim(df4)
+[1] 124   6
+> df4[1:2,]
+           gene_id gene_name.SCZ CARseq_Oligo.SCZ CARseq_Oligo.ASD
+1: ENSG00000119138          KLF9      0.001564505       0.02270210
+2: ENSG00000227741  RP11-536C5.7      0.030848182       0.02908754
+   SCZ_vs_Control.Oligo ASD_vs_Control.Oligo
+1:            -1.626352             1.463081
+2:            -1.535107            -1.345119
+> names(df4)[2] = "gene_name"
+> 
+> fwrite(df4, "../results/DEG_Oligo_in_both_SCZ_ASD.csv")
+> 
+> gc()
+           used (Mb) gc trigger  (Mb) max used  (Mb)
+Ncells   880664 47.1    1862008  99.5  1862008  99.5
+Vcells 11643447 88.9   21467213 163.8 17815653 136.0
+> 
+> sessionInfo()
+R version 3.6.1 (2019-07-05)
+Platform: x86_64-pc-linux-gnu (64-bit)
+Running under: Ubuntu 18.04.3 LTS
+
+Matrix products: default
+BLAS/LAPACK: /opt/intel/compilers_and_libraries_2018.2.199/linux/mkl/lib/intel64_lin/libmkl_rt.so
+
+locale:
+ [1] LC_CTYPE=en_US.UTF-8       LC_NUMERIC=C              
+ [3] LC_TIME=en_US.UTF-8        LC_COLLATE=en_US.UTF-8    
+ [5] LC_MONETARY=en_US.UTF-8    LC_MESSAGES=en_US.UTF-8   
+ [7] LC_PAPER=en_US.UTF-8       LC_NAME=C                 
+ [9] LC_ADDRESS=C               LC_TELEPHONE=C            
+[11] LC_MEASUREMENT=en_US.UTF-8 LC_IDENTIFICATION=C       
+
+attached base packages:
+[1] stats     graphics  grDevices utils     datasets  methods   base     
+
+other attached packages:
+[1] ggcorrplot_0.1.3     ggpointdensity_0.1.0 ggpubr_0.2.4        
+[4] magrittr_1.5         ggplot2_3.3.1        stringr_1.4.0       
+[7] data.table_1.12.2   
+
+loaded via a namespace (and not attached):
+ [1] Rcpp_1.0.2        cowplot_1.0.0     tidyselect_0.2.5  munsell_0.5.0    
+ [5] viridisLite_0.3.0 colorspace_1.4-1  R6_2.4.0          rlang_0.4.0      
+ [9] plyr_1.8.4        dplyr_0.8.3       tools_3.6.1       grid_3.6.1       
+[13] gtable_0.3.0      withr_2.1.2       digest_0.6.21     assertthat_0.2.1 
+[17] tibble_2.1.3      ggsignif_0.6.0    crayon_1.3.4      gridExtra_2.3    
+[21] reshape2_1.4.3    purrr_0.3.3       glue_1.3.1        labeling_0.3     
+[25] stringi_1.4.3     compiler_3.6.1    pillar_1.4.2      scales_1.0.0     
+[29] pkgconfig_2.0.2  
+> q(save="no")
+> proc.time()
+   user  system elapsed 
+ 15.311   0.154  14.740 

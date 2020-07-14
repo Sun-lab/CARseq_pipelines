@@ -1,0 +1,719 @@
+WARNING: unknown option '--no--save'
+
+
+R version 3.6.1 (2019-07-05) -- "Action of the Toes"
+Copyright (C) 2019 The R Foundation for Statistical Computing
+Platform: x86_64-pc-linux-gnu (64-bit)
+
+R is free software and comes with ABSOLUTELY NO WARRANTY.
+You are welcome to redistribute it under certain conditions.
+Type 'license()' or 'licence()' for distribution details.
+
+  Natural language support but running in an English locale
+
+R is a collaborative project with many contributors.
+Type 'contributors()' for more information and
+'citation()' on how to cite R or R packages in publications.
+
+Type 'demo()' for some demos, 'help()' for on-line help, or
+'help.start()' for an HTML browser interface to help.
+Type 'q()' to quit R.
+
+> 
+> # compare the results of DESeq2 with or without cell type proportion 
+> # (log ratios) as covaraites
+> 
+> library(data.table)
+> library(ggplot2)
+> library(ggpubr)
+Loading required package: magrittr
+> library(ggpointdensity)
+> library(CARseq)
+> library(DESeq2)
+Loading required package: S4Vectors
+Loading required package: stats4
+Loading required package: BiocGenerics
+Loading required package: parallel
+
+Attaching package: ‘BiocGenerics’
+
+The following objects are masked from ‘package:parallel’:
+
+    clusterApply, clusterApplyLB, clusterCall, clusterEvalQ,
+    clusterExport, clusterMap, parApply, parCapply, parLapply,
+    parLapplyLB, parRapply, parSapply, parSapplyLB
+
+The following objects are masked from ‘package:stats’:
+
+    IQR, mad, sd, var, xtabs
+
+The following objects are masked from ‘package:base’:
+
+    anyDuplicated, append, as.data.frame, basename, cbind, colnames,
+    dirname, do.call, duplicated, eval, evalq, Filter, Find, get, grep,
+    grepl, intersect, is.unsorted, lapply, Map, mapply, match, mget,
+    order, paste, pmax, pmax.int, pmin, pmin.int, Position, rank,
+    rbind, Reduce, rownames, sapply, setdiff, sort, table, tapply,
+    union, unique, unsplit, which, which.max, which.min
+
+
+Attaching package: ‘S4Vectors’
+
+The following objects are masked from ‘package:data.table’:
+
+    first, second
+
+The following object is masked from ‘package:base’:
+
+    expand.grid
+
+Loading required package: IRanges
+
+Attaching package: ‘IRanges’
+
+The following object is masked from ‘package:data.table’:
+
+    shift
+
+Loading required package: GenomicRanges
+Loading required package: GenomeInfoDb
+Loading required package: SummarizedExperiment
+Loading required package: Biobase
+Welcome to Bioconductor
+
+    Vignettes contain introductory material; view with
+    'browseVignettes()'. To cite Bioconductor, see
+    'citation("Biobase")', and for packages 'citation("pkgname")'.
+
+Loading required package: DelayedArray
+Loading required package: matrixStats
+
+Attaching package: ‘matrixStats’
+
+The following objects are masked from ‘package:Biobase’:
+
+    anyMissing, rowMedians
+
+Loading required package: BiocParallel
+
+Attaching package: ‘DelayedArray’
+
+The following objects are masked from ‘package:matrixStats’:
+
+    colMaxs, colMins, colRanges, rowMaxs, rowMins, rowRanges
+
+The following objects are masked from ‘package:base’:
+
+    aperm, apply, rowsum
+
+> theme_set(theme_classic2())
+> 
+> # -------------------------------------------------------------------------
+> # compare DESeq2 analysis results
+> # -------------------------------------------------------------------------
+> 
+> res1 = fread("../results/SCZ_step1_DESeq2_bulk_adj_covariates_SV2.txt")
+Warning message:
+In fread("../results/SCZ_step1_DESeq2_bulk_adj_covariates_SV2.txt") :
+  Detected 6 column names but the data has 7 columns (i.e. invalid file). Added 1 extra default column name for the first column which is guessed to be row names or an index. Use setnames() afterwards if this guess is not correct, or fix the file write command that created the file to create a valid file.
+> 
+> dim(res1)
+[1] 20788     7
+> res1[1:2,]
+                V1 baseMean log2FoldChange      lfcSE       stat    pvalue
+1: ENSG00000000003 209.0406    -0.02052869 0.03161959 -0.6492398 0.5161834
+2: ENSG00000000419 662.0138    -0.02134647 0.01907524 -1.1190673 0.2631114
+        padj
+1: 0.8236430
+2: 0.6403888
+> 
+> res2 = fread("../results/SCZ_step1_DESeq2_bulk_adj_covariates_SV2_log_ct_fractions.txt")
+Warning message:
+In fread("../results/SCZ_step1_DESeq2_bulk_adj_covariates_SV2_log_ct_fractions.txt") :
+  Detected 6 column names but the data has 7 columns (i.e. invalid file). Added 1 extra default column name for the first column which is guessed to be row names or an index. Use setnames() afterwards if this guess is not correct, or fix the file write command that created the file to create a valid file.
+> 
+> dim(res2)
+[1] 20788     7
+> res2[1:2,]
+                V1 baseMean log2FoldChange      lfcSE       stat    pvalue
+1: ENSG00000000003 209.0406    0.011718031 0.02706004  0.4330382 0.6649870
+2: ENSG00000000419 662.0138   -0.009463919 0.01925412 -0.4915271 0.6230537
+        padj
+1: 0.8713649
+2: 0.8485489
+> 
+> res1$qvalue = get_qvalues_one_inflated(res1$pvalue)
+> res2$qvalue = get_qvalues_one_inflated(res2$pvalue)
+> 
+> table(res1$V1 == res2$V1)
+
+ TRUE 
+20788 
+> 
+> sort(res1$pvalue)[1:5]
+[1] 3.123275e-17 9.837662e-11 1.318178e-10 3.929626e-10 1.761739e-09
+> sort(res2$pvalue)[1:5]
+[1] 4.482427e-16 1.125298e-09 1.780475e-09 4.271836e-09 2.167387e-08
+> 
+> sort(res1$qvalue)[1:5]
+[1] 5.022851e-13 7.066313e-07 7.066313e-07 1.579906e-06 5.666457e-06
+> sort(res2$qvalue)[1:5]
+[1] 6.661784e-12 8.362087e-06 8.820473e-06 1.587201e-05 5.037585e-05
+> 
+> summary(res1$pvalue)
+   Min. 1st Qu.  Median    Mean 3rd Qu.    Max. 
+ 0.0000  0.1158  0.3587  0.4049  0.6714  0.9998 
+> summary(res2$pvalue)
+   Min. 1st Qu.  Median    Mean 3rd Qu.    Max. 
+0.00000 0.09273 0.32512 0.38320 0.64539 0.99995 
+> 
+> summary(res1$qvalue)
+   Min. 1st Qu.  Median    Mean 3rd Qu.    Max. 
+ 0.0000  0.3582  0.5549  0.5080  0.6926  0.7734 
+> summary(res2$qvalue)
+   Min. 1st Qu.  Median    Mean 3rd Qu.    Max. 
+ 0.0000  0.2650  0.4649  0.4297  0.6152  0.7149 
+> 
+> res.df = merge(res1, res2, by="V1", suffixes = c(".noCT", ".wCT"))
+> dim(res.df)
+[1] 20788    15
+> res.df[1:2,]
+                V1 baseMean.noCT log2FoldChange.noCT lfcSE.noCT  stat.noCT
+1: ENSG00000000003      209.0406         -0.02052869 0.03161959 -0.6492398
+2: ENSG00000000419      662.0138         -0.02134647 0.01907524 -1.1190673
+   pvalue.noCT padj.noCT qvalue.noCT baseMean.wCT log2FoldChange.wCT  lfcSE.wCT
+1:   0.5161834 0.8236430   0.6371862     209.0406        0.011718031 0.02706004
+2:   0.2631114 0.6403888   0.4954172     662.0138       -0.009463919 0.01925412
+     stat.wCT pvalue.wCT  padj.wCT qvalue.wCT
+1:  0.4330382  0.6649870 0.8713649  0.6229664
+2: -0.4915271  0.6230537 0.8485489  0.6066545
+> 
+> table(res.df$qvalue.noCT < 0.1)
+
+FALSE  TRUE 
+19779  1009 
+> table(res.df$qvalue.wCT  < 0.1)
+
+FALSE  TRUE 
+18900  1888 
+> 
+> table(res.df$qvalue.noCT < 0.05, res.df$qvalue.wCT < 0.05)
+       
+        FALSE  TRUE
+  FALSE 19778   540
+  TRUE     87   383
+> table(res.df$qvalue.noCT < 0.1, res.df$qvalue.wCT  < 0.1)
+       
+        FALSE  TRUE
+  FALSE 18701  1078
+  TRUE    199   810
+> 
+> cut1 = 1e-7
+> res.df$qvalue.noCT[which(res.df$qvalue.noCT < cut1)] = cut1
+> res.df$qvalue.wCT[which(res.df$qvalue.wCT < cut1)]   = cut1
+> 
+> g1 = ggplot(res.df, aes(x=-log10(qvalue.noCT),y=-log10(qvalue.wCT))) +
++   geom_pointdensity(size = 0.6) + scale_color_viridis_c() +
++   labs(x= "-log10(qvalue no CT adj.)", y= "-log10(qvalue with CT adj.)", 
++        title="SCZ vs. control") + xlim(0, 7) + ylim(0, 7) + 
++   geom_abline(intercept = 0, slope=1)
+> 
+> summary(res.df$log2FoldChange.noCT)
+     Min.   1st Qu.    Median      Mean   3rd Qu.      Max. 
+-0.703856 -0.024649  0.001819  0.004682  0.029587  1.668717 
+> summary(res.df$log2FoldChange.wCT)
+      Min.    1st Qu.     Median       Mean    3rd Qu.       Max. 
+-0.8041622 -0.0255862  0.0009601  0.0028864  0.0285890  1.5599015 
+> 
+> g2 = ggplot(res.df, aes(x=log2FoldChange.noCT,
++                         y=log2FoldChange.wCT)) +
++   geom_pointdensity(size = 0.6) + scale_color_viridis_c() +
++   labs(x= "log2 fc, no CT adj.", y= "log2 fc, with CT adj.)", 
++        title="SCZ vs. control") + 
++   geom_abline(intercept = 0, slope=1)
+> 
+> pdf("../figures/SCZ_DESeq2_comparison_log10pval.pdf", width=4, height=3.2)
+> print(g1)
+> dev.off()
+null device 
+          1 
+> 
+> pdf("../figures/SCZ_DESeq2_comparison_log2fc.pdf", width=4, height=3.2)
+> print(g2)
+> dev.off()
+null device 
+          1 
+> 
+> # read files copied from "CARseq_pipelines" repository
+> trec = readRDS("../data/trec_filtered_scz_control.rds")
+> clinical_variables_raw = readRDS("../data/dat_cavariates_scz_control_with_svs.rds")
+> 
+> # for code compatibility:
+> col_data = as.data.frame(clinical_variables_raw)
+> col_data$Dx = ifelse(col_data$DxSCZ == 1, "SCZ", "Control")
+> col_data$RNAseq.Sample_RNA_ID = colnames(trec)
+> col_data$Diagnosis = col_data$Dx
+> 
+> # rescale age_death, PMI, RIN, RIN^2, log_depth
+> col_data$scaled_age_death = scale(col_data$age_death)
+> col_data$scaled_log_depth = scale(col_data$log_depth)
+> col_data$scaled_PMI = scale(col_data$PMI)
+> col_data$scaled_RIN = scale(col_data$RIN)
+> col_data$scaled_RIN2 = scale(col_data$RIN2)
+> 
+> # rescale PCs and SVs -- the names are still sv1, sv2, etc, but they have been scaled:
+> covariates_to_scale = grep("sv|PC", colnames(col_data))
+> for (m in covariates_to_scale) {
++   col_data[, m] = scale(col_data[, m])
++ }
+> 
+> # permuted disease label
+> set.seed(1234)
+> col_data$Diagnosis = col_data$Dx
+> col_data$DiagnosisP = CARseq:::permute_case_and_controls(col_data$Diagnosis)
+> table(col_data$Diagnosis, col_data$DiagnosisP)
+         
+          Control SCZ
+  Control     146 131
+  SCZ         131 119
+> 
+> # load gene annotation:
+> rse_filtered = readRDS("../data/rse_filtered_SV.rds")
+> 
+> # cellular proportions
+> data_folder = "../data"
+> prop_output_file = "../data/SCZ_prop.rds"
+> prop_list = readRDS(prop_output_file)
+> 
+> prop_list$ICeDT = prop_list$ICeDT[
++   match(col_data$RNAseq.Sample_RNA_ID, rownames(prop_list$ICeDT)), ]
+> prop_list$CIBERSORT = prop_list$CIBERSORT[
++   match(col_data$RNAseq.Sample_RNA_ID, rownames(prop_list$CIBERSORT)), ]
+> #saveRDS(prop_list, file="../data/prop_resized.rds")
+> 
+> cell_sizes = readRDS("../MTG/cell_sizes_MTG.rds")
+> cell_sizes = cell_sizes[c("Astro", "Exc", "Inh", "Micro", "Oligo", "OPC")]
+> icedt_rho = prop_list$ICeDT
+> cibersort_rho = prop_list$CIBERSORT
+> 
+> # -------------------------------------------------------------------------
+> # read in data
+> # -------------------------------------------------------------------------
+> 
+> # total read count
+> trec = readRDS("../data/trec_filtered_scz_control.rds")  # 20788x527 matrix
+> clinical_variables_raw = readRDS("../data/dat_cavariates_scz_control_with_svs.rds")
+> 
+> dim(clinical_variables_raw)
+[1] 527  33
+> clinical_variables_raw[1:2,]
+   DxSCZ genderMale InstitutionPenn InstitutionPitt libclustB libclustbase
+21     1          1               0               0         0            0
+22     0          1               0               0         1            0
+   libclustC libclustD libclustE libclustF libclustG age_death  PMI RIN  RIN2
+21         0         1         0         0         0        68  8.9 7.5 56.25
+22         0         0         0         0         0        58 12.3 8.8 77.44
+         genoPC1     genoPC2    genoPC3      genoPC4      genoPC5 log_depth
+21 -0.0205963704 -0.02205074 -0.0105337 -0.007387133 -0.004576622  6.410175
+22 -0.0004623463 -0.01721824  0.3105687 -0.085514534  0.100494270  7.060691
+           sv1        sv2        sv3         sv4        sv5         sv6
+21  0.02190947 0.01847692 0.03846765 -0.06969516 0.02062629 -0.01158661
+22 -0.05526579 0.01286241 0.01747121 -0.04248974 0.07813083 -0.02817618
+          sv7         sv8        sv9        sv10         sv11        sv12
+21 0.07943795 -0.01843414 0.04296189 -0.05202259  0.003324254 -0.06636606
+22 0.03528446  0.02497530 0.07654874  0.02101383 -0.021740136 -0.01473272
+> 
+> # for code compatibility:
+> col_data = as.data.frame(clinical_variables_raw)
+> col_data$Dx = ifelse(col_data$DxSCZ == 1, "SCZ", "Control")
+> col_data$RNAseq.Sample_RNA_ID = colnames(trec)
+> 
+> # rescale age_death, PMI, RIN, RIN^2, log_depth
+> col_data$scaled_age_death = scale(col_data$age_death)
+> col_data$scaled_log_depth = scale(col_data$log_depth)
+> col_data$scaled_PMI = scale(col_data$PMI)
+> col_data$scaled_RIN = scale(col_data$RIN)
+> col_data$scaled_RIN2 = scale(col_data$RIN2)
+> 
+> # rescale PCs and SVs -- the names are still sv1, sv2, etc, but they have been scaled:
+> covariates_to_scale = grep("sv|PC", colnames(col_data))
+> for (m in covariates_to_scale) {
++   col_data[, m] = scale(col_data[, m])
++ }
+> 
+> # cellular proportions
+> prop_output_file = "../data/SCZ_prop.rds"
+> prop_list = readRDS(prop_output_file)
+> 
+> prop_list$ICeDT = prop_list$ICeDT[
++   match(col_data$RNAseq.Sample_RNA_ID, rownames(prop_list$ICeDT)), ]
+> prop_list$CIBERSORT = prop_list$CIBERSORT[
++   match(col_data$RNAseq.Sample_RNA_ID, rownames(prop_list$CIBERSORT)), ]
+> 
+> icedt_rho = prop_list$ICeDT
+> cibersort_rho = prop_list$CIBERSORT
+> 
+> dim(icedt_rho)
+[1] 527   6
+> icedt_rho[1:2,]
+                    Astro       Exc        Inh      Micro     Oligo        OPC
+MSSM_RNA_PFC_1  0.1514417 0.4325437 0.08662203 0.02722698 0.2373189 0.06484674
+MSSM_RNA_PFC_10 0.1366660 0.5098181 0.12945229 0.02044615 0.1616528 0.04196468
+> 
+> rownames(col_data) = col_data$RNAseq.Sample_RNA_ID
+> table(rownames(col_data) == rownames(icedt_rho))
+
+TRUE 
+ 527 
+> 
+> for(i in 1:ncol(col_data)){
++   if(is.character(col_data[[i]])){
++     col_data[[i]] = as.factor(col_data[[i]])
++   }
++ }
+> 
+> col_data = cbind(col_data, log(icedt_rho + 0.01))
+> dim(col_data)
+[1] 527  46
+> col_data[1:2,]
+                DxSCZ genderMale InstitutionPenn InstitutionPitt libclustB
+MSSM_RNA_PFC_1      1          1               0               0         0
+MSSM_RNA_PFC_10     0          1               0               0         1
+                libclustbase libclustC libclustD libclustE libclustF libclustG
+MSSM_RNA_PFC_1             0         0         1         0         0         0
+MSSM_RNA_PFC_10            0         0         0         0         0         0
+                age_death  PMI RIN  RIN2     genoPC1    genoPC2   genoPC3
+MSSM_RNA_PFC_1         68  8.9 7.5 56.25 -0.51847948 -0.5669974 -0.262247
+MSSM_RNA_PFC_10        58 12.3 8.8 77.44 -0.04633365 -0.4532353  7.121997
+                   genoPC4    genoPC5 log_depth        sv1       sv2       sv3
+MSSM_RNA_PFC_1  -0.1620197 -0.1055038  6.410175  0.5024869 0.4237625 0.8822436
+MSSM_RNA_PFC_10 -1.9835294  2.3647695  7.060691 -1.2675038 0.2949954 0.4006968
+                      sv4       sv5        sv6       sv7        sv8       sv9
+MSSM_RNA_PFC_1  -1.598437 0.4730576 -0.2657353 1.8218847 -0.4227813 0.9853177
+MSSM_RNA_PFC_10 -0.974489 1.7919062 -0.6462121 0.8092381  0.5728009 1.7556215
+                      sv10        sv11       sv12      Dx RNAseq.Sample_RNA_ID
+MSSM_RNA_PFC_1  -1.1931219  0.07624073 -1.5220850     SCZ       MSSM_RNA_PFC_1
+MSSM_RNA_PFC_10  0.4819456 -0.49860328 -0.3378905 Control      MSSM_RNA_PFC_10
+                scaled_age_death scaled_log_depth scaled_PMI scaled_RIN
+MSSM_RNA_PFC_1        0.06665347        -1.094184 -0.6978798 -0.1415429
+MSSM_RNA_PFC_10      -0.48739037         1.322181 -0.4003918  1.3254924
+                scaled_RIN2     Astro        Exc       Inh     Micro     Oligo
+MSSM_RNA_PFC_1   -0.2018291 -1.823611 -0.8152161 -2.336948 -3.290722 -1.397077
+MSSM_RNA_PFC_10   1.3934458 -1.919598 -0.6542763 -1.970033 -3.491796 -1.762281
+                      OPC
+MSSM_RNA_PFC_1  -2.592313
+MSSM_RNA_PFC_10 -2.957191
+> 
+> # -------------------------------------------------------------------------
+> # check whether those genes with smaller p-values are associated with
+> # cell type compositions
+> # -------------------------------------------------------------------------
+> 
+> crs = abs(cor(t(trec), icedt_rho, method = "spearman"))
+> dim(crs)
+[1] 20788     6
+> crs[1:2,1:3]
+                    Astro        Exc       Inh
+ENSG00000000003 0.1289214 0.06541844 0.1866306
+ENSG00000000419 0.4634164 0.36638616 0.5469476
+> 
+> crs.max  = apply(crs, 1, max)
+> crs.wmax = apply(crs, 1, which.max)
+> 
+> table(crs.wmax)
+crs.wmax
+   1    2    3    4    5    6 
+1646  767 7017 1112 3939 6307 
+> 
+> table(res1$qvalue < 0.1)
+
+FALSE  TRUE 
+19779  1009 
+> table(res1$qvalue < 0.05)
+
+FALSE  TRUE 
+20318   470 
+> 
+> summary(crs.max[which(res1$qvalue < 0.05)])
+   Min. 1st Qu.  Median    Mean 3rd Qu.    Max. 
+0.05478 0.24196 0.35069 0.35489 0.45255 0.79601 
+> summary(crs.max[which(res1$qvalue < 0.1)])
+   Min. 1st Qu.  Median    Mean 3rd Qu.    Max. 
+0.03233 0.24129 0.35003 0.35472 0.46027 0.80839 
+> summary(crs.max[which(res1$qvalue >= 0.1)])
+   Min. 1st Qu.  Median    Mean 3rd Qu.    Max. 
+0.02515 0.24553 0.35987 0.36011 0.47074 0.86396 
+> 
+> # -------------------------------------------------------------------------
+> # Re-run DESeq2 given log transformed cell type composition of Exc
+> # -------------------------------------------------------------------------
+> 
+> dim(trec)
+[1] 20788   527
+> trec[1:2,1:3]
+                MSSM_RNA_PFC_1 MSSM_RNA_PFC_10 MSSM_RNA_PFC_100
+ENSG00000000003            137             320              251
+ENSG00000000419            416            1242              625
+> 
+> dim(col_data)
+[1] 527  46
+> col_data[1:3,]
+                 DxSCZ genderMale InstitutionPenn InstitutionPitt libclustB
+MSSM_RNA_PFC_1       1          1               0               0         0
+MSSM_RNA_PFC_10      0          1               0               0         1
+MSSM_RNA_PFC_100     1          1               0               0         0
+                 libclustbase libclustC libclustD libclustE libclustF libclustG
+MSSM_RNA_PFC_1              0         0         1         0         0         0
+MSSM_RNA_PFC_10             0         0         0         0         0         0
+MSSM_RNA_PFC_100            0         0         1         0         0         0
+                 age_death  PMI RIN  RIN2     genoPC1    genoPC2    genoPC3
+MSSM_RNA_PFC_1          68  8.9 7.5 56.25 -0.51847948 -0.5669974 -0.2622470
+MSSM_RNA_PFC_10         58 12.3 8.8 77.44 -0.04633365 -0.4532353  7.1219966
+MSSM_RNA_PFC_100        66 12.1 6.7 44.89 -0.39460259  0.8867870 -0.2761915
+                    genoPC4    genoPC5 log_depth        sv1        sv2
+MSSM_RNA_PFC_1   -0.1620197 -0.1055038  6.410175  0.5024869  0.4237625
+MSSM_RNA_PFC_10  -1.9835294  2.3647695  7.060691 -1.2675038  0.2949954
+MSSM_RNA_PFC_100 -1.2627410 -1.8866588  7.019297  0.7920254 -0.4701864
+                       sv3       sv4       sv5        sv6       sv7         sv8
+MSSM_RNA_PFC_1   0.8822436 -1.598437 0.4730576 -0.2657353 1.8218847 -0.42278125
+MSSM_RNA_PFC_10  0.4006968 -0.974489 1.7919062 -0.6462121 0.8092381  0.57280087
+MSSM_RNA_PFC_100 0.6201760 -1.213384 0.6346961  0.6947334 1.8030067 -0.03310276
+                       sv9       sv10        sv11       sv12      Dx
+MSSM_RNA_PFC_1   0.9853177 -1.1931219  0.07624073 -1.5220850     SCZ
+MSSM_RNA_PFC_10  1.7556215  0.4819456 -0.49860328 -0.3378905 Control
+MSSM_RNA_PFC_100 1.9522574 -0.9798279  0.55360875 -0.4973669     SCZ
+                 RNAseq.Sample_RNA_ID scaled_age_death scaled_log_depth
+MSSM_RNA_PFC_1         MSSM_RNA_PFC_1       0.06665347        -1.094184
+MSSM_RNA_PFC_10       MSSM_RNA_PFC_10      -0.48739037         1.322181
+MSSM_RNA_PFC_100     MSSM_RNA_PFC_100      -0.04415530         1.168420
+                 scaled_PMI scaled_RIN scaled_RIN2     Astro        Exc
+MSSM_RNA_PFC_1   -0.6978798 -0.1415429  -0.2018291 -1.823611 -0.8152161
+MSSM_RNA_PFC_10  -0.4003918  1.3254924   1.3934458 -1.919598 -0.6542763
+MSSM_RNA_PFC_100 -0.4178911 -1.0443338  -1.0570591 -1.806352 -0.7433419
+                       Inh     Micro     Oligo       OPC
+MSSM_RNA_PFC_1   -2.336948 -3.290722 -1.397077 -2.592313
+MSSM_RNA_PFC_10  -1.970033 -3.491796 -1.762281 -2.957191
+MSSM_RNA_PFC_100 -2.491860 -3.178810 -1.513203 -2.581889
+> 
+> col_data$Diagnosis = col_data$Dx
+> table(col_data$Diagnosis)
+
+Control     SCZ 
+    277     250 
+> 
+> dd3 = DESeqDataSetFromMatrix(countData = trec, 
++                              colData = col_data,
++                              design = ~ scaled_log_depth + InstitutionPenn + InstitutionPitt +
++                                genderMale + scaled_age_death + scaled_PMI + scaled_RIN + scaled_RIN2 +
++                                genoPC1 + genoPC2 + libclustB + libclustbase + libclustC + libclustD + 
++                                libclustE + libclustF + libclustG + Exc + sv1 + sv2 + Diagnosis)
+  the design formula contains a numeric variable with integer values,
+  specifying a model with increasing fold change for higher values.
+  did you mean for this to be a factor? if so, first convert
+  this variable to a factor using the factor() function
+> date()
+[1] "Sun Jul  5 22:47:24 2020"
+> dd3 = DESeq(dd3, parallel=TRUE)
+estimating size factors
+estimating dispersions
+gene-wise dispersion estimates: 10 workers
+mean-dispersion relationship
+final dispersion estimates, fitting model and testing: 10 workers
+> date()
+[1] "Sun Jul  5 23:08:46 2020"
+> 
+> res3 = results(dd3)
+> dim(res3)
+[1] 20788     6
+> res3[1:2,]
+log2 fold change (MLE): Diagnosis SCZ vs Control 
+Wald test p-value: Diagnosis SCZ vs Control 
+DataFrame with 2 rows and 6 columns
+                        baseMean      log2FoldChange              lfcSE
+                       <numeric>           <numeric>          <numeric>
+ENSG00000000003 209.040585742587 -0.0225680508012954  0.028892778991489
+ENSG00000000419 662.013774163891 -0.0222245063148289 0.0190925575430859
+                              stat            pvalue              padj
+                         <numeric>         <numeric>         <numeric>
+ENSG00000000003 -0.781096578073825 0.434745694376301 0.745533759906568
+ENSG00000000419  -1.16404029500371  0.24440768241269 0.589746487800336
+> 
+> res3 = as.data.frame(res3)
+> 
+> res3$qvalue = get_qvalues_one_inflated(res3$pvalue)
+> table(rownames(res3) == res2$V1)
+
+ TRUE 
+20788 
+> 
+> # -------------------------------------------------------------------------
+> # Re-run DESeq2 given log transformed cell type composition of Inh
+> # -------------------------------------------------------------------------
+> 
+> dd4 = DESeqDataSetFromMatrix(countData = trec, 
++                              colData = col_data,
++                              design = ~ scaled_log_depth + InstitutionPenn + InstitutionPitt +
++                                genderMale + scaled_age_death + scaled_PMI + scaled_RIN + scaled_RIN2 +
++                                genoPC1 + genoPC2 + libclustB + libclustbase + libclustC + libclustD + 
++                                libclustE + libclustF + libclustG + Inh + sv1 + sv2 + Diagnosis)
+  the design formula contains a numeric variable with integer values,
+  specifying a model with increasing fold change for higher values.
+  did you mean for this to be a factor? if so, first convert
+  this variable to a factor using the factor() function
+> date()
+[1] "Sun Jul  5 23:08:47 2020"
+> dd4 = DESeq(dd4, parallel=TRUE)
+estimating size factors
+estimating dispersions
+gene-wise dispersion estimates: 10 workers
+mean-dispersion relationship
+final dispersion estimates, fitting model and testing: 10 workers
+> date()
+[1] "Sun Jul  5 23:30:57 2020"
+> 
+> res4 = results(dd4)
+> dim(res4)
+[1] 20788     6
+> res4[1:2,]
+log2 fold change (MLE): Diagnosis SCZ vs Control 
+Wald test p-value: Diagnosis SCZ vs Control 
+DataFrame with 2 rows and 6 columns
+                        baseMean      log2FoldChange              lfcSE
+                       <numeric>           <numeric>          <numeric>
+ENSG00000000003 209.040585742587  0.0309341958267062 0.0298941541943081
+ENSG00000000419 662.013774163891 -0.0105979997956747 0.0191634705778378
+                              stat            pvalue              padj
+                         <numeric>         <numeric>         <numeric>
+ENSG00000000003   1.03479080309943 0.300766618892204 0.562742834379738
+ENSG00000000419 -0.553031339110937  0.58024195077723  0.78503544892659
+> 
+> res4 = as.data.frame(res4)
+> 
+> res4$qvalue = get_qvalues_one_inflated(res4$pvalue)
+> table(rownames(res4) == res2$V1)
+
+ TRUE 
+20788 
+> 
+> table(res1$qvalue < 0.1)
+
+FALSE  TRUE 
+19779  1009 
+> table(res2$qvalue < 0.1)
+
+FALSE  TRUE 
+18900  1888 
+> table(res3$qvalue < 0.1)
+
+FALSE  TRUE 
+19222  1566 
+> table(res4$qvalue < 0.1)
+
+FALSE  TRUE 
+17022  3766 
+> 
+> table(res1$qvalue < 0.05, res2$qvalue < 0.05)
+       
+        FALSE  TRUE
+  FALSE 19778   540
+  TRUE     87   383
+> table(res1$qvalue < 0.05, res3$qvalue < 0.05)
+       
+        FALSE  TRUE
+  FALSE 20073   245
+  TRUE      2   468
+> table(res1$qvalue < 0.05, res4$qvalue < 0.05)
+       
+        FALSE  TRUE
+  FALSE 18393  1925
+  TRUE     59   411
+> table(res2$qvalue < 0.05, res3$qvalue < 0.05)
+       
+        FALSE  TRUE
+  FALSE 19612   253
+  TRUE    463   460
+> table(res2$qvalue < 0.05, res4$qvalue < 0.05)
+       
+        FALSE  TRUE
+  FALSE 18343  1522
+  TRUE    109   814
+> table(res3$qvalue < 0.05, res4$qvalue < 0.05)
+       
+        FALSE  TRUE
+  FALSE 18227  1848
+  TRUE    225   488
+> 
+> write.table(res3, file="../results/SCZ_step1_DESeq2_bulk_adj_covariates_SV2_log_Exc.txt",  
++             quote = FALSE, sep = "\t", row.names = TRUE, col.names = TRUE)
+> 
+> write.table(res4, file="../results/SCZ_step1_DESeq2_bulk_adj_covariates_SV2_log_Inh.txt",  
++             quote = FALSE, sep = "\t", row.names = TRUE, col.names = TRUE)
+> 
+> gc()
+            used  (Mb) gc trigger   (Mb)  max used   (Mb)
+Ncells   5757268 307.5    9506374  507.7   9506374  507.7
+Vcells 115263385 879.4  237309622 1810.6 209561278 1598.9
+> 
+> sessionInfo()
+R version 3.6.1 (2019-07-05)
+Platform: x86_64-pc-linux-gnu (64-bit)
+Running under: Ubuntu 18.04.3 LTS
+
+Matrix products: default
+BLAS/LAPACK: /opt/intel/compilers_and_libraries_2018.2.199/linux/mkl/lib/intel64_lin/libmkl_rt.so
+
+locale:
+ [1] LC_CTYPE=en_US.UTF-8       LC_NUMERIC=C              
+ [3] LC_TIME=en_US.UTF-8        LC_COLLATE=en_US.UTF-8    
+ [5] LC_MONETARY=en_US.UTF-8    LC_MESSAGES=en_US.UTF-8   
+ [7] LC_PAPER=en_US.UTF-8       LC_NAME=C                 
+ [9] LC_ADDRESS=C               LC_TELEPHONE=C            
+[11] LC_MEASUREMENT=en_US.UTF-8 LC_IDENTIFICATION=C       
+
+attached base packages:
+[1] parallel  stats4    stats     graphics  grDevices utils     datasets 
+[8] methods   base     
+
+other attached packages:
+ [1] DESeq2_1.24.0               SummarizedExperiment_1.14.1
+ [3] DelayedArray_0.10.0         BiocParallel_1.18.1        
+ [5] matrixStats_0.55.0          Biobase_2.44.0             
+ [7] GenomicRanges_1.36.1        GenomeInfoDb_1.20.0        
+ [9] IRanges_2.18.2              S4Vectors_0.22.1           
+[11] BiocGenerics_0.30.0         CARseq_0.0.0.9007          
+[13] ggpointdensity_0.1.0        ggpubr_0.2.4               
+[15] magrittr_1.5                ggplot2_3.3.1              
+[17] data.table_1.12.2          
+
+loaded via a namespace (and not attached):
+ [1] nlme_3.1-141           bitops_1.0-6           doMC_1.3.6            
+ [4] zetadiv_1.1.1          bit64_0.9-7            RColorBrewer_1.1-2    
+ [7] tools_3.6.1            backports_1.1.4        R6_2.4.0              
+[10] rpart_4.1-15           Hmisc_4.2-0            DBI_1.0.0             
+[13] mgcv_1.8-29            colorspace_1.4-1       nnet_7.3-12           
+[16] withr_2.1.2            tidyselect_0.2.5       gridExtra_2.3         
+[19] bit_1.1-14             compiler_3.6.1         htmlTable_1.13.1      
+[22] labeling_0.3           scales_1.0.0           checkmate_1.9.4       
+[25] genefilter_1.66.0      stringr_1.4.0          digest_0.6.21         
+[28] foreign_0.8-72         XVector_0.24.0         base64enc_0.1-3       
+[31] pkgconfig_2.0.2        htmltools_0.3.6        htmlwidgets_1.3       
+[34] rlang_0.4.0            rstudioapi_0.10        RSQLite_2.1.2         
+[37] acepack_1.4.1          dplyr_0.8.3            RCurl_1.95-4.12       
+[40] GenomeInfoDbData_1.2.1 Formula_1.2-3          scam_1.2-5            
+[43] Matrix_1.2-17          Rcpp_1.0.2             munsell_0.5.0         
+[46] stringi_1.4.3          MASS_7.3-51.4          zlibbioc_1.30.0       
+[49] grid_3.6.1             blob_1.2.0             crayon_1.3.4          
+[52] lattice_0.20-38        splines_3.6.1          annotate_1.62.0       
+[55] locfit_1.5-9.1         bvls_1.4               zeallot_0.1.0         
+[58] knitr_1.25             pillar_1.4.2           ggsignif_0.6.0        
+[61] geneplotter_1.62.0     codetools_0.2-16       XML_3.98-1.20         
+[64] glue_1.3.1             latticeExtra_0.6-28    vctrs_0.2.0           
+[67] nloptr_1.2.2.1000      foreach_1.4.7          gtable_0.3.0          
+[70] purrr_0.3.3            assertthat_0.2.1       xfun_0.9              
+[73] xtable_1.8-4           survival_2.44-1.1      viridisLite_0.3.0     
+[76] tibble_2.1.3           iterators_1.0.12       AnnotationDbi_1.46.1  
+[79] memoise_1.1.0          cluster_2.1.0         
+> q(save="no")
+> proc.time()
+     user    system   elapsed 
+24909.983    71.898  2626.556 

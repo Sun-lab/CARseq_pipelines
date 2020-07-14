@@ -1,0 +1,209 @@
+
+R version 3.6.1 (2019-07-05) -- "Action of the Toes"
+Copyright (C) 2019 The R Foundation for Statistical Computing
+Platform: x86_64-pc-linux-gnu (64-bit)
+
+R is free software and comes with ABSOLUTELY NO WARRANTY.
+You are welcome to redistribute it under certain conditions.
+Type 'license()' or 'licence()' for distribution details.
+
+  Natural language support but running in an English locale
+
+R is a collaborative project with many contributors.
+Type 'contributors()' for more information and
+'citation()' on how to cite R or R packages in publications.
+
+Type 'demo()' for some demos, 'help()' for on-line help, or
+'help.start()' for an HTML browser interface to help.
+Type 'q()' to quit R.
+
+> 
+> # compare the results of DESeq2 with or without cell type proportion 
+> # (log ratios) as covaraites
+> 
+> library(data.table)
+> library(ggplot2)
+> library(ggpubr)
+Loading required package: magrittr
+> library(ggpointdensity)
+> theme_set(theme_classic2())
+> library(CARseq)
+> 
+> res1 = fread("../results/ASD_step1_DESeq2_bulk_adj_covariates_seqSV4.txt")
+Warning message:
+In fread("../results/ASD_step1_DESeq2_bulk_adj_covariates_seqSV4.txt") :
+  Detected 6 column names but the data has 7 columns (i.e. invalid file). Added 1 extra default column name for the first column which is guessed to be row names or an index. Use setnames() afterwards if this guess is not correct, or fix the file write command that created the file to create a valid file.
+> 
+> dim(res1)
+[1] 19604     7
+> res1[1:2,]
+                   V1 baseMean log2FoldChange      lfcSE       stat
+1: ENSG00000000003.10 118.0405     0.25107198 0.06651777  3.7745100
+2:  ENSG00000000419.8 286.3194    -0.02368573 0.06060946 -0.3907925
+         pvalue       padj
+1: 0.0001603225 0.02341826
+2: 0.6959505937 0.88554527
+> 
+> res2 = fread("../results/ASD_step1_DESeq2_bulk_adj_covariates_seqSV4_log_ct_fractions.txt")
+Warning message:
+In fread("../results/ASD_step1_DESeq2_bulk_adj_covariates_seqSV4_log_ct_fractions.txt") :
+  Detected 6 column names but the data has 7 columns (i.e. invalid file). Added 1 extra default column name for the first column which is guessed to be row names or an index. Use setnames() afterwards if this guess is not correct, or fix the file write command that created the file to create a valid file.
+> 
+> dim(res2)
+[1] 19604     7
+> res2[1:2,]
+                   V1 baseMean log2FoldChange      lfcSE      stat     pvalue
+1: ENSG00000000003.10 118.0405     0.14829617 0.05916482 2.5064921 0.01219358
+2:  ENSG00000000419.8 286.3194     0.03905851 0.06115376 0.6386936 0.52302226
+        padj
+1: 0.1874398
+2: 0.7911032
+> 
+> table(res1$V1 == res2$V1)
+
+ TRUE 
+19604 
+> 
+> sort(res1$pvalue)[1:5]
+[1] 1.952366e-10 5.075398e-08 4.216702e-07 4.355255e-07 5.927853e-07
+> sort(res2$pvalue)[1:5]
+[1] 6.905556e-07 3.371306e-06 5.171250e-06 5.822550e-06 1.110075e-05
+> 
+> summary(res1$pvalue)
+   Min. 1st Qu.  Median    Mean 3rd Qu.    Max. 
+ 0.0000  0.1004  0.3329  0.3890  0.6474  0.9999 
+> summary(res2$pvalue)
+     Min.   1st Qu.    Median      Mean   3rd Qu.      Max. 
+0.0000007 0.1154887 0.3428173 0.3979760 0.6582638 0.9999756 
+> 
+> res1$qvalue = get_qvalues_one_inflated(res1$pvalue)
+> res2$qvalue = get_qvalues_one_inflated(res2$pvalue)
+> 
+> summary(res1$qvalue)
+     Min.   1st Qu.    Median      Mean   3rd Qu.      Max. 
+0.0000028 0.2900287 0.4810871 0.4495914 0.6235090 0.7224430 
+> summary(res2$qvalue)
+   Min. 1st Qu.  Median    Mean 3rd Qu.    Max. 
+0.01005 0.34279 0.50902 0.48391 0.65167 0.74248 
+> 
+> res.df = merge(res1, res2, by="V1", suffixes = c(".noCT", ".wCT"))
+> dim(res.df)
+[1] 19604    15
+> res.df[1:2,]
+                   V1 baseMean.noCT log2FoldChange.noCT lfcSE.noCT  stat.noCT
+1: ENSG00000000003.10      118.0405          0.25107198 0.06651777  3.7745100
+2:  ENSG00000000419.8      286.3194         -0.02368573 0.06060946 -0.3907925
+    pvalue.noCT  padj.noCT qvalue.noCT baseMean.wCT log2FoldChange.wCT
+1: 0.0001603225 0.02341826  0.01733441     118.0405         0.14829617
+2: 0.6959505937 0.88554527  0.64128982     286.3194         0.03905851
+    lfcSE.wCT  stat.wCT pvalue.wCT  padj.wCT qvalue.wCT
+1: 0.05916482 2.5064921 0.01219358 0.1874398  0.1537076
+2: 0.06115376 0.6386936 0.52302226 0.7911032  0.5991808
+> 
+> res.df$pvalue.noCT[which(res.df$pvalue.noCT < 1e-8)] = 1e-8
+> res.df$pvalue.wCT[which(res.df$pvalue.wCT < 1e-8)]   = 1e-8
+> 
+> g1 = ggplot(res.df, aes(x=-log10(pvalue.noCT),y=-log10(pvalue.wCT))) +
++   geom_pointdensity(size = 0.6) + scale_color_viridis_c() +
++   labs(x= "-log10(pval no CT adj.)", y= "-log10(pval with CT adj.)", 
++        title="ASD vs. control") + xlim(0, 8) + ylim(0, 8) + 
++   geom_abline(intercept = 0, slope=1)
+> 
+> summary(res.df$log2FoldChange.noCT)
+     Min.   1st Qu.    Median      Mean   3rd Qu.      Max. 
+-1.274249 -0.060982  0.006613  0.025850  0.087316  3.201009 
+> summary(res.df$log2FoldChange.wCT)
+     Min.   1st Qu.    Median      Mean   3rd Qu.      Max. 
+-1.866499 -0.070270  0.001610 -0.005742  0.063250  3.023879 
+> 
+> g2 = ggplot(res.df, aes(x=log2FoldChange.noCT,
++                         y=log2FoldChange.wCT)) +
++   geom_pointdensity(size = 0.6) + scale_color_viridis_c() +
++   labs(x= "log2 fc, no CT adj.", y= "log2 fc, with CT adj.)", 
++        title="ASD vs. control") + 
++   geom_abline(intercept = 0, slope=1)
+> 
+> pdf("../figures/ASD_DESeq2_comparison_log10pval.pdf", width=4, height=3.2)
+> print(g1)
+> dev.off()
+null device 
+          1 
+> 
+> pdf("../figures/ASD_DESeq2_comparison_log2fc.pdf", width=4, height=3.2)
+> print(g2)
+> dev.off()
+null device 
+          1 
+> 
+> table(res.df$qvalue.noCT < 0.1)
+
+FALSE  TRUE 
+18541  1063 
+> table(res.df$qvalue.wCT  < 0.1)
+
+FALSE  TRUE 
+19123   481 
+> 
+> table(res.df$qvalue.noCT < 0.05)
+
+FALSE  TRUE 
+19115   489 
+> table(res.df$qvalue.wCT  < 0.05)
+
+FALSE  TRUE 
+19543    61 
+> 
+> table(res.df$qvalue.noCT < 0.05, res.df$qvalue.wCT < 0.05)
+       
+        FALSE  TRUE
+  FALSE 19078    37
+  TRUE    465    24
+> table(res.df$qvalue.noCT < 0.1, res.df$qvalue.wCT  < 0.1)
+       
+        FALSE  TRUE
+  FALSE 18245   296
+  TRUE    878   185
+> 
+> gc()
+          used (Mb) gc trigger  (Mb) max used  (Mb)
+Ncells 1827831 97.7    3551160 189.7  2559792 136.8
+Vcells 3863689 29.5    8391558  64.1  8391558  64.1
+> 
+> sessionInfo()
+R version 3.6.1 (2019-07-05)
+Platform: x86_64-pc-linux-gnu (64-bit)
+Running under: Ubuntu 18.04.3 LTS
+
+Matrix products: default
+BLAS/LAPACK: /opt/intel/compilers_and_libraries_2018.2.199/linux/mkl/lib/intel64_lin/libmkl_rt.so
+
+locale:
+ [1] LC_CTYPE=en_US.UTF-8       LC_NUMERIC=C              
+ [3] LC_TIME=en_US.UTF-8        LC_COLLATE=en_US.UTF-8    
+ [5] LC_MONETARY=en_US.UTF-8    LC_MESSAGES=en_US.UTF-8   
+ [7] LC_PAPER=en_US.UTF-8       LC_NAME=C                 
+ [9] LC_ADDRESS=C               LC_TELEPHONE=C            
+[11] LC_MEASUREMENT=en_US.UTF-8 LC_IDENTIFICATION=C       
+
+attached base packages:
+[1] stats     graphics  grDevices utils     datasets  methods   base     
+
+other attached packages:
+[1] CARseq_0.0.0.9007    ggpointdensity_0.1.0 ggpubr_0.2.4        
+[4] magrittr_1.5         ggplot2_3.3.1        data.table_1.12.2   
+
+loaded via a namespace (and not attached):
+ [1] Rcpp_1.0.2         pillar_1.4.2       compiler_3.6.1     nloptr_1.2.2.1000 
+ [5] iterators_1.0.12   digest_0.6.21      viridisLite_0.3.0  tibble_2.1.3      
+ [9] gtable_0.3.0       nlme_3.1-141       lattice_0.20-38    zetadiv_1.1.1     
+[13] mgcv_1.8-29        pkgconfig_2.0.2    rlang_0.4.0        Matrix_1.2-17     
+[17] foreach_1.4.7      parallel_3.6.1     withr_2.1.2        dplyr_0.8.3       
+[21] doMC_1.3.6         bvls_1.4           grid_3.6.1         tidyselect_0.2.5  
+[25] glue_1.3.1         R6_2.4.0           purrr_0.3.3        scales_1.0.0      
+[29] codetools_0.2-16   matrixStats_0.55.0 MASS_7.3-51.4      splines_3.6.1     
+[33] assertthat_0.2.1   colorspace_1.4-1   ggsignif_0.6.0     labeling_0.3      
+[37] munsell_0.5.0      scam_1.2-5         crayon_1.3.4      
+> q(save="no")
+> proc.time()
+   user  system elapsed 
+  2.947   0.113   2.827 

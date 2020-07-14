@@ -1,0 +1,3436 @@
+---
+title: "Reproducible figures in CARseq"
+author: "Chong Jin"
+date: "7/1/2020"
+fontsize: 11pt  # only works for pdf
+geometry: margin=1.5in  # only works for pdf
+output:
+  html_document:
+    highlight: tango
+    number_sections: yes
+    theme: journal
+    toc: yes
+    toc_depth: 3
+    toc_float:
+      collapsed: yes
+      smooth_scroll: no
+  pdf_document:
+    number_sections: yes
+    keep_tex: yes
+    toc: yes
+    toc_depth: 3
+# header-includes: \usepackage{mathtools}  # especially used for pdflatex -- need to uncomment for pdflatex to compile with \newcommand
+include-before: \newcommand{\coloneqq}{\mathrel{:=}}  # this is better suited for html but is usable in pdf
+include-after: 
+- \bibliographystyle{plain}
+- \bibliography{CARseq}  # these are only needed for pdf
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, fig.path = "figures_rmarkdown/")
+library(SummarizedExperiment)
+library(fgsea)
+library(ggplot2)
+library(goseq)
+library(tidyverse)
+library(pheatmap)
+library(wesanderson)
+library(ggpubr)
+library(RColorBrewer)
+library(ggrepel)
+library(stargazer)
+library(ggpointdensity)
+library(gplots)
+library(readxl)
+library(goseq)
+options(digits=2)
+```
+
+# Visualize CARseq model
+
+Figure 1: Decomposition of model-based mean expression of mixture samples on a certain gene. Each donut represents a sample, and the total volume is proportional to gene-level mean expression in terms of read counts. The central angle of each slice of a donut is proportional to the cellular fractions of each cell type. The donut area is proportional to sample read depth adjusted by cell type-independent effects. The depth of each slice is proportional to the cell-type specific expression. Three samples from the case group and three samples of the control group are illustrated. The underlying cell type-specific expression says that cell type 2 and cell type 3 are not differentially expressed in the gene, while the gene expression of cell type 1 in the case group doubles when compared to the control group.
+
+## Case 1
+
+<p class="codepen" data-height="265" data-theme-id="light" data-default-tab="js,result" data-user="chongjin" data-slug-hash="XWmBMPj" style="height: 265px; box-sizing: border-box; display: flex; align-items: center; justify-content: center; border: 2px solid; margin: 1em 0; padding: 1em;" data-pen-title="Case1">
+  <span>See the Pen <a href="https://codepen.io/chongjin/pen/XWmBMPj">
+  Case1</a> by chongjin (<a href="https://codepen.io/chongjin">@chongjin</a>)
+  on <a href="https://codepen.io">CodePen</a>.</span>
+</p>
+<script async src="https://static.codepen.io/assets/embed/ei.js"></script>
+
+## Case 2
+
+<p class="codepen" data-height="265" data-theme-id="light" data-default-tab="js,result" data-user="chongjin" data-slug-hash="KKdBWGK" style="height: 265px; box-sizing: border-box; display: flex; align-items: center; justify-content: center; border: 2px solid; margin: 1em 0; padding: 1em;" data-pen-title="Case2">
+  <span>See the Pen <a href="https://codepen.io/chongjin/pen/KKdBWGK">
+  Case2</a> by chongjin (<a href="https://codepen.io/chongjin">@chongjin</a>)
+  on <a href="https://codepen.io">CodePen</a>.</span>
+</p>
+<script async src="https://static.codepen.io/assets/embed/ei.js"></script>
+
+## Case 3
+
+<p class="codepen" data-height="265" data-theme-id="light" data-default-tab="js,result" data-user="chongjin" data-slug-hash="QWjBpYL" style="height: 265px; box-sizing: border-box; display: flex; align-items: center; justify-content: center; border: 2px solid; margin: 1em 0; padding: 1em;" data-pen-title="Case3">
+  <span>See the Pen <a href="https://codepen.io/chongjin/pen/QWjBpYL">
+  Case3</a> by chongjin (<a href="https://codepen.io/chongjin">@chongjin</a>)
+  on <a href="https://codepen.io">CodePen</a>.</span>
+</p>
+<script async src="https://static.codepen.io/assets/embed/ei.js"></script>
+
+
+## Control 1
+
+<p class="codepen" data-height="265" data-theme-id="light" data-default-tab="js,result" data-user="chongjin" data-slug-hash="jObpBRE" style="height: 265px; box-sizing: border-box; display: flex; align-items: center; justify-content: center; border: 2px solid; margin: 1em 0; padding: 1em;" data-pen-title="Control1">
+  <span>See the Pen <a href="https://codepen.io/chongjin/pen/jObpBRE">
+  Control1</a> by chongjin (<a href="https://codepen.io/chongjin">@chongjin</a>)
+  on <a href="https://codepen.io">CodePen</a>.</span>
+</p>
+<script async src="https://static.codepen.io/assets/embed/ei.js"></script>
+
+## Control 2
+
+<p class="codepen" data-height="265" data-theme-id="light" data-default-tab="js,result" data-user="chongjin" data-slug-hash="JjYBWQO" style="height: 265px; box-sizing: border-box; display: flex; align-items: center; justify-content: center; border: 2px solid; margin: 1em 0; padding: 1em;" data-pen-title="Control2">
+  <span>See the Pen <a href="https://codepen.io/chongjin/pen/JjYBWQO">
+  Control2</a> by chongjin (<a href="https://codepen.io/chongjin">@chongjin</a>)
+  on <a href="https://codepen.io">CodePen</a>.</span>
+</p>
+<script async src="https://static.codepen.io/assets/embed/ei.js"></script>
+
+## Control 3
+
+<p class="codepen" data-height="265" data-theme-id="light" data-default-tab="js,result" data-user="chongjin" data-slug-hash="WNQKpVN" style="height: 265px; box-sizing: border-box; display: flex; align-items: center; justify-content: center; border: 2px solid; margin: 1em 0; padding: 1em;" data-pen-title="Control3">
+  <span>See the Pen <a href="https://codepen.io/chongjin/pen/WNQKpVN">
+  Control3</a> by chongjin (<a href="https://codepen.io/chongjin">@chongjin</a>)
+  on <a href="https://codepen.io">CodePen</a>.</span>
+</p>
+<script async src="https://static.codepen.io/assets/embed/ei.js"></script>
+
+
+```{r barplot_3d}
+pdf("figures/barplot_3d_unedited.pdf", width = 12, height = 8)
+par(mfrow=c(1,6), bty="n", mar=c(5,4,2,1))
+# case
+CARseq:::barplot_3d(x = c(0.45, 0.35, 0.2), y = c(3, 2, 1), z = 1,
+                    xlim = c(0, 1.25), ylim = c(0, 3.2))
+CARseq:::barplot_3d(x = c(0.6, 0.1, 0.3), y = c(3, 2, 1), z = 2,
+                    xlim = c(0, 1.25), ylim = c(0, 3.2))
+CARseq:::barplot_3d(x = c(0.7, 0.15, 0.15), y = c(3, 2, 1), z = 3,
+                    xlim = c(0, 1.25), ylim = c(0, 3.2))
+# control
+CARseq:::barplot_3d(x = c(0.45, 0.35, 0.2), y = c(1.5, 2, 1), z = 1,
+                    xlim = c(0, 1.25), ylim = c(0, 3.2))
+CARseq:::barplot_3d(x = c(0.6, 0.1, 0.3), y = c(1.5, 2, 1), z = 2,
+                    xlim = c(0, 1.25), ylim = c(0, 3.2))
+CARseq:::barplot_3d(x = c(0.7, 0.15, 0.15), y = c(1.5, 2, 1), z = 3,
+                    xlim = c(0, 1.25), ylim = c(0, 3.2))
+dev.off()
+```
+
+# Read CARseq results for autism
+
+```{r autism_CARseq_summary}
+set.seed(1234)
+
+autism_working_dir = "."
+scz_working_dir = "."
+cache_dir = "reproducible_figures_cache"
+if (!file.exists(cache_dir)) dir.create(cache_dir)
+
+############################################################
+# 4 seqSVs
+############################################################
+# CARseq, ICeDT
+# not permuted
+res_CARseq = readRDS(file.path(autism_working_dir, "results/ASD_CARseq_ICeDT_seqSV4.rds"))
+par(mfrow=c(2,3), bty="n", mar=c(5,4,2,1))
+for(k in seq_len(ncol(res_CARseq$p))) {
+  hist(res_CARseq$p[,k], main=colnames(res_CARseq$p)[k], breaks=20,
+       xlab = paste0("p-value (", sum(CARseq:::get_qvalues_one_inflated(res_CARseq$p[, k]) < 0.1, na.rm=TRUE), " genes q value < 0.1)"))
+}
+
+# permuted
+res_CARseq_permuted = readRDS(file.path(autism_working_dir,  "results/ASD_CARseq_ICeDT_permuted_seqSV4.rds"))
+par(mfrow=c(2,3), bty="n", mar=c(5,4,2,1))
+for(k in seq_len(ncol(res_CARseq_permuted$p))) {
+  hist(res_CARseq_permuted$p[,k], main=colnames(res_CARseq_permuted$p)[k], breaks=20,
+       xlab = paste0("p-value (", sum(CARseq:::get_qvalues_one_inflated(res_CARseq_permuted$p[, k]) < 0.1, na.rm=TRUE), " genes q value < 0.1)"))
+}
+
+# load gene annotation:
+rse_filtered = readRDS(file.path(autism_working_dir, "data/ASD_rse_filtered_with_SVs.rds"))
+colData(rse_filtered)$Diagnosis = factor(colData(rse_filtered)$Diagnosis, levels=c("Control", "ASD"))
+```
+
+# Prepare the pathways
+
+The reactome pathways are downloaded from MSigDB website. They are in gene symbols.
+
+```{r prepare_gene_sets_from_local_msigdb}
+autism_working_dir = "."
+
+# load pathways:
+gmtfile_go_bp = file.path(autism_working_dir, "data/c5.bp.v7.1.symbols.gmt")
+gmtfile_reactome = file.path(autism_working_dir, "data/c2.cp.reactome.v7.1.symbols.gmt")
+pathways_go_bp = gmtPathways(gmtfile_go_bp)
+pathways_reactome = gmtPathways(gmtfile_reactome)
+```
+
+The number and size of pathways are listed here:
+```{r pathway_summary}
+# distribution of pathway sizes
+str(pathways_reactome, max.level = 0)
+str(pathways_go_bp, max.level = 0)
+quantile(sapply(pathways_reactome, length), probs = seq(0, 1, 0.1), na.rm = TRUE)
+quantile(sapply(pathways_go_bp, length), probs = seq(0, 1, 0.1), na.rm = TRUE)
+```
+
+
+# Autism, TOAST, GSEA, REACTOME
+
+We use "classic" weight where no weight is added. The genes are ranked by p-values. The gene matching is done in gene symbol. There is a lot of genes with p-values being 1, which "may or may not cause trouble", so we only care about the genes that are enriched in small p-values:
+
+
+```{r Autism_load_TOAST}
+############################################################
+# 4 seqSVs
+############################################################
+# CARseq, ICeDT
+# not permuted
+res_TOAST = list()
+res_TOAST$p = read.table(file.path(autism_working_dir, "results/ASD_step1_TOAST_with_covariates_seqSV4.txt"))
+# png("figures/CARseq_ICeDT_SV2.png",
+#     width=6, height=6, units="in", res=400)
+par(mfrow=c(2,3), bty="n", mar=c(5,4,2,1))
+for(k in seq_len(ncol(res_TOAST$p))) {
+  hist(res_TOAST$p[,k], main=colnames(res_TOAST$p)[k], breaks=20,
+       xlab = paste0("p-value (", sum(CARseq:::get_qvalues_one_inflated(res_TOAST$p[, k]) < 0.1, na.rm=TRUE), " genes q value < 0.1)"))
+}
+# dev.off()
+
+# permuted
+res_TOAST_permuted = list()
+res_TOAST_permuted$p = read.table(file.path(autism_working_dir,  "results/ASD_step1_TOAST_with_covariates_seqSV4_permuted.txt"))
+# png("figures/CARseq_ICeDT_permuted_SV2.png",
+#     width=6, height=6, units="in", res=400)
+par(mfrow=c(2,3), bty="n", mar=c(5,4,2,1))
+for(k in seq_len(ncol(res_TOAST_permuted$p))) {
+  hist(res_TOAST_permuted$p[,k], main=colnames(res_TOAST_permuted$p)[k], breaks=20,
+       xlab = paste0("p-value (", sum(CARseq:::get_qvalues_one_inflated(res_TOAST_permuted$p[, k]) < 0.1, na.rm=TRUE), " genes q value < 0.1)"))
+}
+```
+
+
+
+## Astro
+
+
+```{r fgseaMultilevel_Astro_TOAST, fig.height=8, fig.width=12}
+# Running fgsea:
+pval = -log10(res_TOAST$p[, "Astro"])
+
+# Loading stats:
+stats = pval
+names(stats) = sub("\\.[0-9]*", "", rownames(res_TOAST$p))  # ensembl id
+names(stats) = rowData(rse_filtered)$gene_name               # gene symbol
+str(stats)
+length(stats)
+stats = stats[unique(names(stats))]  # deduplicate by only taking the highest one of possible duplicated gene symbols
+length(stats)
+stats = na.omit(stats)
+
+# And running fgsea:
+
+filename = file.path(cache_dir, "Autism_TOAST_GSEAMultilevel_REACTOME_Astro.rds")
+if (!file.exists(filename)) {
+  set.seed(1234)
+  fgseaRes = fgseaMultilevel(pathways_reactome, stats, minSize=10, maxSize=1000, gseaParam = 0, eps = 0)
+  saveRDS(fgseaRes, filename)
+  write.csv(fgseaRes[,1:7], sub("rds", "csv", filename))
+} else {
+  fgseaRes = readRDS(filename)
+}
+# head(fgseaRes[order(fgseaRes[,"pval"]), ])
+fgseaResPositive = fgseaRes[fgseaRes$NES > 0, ] # genes that are enriched in small p-values
+topPathways = head(fgseaResPositive[order(fgseaResPositive[,"padj"], -fgseaResPositive[,"NES"]), ]$pathway, n = 10)
+plotGseaTable(pathways_reactome[topPathways], stats, fgseaResPositive, 
+              gseaParam = 0.5) # The 0.5 is only used for illustration purposes.
+fgseaRes[fgseaRes$pathway == "REACTOME_NEURONAL_SYSTEM"]
+```
+
+
+## Exc
+
+```{r fgseaMultilevel_Exc_TOAST, fig.height=8, fig.width=12}
+# Running fgsea:
+pval = -log10(res_TOAST$p[, "Exc"])
+
+# Loading stats:
+stats = pval
+names(stats) = sub("\\.[0-9]*", "", rownames(res_TOAST$p))  # ensembl id
+names(stats) = rowData(rse_filtered)$gene_name               # gene symbol
+str(stats)
+length(stats)
+stats = stats[unique(names(stats))]  # deduplicate by only taking the highest one of possible duplicated gene symbols
+length(stats)
+stats = na.omit(stats)
+
+# And running fgsea:
+
+filename = file.path(cache_dir, "Autism_TOAST_GSEAMultilevel_REACTOME_Exc.rds")
+if (!file.exists(filename)) {
+  set.seed(1234)
+  fgseaRes = fgseaMultilevel(pathways_reactome, stats, minSize=10, maxSize=1000, gseaParam = 0, eps = 0)
+  saveRDS(fgseaRes, filename)
+  write.csv(fgseaRes[,1:7], sub("rds", "csv", filename))
+} else {
+  fgseaRes = readRDS(filename)
+}
+
+# head(fgseaRes[order(fgseaRes[,"pval"]), ])
+fgseaResPositive = fgseaRes[fgseaRes$NES > 0, ] # genes that are enriched in small p-values
+topPathways = head(fgseaResPositive[order(fgseaResPositive[,"padj"], -fgseaResPositive[,"NES"]), ]$pathway, n = 10)
+plotGseaTable(pathways_reactome[topPathways], stats, fgseaResPositive, 
+              gseaParam = 0.5) # The 0.5 is only used for illustration purposes.
+fgseaRes[fgseaRes$pathway == "REACTOME_NEURONAL_SYSTEM"]
+```
+
+## Inh
+
+
+```{r fgseaMultilevel_Inh_TOAST, fig.height=8, fig.width=12}
+# Running fgsea:
+pval = -log10(res_TOAST$p[, "Inh"])
+
+# Loading stats:
+stats = pval
+names(stats) = sub("\\.[0-9]*", "", rownames(res_TOAST$p))  # ensembl id
+names(stats) = rowData(rse_filtered)$gene_name               # gene symbol
+str(stats)
+length(stats)
+stats = stats[unique(names(stats))]  # deduplicate by only taking the highest one of possible duplicated gene symbols
+length(stats)
+stats = na.omit(stats)
+
+# And running fgsea:
+
+filename = file.path(cache_dir, "Autism_TOAST_GSEAMultilevel_REACTOME_Inh.rds")
+if (!file.exists(filename)) {
+  set.seed(1234)
+  fgseaRes = fgseaMultilevel(pathways_reactome, stats, minSize=10, maxSize=1000, gseaParam = 0, eps = 0)
+  saveRDS(fgseaRes, filename)
+  write.csv(fgseaRes[,1:7], sub("rds", "csv", filename))
+} else {
+  fgseaRes = readRDS(filename)
+}
+# head(fgseaRes[order(fgseaRes[,"pval"]), ])
+fgseaResPositive = fgseaRes[fgseaRes$NES > 0, ] # genes that are enriched in small p-values
+topPathways = head(fgseaResPositive[order(fgseaResPositive[,"padj"], -fgseaResPositive[,"NES"]), ]$pathway, n = 10)
+plotGseaTable(pathways_reactome[topPathways], stats, fgseaResPositive, 
+              gseaParam = 0.5) # The 0.5 is only used for illustration purposes.
+fgseaRes[fgseaRes$pathway == "REACTOME_NEURONAL_SYSTEM"]
+```
+
+
+## Oligo
+
+
+```{r fgseaMultilevel_Oligo_TOAST, fig.height=8, fig.width=12}
+# Running fgsea:
+pval = -log10(res_TOAST$p[, "Oligo"])
+
+# Loading stats:
+stats = pval
+names(stats) = sub("\\.[0-9]*", "", rownames(res_TOAST$p))  # ensembl id
+names(stats) = rowData(rse_filtered)$gene_name               # gene symbol
+str(stats)
+length(stats)
+stats = stats[unique(names(stats))]  # deduplicate by only taking the highest one of possible duplicated gene symbols
+length(stats)
+stats = na.omit(stats)
+
+# And running fgsea:
+
+filename = file.path(cache_dir, "Autism_TOAST_GSEAMultilevel_REACTOME_Oligo.rds")
+if (!file.exists(filename)) {
+  set.seed(1234)
+  fgseaRes = fgseaMultilevel(pathways_reactome, stats, minSize=10, maxSize=1000, gseaParam = 0, eps = 0)
+  saveRDS(fgseaRes, filename)
+  write.csv(fgseaRes[,1:7], sub("rds", "csv", filename))
+} else {
+  fgseaRes = readRDS(filename)
+}
+# head(fgseaRes[order(fgseaRes[,"pval"]), ])
+fgseaResPositive = fgseaRes[fgseaRes$NES > 0, ] # genes that are enriched in small p-values
+topPathways = head(fgseaResPositive[order(fgseaResPositive[,"padj"], -fgseaResPositive[,"NES"]), ]$pathway, n = 10)
+plotGseaTable(pathways_reactome[topPathways], stats, fgseaResPositive, 
+              gseaParam = 0.5) # The 0.5 is only used for illustration purposes.
+fgseaRes[fgseaRes$pathway == "REACTOME_NEURONAL_SYSTEM"]
+```
+
+
+## Micro
+
+
+```{r fgseaMultilevel_Micro_TOAST, fig.height=8, fig.width=12}
+# Running fgsea:
+# shrunken_lfc = abs(res_TOAST$shrunken_lfc[, "Control_vs_ASD:Micro"])  # abs of shrunken LFC
+pval = -log10(res_TOAST$p[, "Micro"])
+
+# Loading stats:
+stats = pval
+names(stats) = sub("\\.[0-9]*", "", rownames(res_TOAST$p))  # ensembl id
+names(stats) = rowData(rse_filtered)$gene_name               # gene symbol
+str(stats)
+length(stats)
+stats = stats[unique(names(stats))]  # deduplicate by only taking the highest one of possible duplicated gene symbols
+length(stats)
+stats = na.omit(stats)
+
+# And running fgsea:
+
+filename = file.path(cache_dir, "Autism_TOAST_GSEAMultilevel_REACTOME_Micro.rds")
+if (!file.exists(filename)) {
+  set.seed(1234)
+  fgseaRes = fgseaMultilevel(pathways_reactome, stats, minSize=10, maxSize=1000, gseaParam = 0, eps = 0)
+  saveRDS(fgseaRes, filename)
+  write.csv(fgseaRes[,1:7], sub("rds", "csv", filename))
+} else {
+  fgseaRes = readRDS(filename)
+}
+# head(fgseaRes[order(fgseaRes[,"pval"]), ])
+fgseaResPositive = fgseaRes[fgseaRes$NES > 0, ] # genes that are enriched in small p-values
+topPathways = head(fgseaResPositive[order(fgseaResPositive[,"padj"], -fgseaResPositive[,"NES"]), ]$pathway, n = 10)
+plotGseaTable(pathways_reactome[topPathways], stats, fgseaResPositive, 
+              gseaParam = 0.5) # The 0.5 is only used for illustration purposes.
+fgseaRes[fgseaRes$pathway == "REACTOME_NEURONAL_SYSTEM"]
+```
+
+## OPC
+
+
+```{r fgseaMultilevel_OPC_TOAST, fig.height=8, fig.width=12}
+# Running fgsea:
+pval = -log10(res_TOAST$p[, "OPC"])
+
+# Loading stats:
+stats = pval
+names(stats) = sub("\\.[0-9]*", "", rownames(res_TOAST$p))  # ensembl id
+names(stats) = rowData(rse_filtered)$gene_name               # gene symbol
+str(stats)
+length(stats)
+stats = stats[unique(names(stats))]  # deduplicate by only taking the highest one of possible duplicated gene symbols
+length(stats)
+stats = na.omit(stats)
+
+# And running fgsea:
+
+filename = file.path(cache_dir, "Autism_TOAST_GSEAMultilevel_REACTOME_OPC.rds")
+if (!file.exists(filename)) {
+  set.seed(1234)
+  fgseaRes = fgseaMultilevel(pathways_reactome, stats, minSize=10, maxSize=1000, gseaParam = 0, eps = 0)
+  saveRDS(fgseaRes, filename)
+  write.csv(fgseaRes[,1:7], sub("rds", "csv", filename))
+} else {
+  fgseaRes = readRDS(filename)
+}
+# head(fgseaRes[order(fgseaRes[,"pval"]), ])
+fgseaResPositive = fgseaRes[fgseaRes$NES > 0, ] # genes that are enriched in small p-values
+topPathways = head(fgseaResPositive[order(fgseaResPositive[,"padj"], -fgseaResPositive[,"NES"]), ]$pathway, n = 10)
+plotGseaTable(pathways_reactome[topPathways], stats, fgseaResPositive, 
+              gseaParam = 0.5) # The 0.5 is only used for illustration purposes.
+fgseaRes[fgseaRes$pathway == "REACTOME_NEURONAL_SYSTEM"]
+```
+
+
+# Autism, CARseq, GSEA, REACTOME
+
+We use "classic" weight where no weight is added. The genes are ranked by p-values. The gene matching is done in gene symbol. There is a lot of genes with p-values being 1, which "may or may not cause trouble", so we only care about the genes that are enriched in small p-values:
+
+## Astro
+
+
+```{r fgseaMultilevel_Astro, fig.height=8, fig.width=12}
+# Running fgsea:
+pval = -log10(res_CARseq$p[, "Astro"])
+
+# Loading stats:
+stats = pval
+names(stats) = sub("\\.[0-9]*", "", rownames(res_CARseq$p))  # ensembl id
+names(stats) = rowData(rse_filtered)$gene_name               # gene symbol
+str(stats)
+length(stats)
+stats = stats[unique(names(stats))]  # deduplicate by only taking the highest one of possible duplicated gene symbols
+length(stats)
+stats = na.omit(stats)
+
+# And running fgsea:
+
+filename = file.path(cache_dir, "Autism_CARseq_GSEAMultilevel_REACTOME_Astro.rds")
+if (!file.exists(filename)) {
+  set.seed(1234)
+  fgseaRes = fgseaMultilevel(pathways_reactome, stats, minSize=10, maxSize=1000, gseaParam = 0, eps = 0)
+  saveRDS(fgseaRes, filename)
+  write.csv(fgseaRes[,1:7], sub("rds", "csv", filename))
+} else {
+  fgseaRes = readRDS(filename)
+}
+# head(fgseaRes[order(fgseaRes[,"pval"]), ])
+fgseaResPositive = fgseaRes[fgseaRes$NES > 0, ] # genes that are enriched in small p-values
+topPathways = head(fgseaResPositive[order(fgseaResPositive[,"padj"], -fgseaResPositive[,"NES"]), ]$pathway, n = 10)
+plotGseaTable(pathways_reactome[topPathways], stats, fgseaResPositive, 
+              gseaParam = 0.5) # The 0.5 is only used for illustration purposes.
+fgseaRes[fgseaRes$pathway == "REACTOME_NEURONAL_SYSTEM"]
+```
+
+
+## Exc
+
+```{r fgseaMultilevel_Exc, fig.height=8, fig.width=12}
+# Running fgsea:
+pval = -log10(res_CARseq$p[, "Exc"])
+
+# Loading stats:
+stats = pval
+names(stats) = sub("\\.[0-9]*", "", rownames(res_CARseq$p))  # ensembl id
+names(stats) = rowData(rse_filtered)$gene_name               # gene symbol
+str(stats)
+length(stats)
+stats = stats[unique(names(stats))]  # deduplicate by only taking the highest one of possible duplicated gene symbols
+length(stats)
+stats = na.omit(stats)
+
+# And running fgsea:
+
+filename = file.path(cache_dir, "Autism_CARseq_GSEAMultilevel_REACTOME_Exc.rds")
+if (!file.exists(filename)) {
+  set.seed(1234)
+  fgseaRes = fgseaMultilevel(pathways_reactome, stats, minSize=10, maxSize=1000, gseaParam = 0, eps = 0)
+  saveRDS(fgseaRes, filename)
+  write.csv(fgseaRes[,1:7], sub("rds", "csv", filename))
+} else {
+  fgseaRes = readRDS(filename)
+}
+
+# head(fgseaRes[order(fgseaRes[,"pval"]), ])
+fgseaResPositive = fgseaRes[fgseaRes$NES > 0, ] # genes that are enriched in small p-values
+topPathways = head(fgseaResPositive[order(fgseaResPositive[,"padj"], -fgseaResPositive[,"NES"]), ]$pathway, n = 10)
+plotGseaTable(pathways_reactome[topPathways], stats, fgseaResPositive, 
+              gseaParam = 0.5) # The 0.5 is only used for illustration purposes.
+fgseaRes[fgseaRes$pathway == "REACTOME_NEURONAL_SYSTEM"]
+```
+
+## Inh
+
+
+```{r fgseaMultilevel_Inh, fig.height=8, fig.width=12}
+# Running fgsea:
+pval = -log10(res_CARseq$p[, "Inh"])
+
+# Loading stats:
+stats = pval
+names(stats) = sub("\\.[0-9]*", "", rownames(res_CARseq$p))  # ensembl id
+names(stats) = rowData(rse_filtered)$gene_name               # gene symbol
+str(stats)
+length(stats)
+stats = stats[unique(names(stats))]  # deduplicate by only taking the highest one of possible duplicated gene symbols
+length(stats)
+stats = na.omit(stats)
+
+# And running fgsea:
+
+filename = file.path(cache_dir, "Autism_CARseq_GSEAMultilevel_REACTOME_Inh.rds")
+if (!file.exists(filename)) {
+  set.seed(1234)
+  fgseaRes = fgseaMultilevel(pathways_reactome, stats, minSize=10, maxSize=1000, gseaParam = 0, eps = 0)
+  saveRDS(fgseaRes, filename)
+  write.csv(fgseaRes[,1:7], sub("rds", "csv", filename))
+} else {
+  fgseaRes = readRDS(filename)
+}
+# head(fgseaRes[order(fgseaRes[,"pval"]), ])
+fgseaResPositive = fgseaRes[fgseaRes$NES > 0, ] # genes that are enriched in small p-values
+topPathways = head(fgseaResPositive[order(fgseaResPositive[,"padj"], -fgseaResPositive[,"NES"]), ]$pathway, n = 10)
+plotGseaTable(pathways_reactome[topPathways], stats, fgseaResPositive, 
+              gseaParam = 0.5) # The 0.5 is only used for illustration purposes.
+fgseaRes[fgseaRes$pathway == "REACTOME_NEURONAL_SYSTEM"]
+```
+
+
+## Oligo
+
+
+```{r fgseaMultilevel_Oligo, fig.height=8, fig.width=12}
+# Running fgsea:
+pval = -log10(res_CARseq$p[, "Oligo"])
+
+# Loading stats:
+stats = pval
+names(stats) = sub("\\.[0-9]*", "", rownames(res_CARseq$p))  # ensembl id
+names(stats) = rowData(rse_filtered)$gene_name               # gene symbol
+str(stats)
+length(stats)
+stats = stats[unique(names(stats))]  # deduplicate by only taking the highest one of possible duplicated gene symbols
+length(stats)
+stats = na.omit(stats)
+
+# And running fgsea:
+
+filename = file.path(cache_dir, "Autism_CARseq_GSEAMultilevel_REACTOME_Oligo.rds")
+if (!file.exists(filename)) {
+  set.seed(1234)
+  fgseaRes = fgseaMultilevel(pathways_reactome, stats, minSize=10, maxSize=1000, gseaParam = 0, eps = 0)
+  saveRDS(fgseaRes, filename)
+  write.csv(fgseaRes[,1:7], sub("rds", "csv", filename))
+} else {
+  fgseaRes = readRDS(filename)
+}
+# head(fgseaRes[order(fgseaRes[,"pval"]), ])
+fgseaResPositive = fgseaRes[fgseaRes$NES > 0, ] # genes that are enriched in small p-values
+topPathways = head(fgseaResPositive[order(fgseaResPositive[,"padj"], -fgseaResPositive[,"NES"]), ]$pathway, n = 10)
+plotGseaTable(pathways_reactome[topPathways], stats, fgseaResPositive, 
+              gseaParam = 0.5) # The 0.5 is only used for illustration purposes.
+fgseaRes[fgseaRes$pathway == "REACTOME_NEURONAL_SYSTEM"]
+```
+
+
+## Micro
+
+
+```{r fgseaMultilevel_Micro, fig.height=8, fig.width=12}
+# Running fgsea:
+pval = -log10(res_CARseq$p[, "Micro"])
+
+# Loading stats:
+stats = pval
+names(stats) = sub("\\.[0-9]*", "", rownames(res_CARseq$p))  # ensembl id
+names(stats) = rowData(rse_filtered)$gene_name               # gene symbol
+str(stats)
+length(stats)
+stats = stats[unique(names(stats))]  # deduplicate by only taking the highest one of possible duplicated gene symbols
+length(stats)
+stats = na.omit(stats)
+
+# And running fgsea:
+
+filename = file.path(cache_dir, "Autism_CARseq_GSEAMultilevel_REACTOME_Micro.rds")
+if (!file.exists(filename)) {
+  set.seed(1234)
+  fgseaRes = fgseaMultilevel(pathways_reactome, stats, minSize=10, maxSize=1000, gseaParam = 0, eps = 0)
+  saveRDS(fgseaRes, filename)
+  write.csv(fgseaRes[,1:7], sub("rds", "csv", filename))
+} else {
+  fgseaRes = readRDS(filename)
+}
+# head(fgseaRes[order(fgseaRes[,"pval"]), ])
+fgseaResPositive = fgseaRes[fgseaRes$NES > 0, ] # genes that are enriched in small p-values
+topPathways = head(fgseaResPositive[order(fgseaResPositive[,"padj"], -fgseaResPositive[,"NES"]), ]$pathway, n = 10)
+plotGseaTable(pathways_reactome[topPathways], stats, fgseaResPositive, 
+              gseaParam = 0.5) # The 0.5 is only used for illustration purposes.
+fgseaRes[fgseaRes$pathway == "REACTOME_NEURONAL_SYSTEM"]
+```
+
+## OPC
+
+
+```{r fgseaMultilevel_OPC, fig.height=8, fig.width=12}
+# Running fgsea:
+pval = -log10(res_CARseq$p[, "OPC"])
+
+# Loading stats:
+stats = pval
+names(stats) = sub("\\.[0-9]*", "", rownames(res_CARseq$p))  # ensembl id
+names(stats) = rowData(rse_filtered)$gene_name               # gene symbol
+str(stats)
+length(stats)
+stats = stats[unique(names(stats))]  # deduplicate by only taking the highest one of possible duplicated gene symbols
+length(stats)
+stats = na.omit(stats)
+
+# And running fgsea:
+
+filename = file.path(cache_dir, "Autism_CARseq_GSEAMultilevel_REACTOME_OPC.rds")
+if (!file.exists(filename)) {
+  set.seed(1234)
+  fgseaRes = fgseaMultilevel(pathways_reactome, stats, minSize=10, maxSize=1000, gseaParam = 0, eps = 0)
+  saveRDS(fgseaRes, filename)
+  write.csv(fgseaRes[,1:7], sub("rds", "csv", filename))
+} else {
+  fgseaRes = readRDS(filename)
+}
+# head(fgseaRes[order(fgseaRes[,"pval"]), ])
+fgseaResPositive = fgseaRes[fgseaRes$NES > 0, ] # genes that are enriched in small p-values
+topPathways = head(fgseaResPositive[order(fgseaResPositive[,"padj"], -fgseaResPositive[,"NES"]), ]$pathway, n = 10)
+plotGseaTable(pathways_reactome[topPathways], stats, fgseaResPositive, 
+              gseaParam = 0.5) # The 0.5 is only used for illustration purposes.
+fgseaRes[fgseaRes$pathway == "REACTOME_NEURONAL_SYSTEM"]
+```
+
+
+# Autism, DESeq2, GSEA, REACTOME
+
+```{r autism_DESeq2_summary, fig.height=4, fig.width=8}
+# Running fgsea:
+
+res_DESeq2 = list()
+res_DESeq2$p = read.table(file.path(autism_working_dir, "results/ASD_step1_DESeq2_bulk_adj_covariates_seqSV4_lfcShrink.txt"))
+res_DESeq2$p_permuted = read.table(file.path(autism_working_dir, "results/ASD_step1_DESeq2_bulk_adj_covariates_seqSV4_permuted.txt"))
+pval = -log10(res_DESeq2$p[, "pvalue"])
+
+# plot distribution of p-values
+opar = par(mfrow=c(1,2), bty="n", mar=c(5,4,2,1))
+hist(res_DESeq2$p[, "pvalue"], main="DESeq2 bulk", breaks=20,
+     xlab = paste0("p-value (", sum(CARseq:::get_qvalues_one_inflated(res_DESeq2$p[, "pvalue"]) < 0.1, na.rm=TRUE), " genes q value < 0.1)"))
+hist(res_DESeq2$p_permuted[, "pvalue"], main="DESeq2 bulk permuted", breaks=20,
+     xlab = paste0("p-value (", sum(CARseq:::get_qvalues_one_inflated(res_DESeq2$p_permuted[, "pvalue"]) < 0.1, na.rm=TRUE), " genes q value < 0.1)"))
+par(opar)
+```
+
+
+```{r fgseaMultilevel_DESeq2, fig.height=8, fig.width=12}
+# Loading stats:
+stats = pval
+names(stats) = sub("\\.[0-9]*", "", rownames(res_DESeq2$p))  # ensembl id
+names(stats) = rowData(rse_filtered)$gene_name               # gene symbol
+str(stats)
+length(stats)
+stats = stats[unique(names(stats))]  # deduplicate by only taking the highest one of possible duplicated gene symbols
+length(stats)
+stats = na.omit(stats)
+
+# And running fgsea:
+
+filename = file.path(cache_dir, "Autism_DESeq2_GSEAMultilevel_REACTOME.rds")
+if (!file.exists(filename)) {
+  set.seed(1234)
+  fgseaRes = fgseaMultilevel(pathways_reactome, stats, minSize=10, maxSize=1000, gseaParam = 0, eps = 0)
+  saveRDS(fgseaRes, filename)
+  write.csv(fgseaRes[,1:7], sub("rds", "csv", filename))
+} else {
+  fgseaRes = readRDS(filename)
+}
+# head(fgseaRes[order(fgseaRes[,"pval"]), ])
+fgseaResPositive = fgseaRes[fgseaRes$NES > 0, ] # genes that are enriched in small p-values
+topPathways = head(fgseaResPositive[order(fgseaResPositive[,"padj"], -fgseaResPositive[,"NES"]), ]$pathway, n = 10)
+plotGseaTable(pathways_reactome[topPathways], stats, fgseaResPositive, 
+              gseaParam = 0.5) # The 0.5 is only used for illustration purposes.
+fgseaRes[fgseaRes$pathway == "REACTOME_NEURONAL_SYSTEM"]
+```
+
+
+
+# Autism, overlap with SFARI genes
+
+https://gene-archive.sfari.org/database/gene-scoring/
+
+```{r overlap_SFARI}
+SFARI_table = read.csv(file.path(autism_working_dir, "data/SFARI-Gene_genes_10-31-2019release_04-08-2020export.csv"), as.is=TRUE)
+dim(SFARI_table)
+SFARI_table = SFARI_table[SFARI_table$gene.symbol %in% rowData(rse_filtered)$gene_name, ]
+dim(SFARI_table)
+
+table(SFARI_table$syndromic, SFARI_table$gene.score)
+
+genes_in_SFARI = SFARI_table$gene.symbol[SFARI_table$syndromic == 1 | SFARI_table$gene.score %in% 1:3]
+genes_in_SFARI
+```
+
+
+## CARseq
+
+```{r autism_SFARI_gsea_CARseq}
+# # add a random line or reference
+# SFARI_enrichment_table = NULL
+for (cell_type in colnames(res_CARseq$p)) {
+  # Loading stats:
+  pval = -log10(res_CARseq$p[, cell_type])
+  stats = pval
+  names(stats) = sub("\\.[0-9]*", "", rownames(res_CARseq$p))  # ensembl id
+  names(stats) = rowData(rse_filtered)$gene_name               # gene symbol
+  # str(stats)
+  length(stats)
+  stats = stats[unique(names(stats))]  # deduplicate by only taking the highest one of possible duplicated gene symbols
+  length(stats)
+  stats = na.omit(stats)
+  cat("############################################################\n")
+  cat(sprintf("CARseq %s:\n", cell_type))
+  cat("############################################################\n")
+  suppressWarnings(print(fgseaMultilevel(list(SFARI=genes_in_SFARI), stats, minSize=10, maxSize=1000, gseaParam = 0, eps = 0)))
+}
+```
+
+
+
+## TOAST
+
+```{r autism_SFARI_gsea_TOAST}
+# add a random line or reference
+for (cell_type in colnames(res_TOAST$p)) {
+  # Loading stats:
+  pval = -log10(res_TOAST$p[, cell_type])
+  stats = pval
+  names(stats) = sub("\\.[0-9]*", "", rownames(res_TOAST$p))  # ensembl id
+  names(stats) = rowData(rse_filtered)$gene_name               # gene symbol
+  # str(stats)
+  length(stats)
+  stats = stats[unique(names(stats))]  # deduplicate by only taking the highest one of possible duplicated gene symbols
+  length(stats)
+  stats = na.omit(stats)
+  cat("############################################################\n")
+  cat(sprintf("TOAST %s:\n", cell_type))
+  cat("############################################################\n")
+  suppressWarnings(print(fgseaMultilevel(list(SFARI=genes_in_SFARI), stats, minSize=10, maxSize=1000, gseaParam = 0, eps = 0)))
+}
+```
+
+
+## DESeq2
+
+```{r autism_SFARI_gsea_DESeq2}
+# add a random line or reference
+SFARI_enrichment_table = NULL
+# Loading stats:
+pval = -log10(res_DESeq2$p[, "pvalue"])
+stats = pval
+names(stats) = sub("\\.[0-9]*", "", rownames(res_CARseq$p))  # ensembl id
+names(stats) = rowData(rse_filtered)$gene_name               # gene symbol
+# str(stats)
+length(stats)
+stats = stats[unique(names(stats))]  # deduplicate by only taking the highest one of possible duplicated gene symbols
+length(stats)
+stats = na.omit(stats)
+cat("############################################################\n")
+cat("DESeq2 Bulk:\n")
+cat("############################################################\n")
+suppressWarnings(print(fgseaMultilevel(list(SFARI=genes_in_SFARI), stats, minSize=10, maxSize=1000, gseaParam = 0, eps = 0)))
+```
+
+# Autism GSEA CARseq vs. TOAST REACTOME
+
+```{r autism_save_pvals}
+pval_dir = file.path(autism_working_dir, "results/_pvalues")
+if (!dir.exists(pval_dir)) dir.create(pval_dir)
+for (cell_type in colnames(res_CARseq$p)) {
+  pvalues = data.frame(gene_id=rowData(rse_filtered)$gene_id, 
+                       gene_name=rowData(rse_filtered)$gene_name,
+                       pvalue=res_CARseq$p[, cell_type])
+  write_delim(pvalues, path = file.path(pval_dir, sprintf("ASD_CARseq_%s.txt", cell_type)))
+}
+for (cell_type in colnames(res_TOAST$p)) {
+  pvalues = data.frame(gene_id=rowData(rse_filtered)$gene_id, 
+                       gene_name=rowData(rse_filtered)$gene_name,
+                       pvalue=res_TOAST$p[, cell_type])
+  write_delim(pvalues, path = file.path(pval_dir, sprintf("ASD_TOAST_%s.txt", cell_type)))
+}
+pvalues = data.frame(gene_id=rowData(rse_filtered)$gene_id, 
+                     gene_name=rowData(rse_filtered)$gene_name,
+                     pvalue=res_DESeq2$p[, "pvalue"])
+write_delim(pvalues, path = file.path(pval_dir, "ASD_DESeq2_bulk.txt"))
+```
+
+## Heatmap CARseq
+
+Figure: Top 3 CARseq cell type-specific REACTOME pathways ranked by -log10 q value with the sign of NES in the ASD study.
+
+```{r autism_gsea_CARseq_vs_TOAST_REACTOME_heatmap, fig.height = 8, fig.width = 10}
+topPathways_table = NULL
+for (cell_type in colnames(res_CARseq$p)) {
+  CARseq_filename = file.path(cache_dir, sprintf("Autism_CARseq_GSEAMultilevel_REACTOME_%s.rds", cell_type))
+  TOAST_filename = file.path(cache_dir, sprintf("Autism_TOAST_GSEAMultilevel_REACTOME_%s.rds", cell_type))
+  CARseq_fgseaRes = readRDS(CARseq_filename)
+  TOAST_fgseaRes = readRDS(TOAST_filename)
+  CARseq_fgseaResPositive = CARseq_fgseaRes[CARseq_fgseaRes$NES > 0, ] # genes that are enriched in small p-values
+  CARseq_topPathways = CARseq_fgseaResPositive[order(CARseq_fgseaResPositive[,"padj"], -CARseq_fgseaResPositive[,"NES"]), ]$pathway
+  topPathways_table = rbind(topPathways_table, 
+                            data.frame(pathway=CARseq_topPathways,
+                                       cell_type=cell_type,
+                                       log10qvalue = -log10(CARseq:::get_qvalues_one_inflated(CARseq_fgseaRes$pval)
+                                                            [match(CARseq_topPathways, CARseq_fgseaRes$pathway)]),
+                                       NES = CARseq_fgseaRes[,"NES"]
+                                                            [match(CARseq_topPathways, CARseq_fgseaRes$pathway)],
+                                       CT_specific_rank=seq_along(CARseq_topPathways)))
+}
+topPathways_table$cell_type = factor(as.character(topPathways_table$cell_type), levels = colnames(res_CARseq$p))
+# deduplicate to remove the same pathway with a less significant q value
+topPathways_table = topPathways_table[order(topPathways_table$CT_specific_rank, -topPathways_table$log10qvalue, -topPathways_table$NES), ]
+topPathways_table = topPathways_table[!duplicated(topPathways_table$pathway), ]
+# remove pathways that are not in the top N of each cell type
+N = 3
+topN_Pathways_table = data.frame()
+for (cell_type in colnames(res_CARseq$p)) {
+  cell_type_pathway_table = topPathways_table[topPathways_table$cell_type == cell_type, ]
+  topN_Pathways_table = rbind(topN_Pathways_table, cell_type_pathway_table[1:N, ])
+}
+
+# create a matrix for log10 q values of GSEA results of REACTOME
+# The first 6 columns are CARseq, and the next 6 columns are TOAST, and the last column is DESeq2 
+pathway_log10qvalue_matrix = matrix(NA, nrow = nrow(topN_Pathways_table), ncol = ncol(res_CARseq$p) * 2 + 1)
+rownames(pathway_log10qvalue_matrix) = as.character(topN_Pathways_table$pathway)
+colnames(pathway_log10qvalue_matrix) = c(paste("CARseq", colnames(res_CARseq$p)), paste("TOAST", colnames(res_CARseq$p)), "DESeq2 bulk")
+
+# fill in the blanks for CARseq, TOAST, and DESeq2 log 10 q values
+DESeq2_filename = file.path(cache_dir, "Autism_DESeq2_GSEAMultilevel_REACTOME.rds")
+DESeq2_fgseaRes = readRDS(DESeq2_filename)
+indices_CARseq = match(rownames(pathway_log10qvalue_matrix), CARseq_fgseaRes$pathway)
+indices_TOAST = match(rownames(pathway_log10qvalue_matrix), TOAST_fgseaRes$pathway)
+indices_DESeq2 = match(rownames(pathway_log10qvalue_matrix), DESeq2_fgseaRes$pathway)
+pathway_log10qvalue_matrix[, 1 + 2 * ncol(res_CARseq$p)] =
+    (-log10(CARseq:::get_qvalues_one_inflated(DESeq2_fgseaRes$pval)) *
+    sign(DESeq2_fgseaRes$NES))[indices_DESeq2]
+for (j in seq_len(ncol(res_CARseq$p))) {
+  cell_type = colnames(res_CARseq$p)[j]
+  CARseq_filename = file.path(cache_dir, sprintf("Autism_CARseq_GSEAMultilevel_REACTOME_%s.rds", cell_type))
+  TOAST_filename = file.path(cache_dir, sprintf("Autism_TOAST_GSEAMultilevel_REACTOME_%s.rds", cell_type))
+  CARseq_fgseaRes = readRDS(CARseq_filename)
+  TOAST_fgseaRes = readRDS(TOAST_filename)
+
+  pathway_log10qvalue_matrix[, j] = 
+      (-log10(CARseq:::get_qvalues_one_inflated(CARseq_fgseaRes$pval)) *
+      sign(CARseq_fgseaRes$NES))[indices_CARseq]
+  pathway_log10qvalue_matrix[, j + ncol(res_CARseq$p)] =
+      (-log10(CARseq:::get_qvalues_one_inflated(TOAST_fgseaRes$pval)) *
+      sign(TOAST_fgseaRes$NES))[indices_TOAST]
+}
+
+write.csv(pathway_log10qvalue_matrix, file=file.path(cache_dir, "Autism_gsea_CARseq_vs_TOAST_REACTOME_ranked_by_CARseq_heatmap.csv"), quote=FALSE)
+
+# heatmap
+rownames(pathway_log10qvalue_matrix) = str_wrap(sub("REACTOME", "", gsub("_", " ", rownames(pathway_log10qvalue_matrix))), 75)
+ann_colors = list(TopPathwaysByCT = as.character(wes_palette(name="Darjeeling2", 6, type="continuous")),
+                  Method = as.character(wes_palette("FantasticFox1", 3)),
+                  CellType = c(as.character(wes_palette(name="Darjeeling2", 6, type="continuous")), "grey"))
+names(ann_colors[["TopPathwaysByCT"]]) = colnames(res_CARseq$p)
+names(ann_colors[["Method"]]) = c("CARseq", "TOAST", "DESeq2")
+names(ann_colors[["CellType"]]) = c(colnames(res_CARseq$p), "bulk")
+
+annotation_row = data.frame(TopPathwaysByCT=factor(rep(colnames(res_CARseq$p), each=N)))
+rownames(annotation_row) = rownames(pathway_log10qvalue_matrix)
+annotation_col = data.frame(Method=factor(c(rep("CARseq", ncol(res_CARseq$p)), rep("TOAST", ncol(res_CARseq$p)), "DESeq2"),
+                                          levels=c("CARseq", "TOAST", "DESeq2")),
+                            CellType=factor(c(rep(colnames(res_CARseq$p), times=2), "bulk")))
+rownames(annotation_col) = colnames(pathway_log10qvalue_matrix)
+g_asd_4 = pheatmap(pathway_log10qvalue_matrix,
+                   cluster_rows = F, cluster_cols = F,
+                   border_color ="grey60", na_col = "white", angle_col = "90",
+                   colorRampPalette(c("darkblue", "royalblue", "grey95", "grey95", "pink1", "darkred"))(8),
+                   breaks = seq(-4, 4, by=1), legend_breaks = c(seq(-3, 3, by=1), 4),
+                   legend_labels = c(seq(-3, 3, by=1), "signed\n-log10(q)"),
+                   gaps_row = seq(N, N*ncol(res_CARseq$p), by = N),
+                   gaps_col = c(ncol(res_CARseq$p), ncol(res_CARseq$p)*2),
+                   annotation_row = annotation_row, annotation_col=annotation_col,
+                   annotation_colors = ann_colors, fontsize_row = 8,
+                   cellwidth = 12, cellheight = 10)
+g_asd_4
+```
+
+
+
+## Heatmap TOAST
+
+Figure: Top 3 TOAST cell type-specific REACTOME pathways ranked by -log10 q value with the sign of NES in the ASD study.
+
+```{r autism_gsea_CARseq_vs_TOAST_REACTOME_heatmap_TOAST, fig.height = 8, fig.width = 10}
+topPathways_table = NULL
+for (cell_type in colnames(res_CARseq$p)) {
+  CARseq_filename = file.path(cache_dir, sprintf("Autism_CARseq_GSEAMultilevel_REACTOME_%s.rds", cell_type))
+  TOAST_filename = file.path(cache_dir, sprintf("Autism_TOAST_GSEAMultilevel_REACTOME_%s.rds", cell_type))
+  CARseq_fgseaRes = readRDS(CARseq_filename)
+  TOAST_fgseaRes = readRDS(TOAST_filename)
+  TOAST_fgseaResPositive = TOAST_fgseaRes[TOAST_fgseaRes$NES > 0, ] # genes that are enriched in small p-values
+  TOAST_topPathways = TOAST_fgseaResPositive[order(TOAST_fgseaResPositive[,"padj"], -TOAST_fgseaResPositive[,"NES"]), ]$pathway
+  topPathways_table = rbind(topPathways_table, 
+                            data.frame(pathway=TOAST_topPathways,
+                                       cell_type=cell_type,
+                                       log10qvalue = -log10(CARseq:::get_qvalues_one_inflated(TOAST_fgseaRes$pval)
+                                                            [match(TOAST_topPathways, TOAST_fgseaRes$pathway)]),
+                                       NES = TOAST_fgseaRes[,"NES"]
+                                                            [match(TOAST_topPathways, TOAST_fgseaRes$pathway)],                    
+                                       CT_specific_rank=seq_along(TOAST_topPathways)))
+}
+topPathways_table$cell_type = factor(as.character(topPathways_table$cell_type), levels = colnames(res_TOAST$p))
+# deduplicate to remove the same pathway with a less significant q value
+topPathways_table = topPathways_table[order(topPathways_table$CT_specific_rank, -topPathways_table$log10qvalue, -topPathways_table$NES), ]
+topPathways_table = topPathways_table[!duplicated(topPathways_table$pathway), ]
+# remove pathways that are not in the top N of each cell type
+N = 3
+topN_Pathways_table = data.frame()
+for (cell_type in colnames(res_CARseq$p)) {
+  cell_type_pathway_table = topPathways_table[topPathways_table$cell_type == cell_type, ]
+  topN_Pathways_table = rbind(topN_Pathways_table, cell_type_pathway_table[1:N, ])
+}
+
+# create a matrix for log10 q values of GSEA results of REACTOME
+# The first 6 columns are CARseq, and the next 6 columns are TOAST, and the last column is DESeq2 
+pathway_log10qvalue_matrix = matrix(NA, nrow = nrow(topN_Pathways_table), ncol = ncol(res_CARseq$p) * 2 + 1)
+rownames(pathway_log10qvalue_matrix) = as.character(topN_Pathways_table$pathway)
+colnames(pathway_log10qvalue_matrix) = c(paste("CARseq", colnames(res_CARseq$p)), paste("TOAST", colnames(res_CARseq$p)), "DESeq2 bulk")
+
+# fill in the blanks for CARseq, TOAST, and DESeq2 log 10 q values
+DESeq2_filename = file.path(cache_dir, "Autism_DESeq2_GSEAMultilevel_REACTOME.rds")
+DESeq2_fgseaRes = readRDS(DESeq2_filename)
+indices_CARseq = match(rownames(pathway_log10qvalue_matrix), CARseq_fgseaRes$pathway)
+indices_TOAST = match(rownames(pathway_log10qvalue_matrix), TOAST_fgseaRes$pathway)
+indices_DESeq2 = match(rownames(pathway_log10qvalue_matrix), DESeq2_fgseaRes$pathway)
+pathway_log10qvalue_matrix[, 1 + 2 * ncol(res_CARseq$p)] =
+    (-log10(CARseq:::get_qvalues_one_inflated(DESeq2_fgseaRes$pval)) *
+    sign(DESeq2_fgseaRes$NES))[indices_DESeq2]
+for (j in seq_len(ncol(res_CARseq$p))) {
+  cell_type = colnames(res_CARseq$p)[j]
+  CARseq_filename = file.path(cache_dir, sprintf("Autism_CARseq_GSEAMultilevel_REACTOME_%s.rds", cell_type))
+  TOAST_filename = file.path(cache_dir, sprintf("Autism_TOAST_GSEAMultilevel_REACTOME_%s.rds", cell_type))
+  CARseq_fgseaRes = readRDS(CARseq_filename)
+  TOAST_fgseaRes = readRDS(TOAST_filename)
+
+  pathway_log10qvalue_matrix[, j] = 
+      (-log10(CARseq:::get_qvalues_one_inflated(CARseq_fgseaRes$pval)) *
+      sign(CARseq_fgseaRes$NES))[indices_CARseq]
+  pathway_log10qvalue_matrix[, j + ncol(res_CARseq$p)] =
+      (-log10(CARseq:::get_qvalues_one_inflated(TOAST_fgseaRes$pval)) *
+      sign(TOAST_fgseaRes$NES))[indices_TOAST]
+}
+
+write.csv(pathway_log10qvalue_matrix, file=file.path(cache_dir, "Autism_gsea_CARseq_vs_TOAST_REACTOME_ranked_by_TOAST_heatmap.csv"), quote=FALSE)
+
+# heatmap
+rownames(pathway_log10qvalue_matrix) = str_wrap(sub("REACTOME", "", gsub("_", " ", rownames(pathway_log10qvalue_matrix))), 75)
+ann_colors = list(TopPathwaysByCT = as.character(wes_palette(name="Darjeeling2", 6, type="continuous")),
+                  Method = as.character(wes_palette("FantasticFox1", 3)),
+                  CellType = c(as.character(wes_palette(name="Darjeeling2", 6, type="continuous")), "grey"))
+names(ann_colors[["TopPathwaysByCT"]]) = colnames(res_CARseq$p)
+names(ann_colors[["Method"]]) = c("CARseq", "TOAST", "DESeq2")
+names(ann_colors[["CellType"]]) = c(colnames(res_CARseq$p), "bulk")
+
+annotation_row = data.frame(TopPathwaysByCT=factor(rep(colnames(res_CARseq$p), each=N)))
+rownames(annotation_row) = rownames(pathway_log10qvalue_matrix)
+annotation_col = data.frame(Method=factor(c(rep("CARseq", ncol(res_CARseq$p)), rep("TOAST", ncol(res_CARseq$p)), "DESeq2"),
+                                          levels=c("CARseq", "TOAST", "DESeq2")),
+                            CellType=factor(c(rep(colnames(res_CARseq$p), times=2), "bulk")))
+rownames(annotation_col) = colnames(pathway_log10qvalue_matrix)
+
+pheatmap(pathway_log10qvalue_matrix,
+                  cluster_rows = F, cluster_cols = F,
+                  border_color ="grey60", na_col = "white", angle_col = "90",
+                  colorRampPalette(c("darkblue", "royalblue", "grey95", "grey95", "pink1", "darkred"))(8),
+                  breaks = seq(-4, 4, by=1), legend_breaks = c(seq(-3, 3, by=1), 4),
+                  legend_labels = c(seq(-3, 3, by=1), "signed\n-log10(q)"),
+                  gaps_row = seq(N, N*ncol(res_CARseq$p), by = N),
+                  gaps_col = c(ncol(res_CARseq$p), ncol(res_CARseq$p)*2),
+                  annotation_row = annotation_row, annotation_col=annotation_col,
+                  annotation_colors = ann_colors, fontsize_row = 8,
+                  cellwidth = 12, cellheight = 15)
+
+```
+
+
+
+# Autism, CARseq, GSEA, GO_BP
+
+We use "classic" weight where no weight is added. The genes are ranked by p-values. The gene matching is done in gene symbol. There is a lot of genes with p-values being 1, which "may or may not cause trouble", so we only care about the genes that are enriched in small p-values:
+
+## Astro
+
+
+```{r fgseaMultilevel_Astro_BP, fig.height=8, fig.width=12}
+# Running fgsea:
+pval = -log10(res_CARseq$p[, "Astro"])
+
+# Loading stats:
+stats = pval
+names(stats) = sub("\\.[0-9]*", "", rownames(res_TOAST$p))  # ensembl id
+names(stats) = rowData(rse_filtered)$gene_name               # gene symbol
+str(stats)
+length(stats)
+stats = stats[unique(names(stats))]  # deduplicate by only taking the highest one of possible duplicated gene symbols
+length(stats)
+stats = na.omit(stats)
+
+# And running fgsea:
+
+filename = file.path(cache_dir, "Autism_CARseq_GSEAMultilevel_BP_Astro.rds")
+if (!file.exists(filename)) {
+  set.seed(1234)
+  fgseaRes = fgseaMultilevel(pathways_go_bp, stats, minSize=10, maxSize=1000, gseaParam = 0, eps = 0)
+  saveRDS(fgseaRes, filename)
+  write.csv(fgseaRes[,1:7], sub("rds", "csv", filename))
+} else {
+  fgseaRes = readRDS(filename)
+}
+fgseaResPositive = fgseaRes[fgseaRes$NES > 0, ] # genes that are enriched in small p-values
+topPathways = head(fgseaResPositive[order(fgseaResPositive[,"padj"], -fgseaResPositive[,"NES"]), ]$pathway, n = 10)
+plotGseaTable(pathways_go_bp[topPathways], stats, fgseaResPositive, 
+              gseaParam = 0.5) # The 0.5 is only used for illustration purposes.
+```
+
+
+## Exc
+
+```{r fgseaMultilevel_Exc_BP, fig.height=8, fig.width=12}
+# Running fgsea:
+pval = -log10(res_CARseq$p[, "Exc"])
+
+# Loading stats:
+stats = pval
+names(stats) = sub("\\.[0-9]*", "", rownames(res_CARseq$p))  # ensembl id
+names(stats) = rowData(rse_filtered)$gene_name               # gene symbol
+str(stats)
+length(stats)
+stats = stats[unique(names(stats))]  # deduplicate by only taking the highest one of possible duplicated gene symbols
+length(stats)
+stats = na.omit(stats)
+
+# And running fgsea:
+
+filename = file.path(cache_dir, "Autism_CARseq_GSEAMultilevel_BP_Exc.rds")
+if (!file.exists(filename)) {
+  set.seed(1234)
+  fgseaRes = fgseaMultilevel(pathways_go_bp, stats, minSize=10, maxSize=1000, gseaParam = 0, eps = 0)
+  saveRDS(fgseaRes, filename)
+  write.csv(fgseaRes[,1:7], sub("rds", "csv", filename))
+} else {
+  fgseaRes = readRDS(filename)
+}
+
+fgseaResPositive = fgseaRes[fgseaRes$NES > 0, ] # genes that are enriched in small p-values
+topPathways = head(fgseaResPositive[order(fgseaResPositive[,"padj"], -fgseaResPositive[,"NES"]), ]$pathway, n = 10)
+plotGseaTable(pathways_go_bp[topPathways], stats, fgseaResPositive, 
+              gseaParam = 0.5) # The 0.5 is only used for illustration purposes.
+```
+
+## Inh
+
+
+```{r fgseaMultilevel_Inh_BP, fig.height=8, fig.width=12}
+# Running fgsea:
+pval = -log10(res_CARseq$p[, "Inh"])
+
+# Loading stats:
+stats = pval
+names(stats) = sub("\\.[0-9]*", "", rownames(res_CARseq$p))  # ensembl id
+names(stats) = rowData(rse_filtered)$gene_name               # gene symbol
+str(stats)
+length(stats)
+stats = stats[unique(names(stats))]  # deduplicate by only taking the highest one of possible duplicated gene symbols
+length(stats)
+stats = na.omit(stats)
+
+# And running fgsea:
+
+filename = file.path(cache_dir, "Autism_CARseq_GSEAMultilevel_BP_Inh.rds")
+if (!file.exists(filename)) {
+  set.seed(1234)
+  fgseaRes = fgseaMultilevel(pathways_go_bp, stats, minSize=10, maxSize=1000, gseaParam = 0, eps = 0)
+  saveRDS(fgseaRes, filename)
+  write.csv(fgseaRes[,1:7], sub("rds", "csv", filename))
+} else {
+  fgseaRes = readRDS(filename)
+}
+fgseaResPositive = fgseaRes[fgseaRes$NES > 0, ] # genes that are enriched in small p-values
+topPathways = head(fgseaResPositive[order(fgseaResPositive[,"padj"], -fgseaResPositive[,"NES"]), ]$pathway, n = 10)
+plotGseaTable(pathways_go_bp[topPathways], stats, fgseaResPositive, 
+              gseaParam = 0.5) # The 0.5 is only used for illustration purposes.
+```
+
+
+## Oligo
+
+
+```{r fgseaMultilevel_Oligo_BP, fig.height=8, fig.width=12}
+# Running fgsea:
+pval = -log10(res_CARseq$p[, "Oligo"])
+
+# Loading stats:
+stats = pval
+names(stats) = sub("\\.[0-9]*", "", rownames(res_CARseq$p))  # ensembl id
+names(stats) = rowData(rse_filtered)$gene_name               # gene symbol
+str(stats)
+length(stats)
+stats = stats[unique(names(stats))]  # deduplicate by only taking the highest one of possible duplicated gene symbols
+length(stats)
+stats = na.omit(stats)
+
+# And running fgsea:
+
+filename = file.path(cache_dir, "Autism_CARseq_GSEAMultilevel_BP_Oligo.rds")
+if (!file.exists(filename)) {
+  set.seed(1234)
+  fgseaRes = fgseaMultilevel(pathways_go_bp, stats, minSize=10, maxSize=1000, gseaParam = 0, eps = 0)
+  saveRDS(fgseaRes, filename)
+  write.csv(fgseaRes[,1:7], sub("rds", "csv", filename))
+} else {
+  fgseaRes = readRDS(filename)
+}
+fgseaResPositive = fgseaRes[fgseaRes$NES > 0, ] # genes that are enriched in small p-values
+topPathways = head(fgseaResPositive[order(fgseaResPositive[,"padj"], -fgseaResPositive[,"NES"]), ]$pathway, n = 10)
+plotGseaTable(pathways_go_bp[topPathways], stats, fgseaResPositive, 
+              gseaParam = 0.5) # The 0.5 is only used for illustration purposes.
+```
+
+
+## Micro
+
+
+```{r fgseaMultilevel_Micro_BP, fig.height=8, fig.width=12}
+# Running fgsea:
+pval = -log10(res_CARseq$p[, "Micro"])
+
+# Loading stats:
+stats = pval
+names(stats) = sub("\\.[0-9]*", "", rownames(res_CARseq$p))  # ensembl id
+names(stats) = rowData(rse_filtered)$gene_name               # gene symbol
+str(stats)
+length(stats)
+stats = stats[unique(names(stats))]  # deduplicate by only taking the highest one of possible duplicated gene symbols
+length(stats)
+stats = na.omit(stats)
+
+# And running fgsea:
+
+filename = file.path(cache_dir, "Autism_CARseq_GSEAMultilevel_BP_Micro.rds")
+if (!file.exists(filename)) {
+  set.seed(1234)
+  fgseaRes = fgseaMultilevel(pathways_go_bp, stats, minSize=10, maxSize=1000, gseaParam = 0, eps = 0)
+  saveRDS(fgseaRes, filename)
+  write.csv(fgseaRes[,1:7], sub("rds", "csv", filename))
+} else {
+  fgseaRes = readRDS(filename)
+}
+fgseaResPositive = fgseaRes[fgseaRes$NES > 0, ] # genes that are enriched in small p-values
+topPathways = head(fgseaResPositive[order(fgseaResPositive[,"padj"], -fgseaResPositive[,"NES"]), ]$pathway, n = 10)
+plotGseaTable(pathways_go_bp[topPathways], stats, fgseaResPositive, 
+              gseaParam = 0.5) # The 0.5 is only used for illustration purposes.
+```
+
+## OPC
+
+
+```{r fgseaMultilevel_OPC_BP, fig.height=8, fig.width=12}
+# Running fgsea:
+pval = -log10(res_CARseq$p[, "OPC"])
+
+# Loading stats:
+stats = pval
+names(stats) = sub("\\.[0-9]*", "", rownames(res_CARseq$p))  # ensembl id
+names(stats) = rowData(rse_filtered)$gene_name               # gene symbol
+str(stats)
+length(stats)
+stats = stats[unique(names(stats))]  # deduplicate by only taking the highest one of possible duplicated gene symbols
+length(stats)
+stats = na.omit(stats)
+
+# And running fgsea:
+
+filename = file.path(cache_dir, "Autism_CARseq_GSEAMultilevel_BP_OPC.rds")
+if (!file.exists(filename)) {
+  set.seed(1234)
+  fgseaRes = fgseaMultilevel(pathways_go_bp, stats, minSize=10, maxSize=1000, gseaParam = 0, eps = 0)
+  saveRDS(fgseaRes, filename)
+  write.csv(fgseaRes[,1:7], sub("rds", "csv", filename))
+} else {
+  fgseaRes = readRDS(filename)
+}
+fgseaResPositive = fgseaRes[fgseaRes$NES > 0, ] # genes that are enriched in small p-values
+topPathways = head(fgseaResPositive[order(fgseaResPositive[,"padj"], -fgseaResPositive[,"NES"]), ]$pathway, n = 10)
+plotGseaTable(pathways_go_bp[topPathways], stats, fgseaResPositive, 
+              gseaParam = 0.5) # The 0.5 is only used for illustration purposes.
+```
+
+
+
+
+
+
+# Compare cell type-specific gene expression in deconvolved bulk and scRNAseq for autism
+
+```{r autism_deconvolved_bulk_and_scRNAseq}
+scRNAseq_sig = readRDS(file.path(scz_working_dir, "./MTG/all_genes_MTG.rds"))
+scRNAseq_sig$sig_matched = scRNAseq_sig$SIG[match(rowData(rse_filtered)$gene_name, rownames(scRNAseq_sig$SIG)), ]
+colnames(scRNAseq_sig$sig_matched) = paste("scRNAseq", colnames(scRNAseq_sig$sig_matched))  # expression from MTG scRNAseq
+dim(scRNAseq_sig$sig_matched)
+```
+
+## Compare cell type-specific expression in single cell reference, MLE expression in case and MLE expression in control
+
+Plot a heatmap of correlation matrix
+
+```{r autism_heatmap_corr_expr}
+# Spearman correlation
+# With infinite LFCs
+res_CARseq_coefficients = res_CARseq$coefficients[, grep("Control|ASD", colnames(res_CARseq$coefficients))]
+cor(res_CARseq_coefficients, method="spearman", use="pairwise.complete.obs")[1:6,7:12]
+cor(cbind(scRNAseq_sig$sig_matched, res_CARseq_coefficients[,1:6]), method="spearman", use="pairwise.complete.obs")[1:6,7:12]
+cor(cbind(scRNAseq_sig$sig_matched, res_CARseq_coefficients[,7:12]), method="spearman", use="pairwise.complete.obs")[1:6,7:12]
+
+# With shrunken LFCs -- note that the shrunken LFCs are not very good
+res_CARseq_shrunken_coefficients = res_CARseq$shrunken_coefficients[, grep("Control|ASD", colnames(res_CARseq$shrunken_coefficients))]
+res_CARseq_shrunken_coefficients[] = c(res_CARseq_shrunken_coefficients) + c(res_CARseq$shrunken_coefficients[, grep("intercept", colnames(res_CARseq$shrunken_coefficients))])
+cor(res_CARseq_shrunken_coefficients, method="spearman", use="pairwise.complete.obs")[1:6,7:12]
+cor(cbind(scRNAseq_sig$sig_matched, res_CARseq_shrunken_coefficients[,1:6]), method="spearman", use="pairwise.complete.obs")[1:6,7:12]
+cor(cbind(scRNAseq_sig$sig_matched, res_CARseq_shrunken_coefficients[,7:12]), method="spearman", use="pairwise.complete.obs")[1:6,7:12]
+
+# With infinite LFCs as NAs
+res_CARseq_coefficients_as_NAs = res_CARseq$coefficients[, grep("Control|ASD", colnames(res_CARseq$coefficients))]
+res_CARseq_coefficients_as_NAs[!is.finite(res_CARseq_coefficients_as_NAs)] = NA
+cor(res_CARseq_coefficients_as_NAs, method="spearman", use="pairwise.complete.obs")[1:6,7:12]
+cor(cbind(scRNAseq_sig$sig_matched, res_CARseq_coefficients_as_NAs[,1:6]), method="spearman", use="pairwise.complete.obs")[1:6,7:12]
+cor(cbind(scRNAseq_sig$sig_matched, res_CARseq_coefficients_as_NAs[,7:12]), method="spearman", use="pairwise.complete.obs")[1:6,7:12]
+
+# With infinite LFCs as NAs & Pearson correlation
+cor(res_CARseq_coefficients_as_NAs, method="pearson", use="pairwise.complete.obs")[1:6,7:12]
+cor(cbind(log(1 + scRNAseq_sig$sig_matched), res_CARseq_coefficients_as_NAs[,1:6]), method="pearson", use="pairwise.complete.obs")[1:6,7:12]
+cor(cbind(log(1 + scRNAseq_sig$sig_matched), res_CARseq_coefficients_as_NAs[,7:12]), method="pearson", use="pairwise.complete.obs")[1:6,7:12]
+
+# plot
+# library(pheatmap)
+cor_all = cor(cbind(res_CARseq_coefficients_as_NAs, log(1 + scRNAseq_sig$sig_matched)), method="pearson", use="pairwise.complete.obs")
+# cor_all[lower.tri(cor_all, diag=TRUE)] = NA
+cor_all = cor_all[1:12, 7:18]
+cor_all[7:12, 1:6] = NA
+cor_all_as_character = matrix(sprintf("%.2f", cor_all), nrow=nrow(cor_all))
+cor_all_as_character[cor_all_as_character == "NA"] = ""
+pheatmap(cor_all, cluster_rows = F, cluster_cols = F, display_numbers = cor_all_as_character, border_color = NA, na_col = "white", angle_col = "90",  colorRampPalette(c("blue", "royalblue", "white", "pink", "red"))(21), breaks = seq(-1, 1, by=0.1), gaps_row = 6, gaps_col = 6)
+```
+
+## compare scRNAseq ref vs. cell type-specific expression after bulk expression deconvolution
+
+
+```{r autism_heatmap_corr_expr_rectangle}
+pheatmap(cor_all[,7:12], cluster_rows = F, cluster_cols = F, display_numbers = cor_all_as_character[,7:12], border_color = NA, na_col = "white", angle_col = "90",  colorRampPalette(c("blue", "royalblue", "white", "pink", "red"))(21), breaks = seq(-1, 1, by=0.1),gaps_row = 6)
+```
+
+
+# Autism cellular proportions
+
+```{r autism_cellular_proportions}
+cellular_proportions = readRDS(file.path(autism_working_dir, "data/ASD_prop.rds"))
+
+cellular_proportions_longtable =
+    cellular_proportions$ICeDT[colnames(rse_filtered), ] %>% as.data.frame() %>%
+    rownames_to_column(var = "samples") %>%
+    add_column(group = colData(rse_filtered)$Diagnosis) %>%
+    add_column(Exc_prop = cellular_proportions$ICeDT[,"Exc"]) %>%
+    pivot_longer(cols = Astro:OPC, names_to = "cell type", values_to = "cellular proportions")
+
+# facet_wrap(~group) is not a good solution since the samples in different facets are assumed to be the same.
+# Another idea is to sort the samples by SCZ or Control, and add a layer of gray to SCZ samples.
+g_asd_1_ASD = ggplot(data=cellular_proportions_longtable %>% subset(group %in% "ASD"), aes(x=reorder(samples, Exc_prop), y=`cellular proportions`, fill=`cell type`)) +
+    geom_bar(stat = "identity", width=1) +
+    xlab("sample") +
+    ggtitle("ASD samples") +
+    scale_fill_manual(values = wes_palette(6, name="Darjeeling2", type="continuous")) +
+    theme_minimal() +
+    theme(panel.grid.major = element_blank(),  axis.text.x = element_blank(), legend.position = "none")
+
+g_asd_1_Control = ggplot(data=cellular_proportions_longtable %>% subset(group %in% "Control"), aes(x=reorder(samples, Exc_prop), y=`cellular proportions`, fill=`cell type`)) +
+    geom_bar(stat = "identity", width=1) +
+    xlab("sample") +
+    ggtitle("Control samples") +
+    scale_fill_manual(values = wes_palette(6, name="Darjeeling2", type="continuous")) + 
+    theme_minimal() +
+    theme(panel.grid.major = element_blank(),  axis.text.x = element_blank())
+
+g_asd_1 = ggarrange(g_asd_1_ASD, g_asd_1_Control, ncol = 2, widths = c(4,5), nrow = 1)
+g_asd_1
+```
+
+## Autism cellular frequencies vs. case-control and institutions, ICeDT
+
+```{r autism_cellular_frequencies_on_case_control}
+# log ratio against Exc
+summary_ICeDT = list()
+summary_ICeDT[["Astro"]]=summary(lm(log((1e-2 + cellular_proportions$ICeDT[,"Astro"]) / (1e-2 + cellular_proportions$ICeDT[,"Exc"]))~ Diagnosis+BrainBank+Sequencing.Batch+log_depth + AgeDeath + RIN + seqSV1 + seqSV2 + seqSV3 + seqSV4, data=colData(rse_filtered)))
+summary_ICeDT[["Astro"]]
+summary_ICeDT[["Inh"]]=summary(lm(log((1e-2 + cellular_proportions$ICeDT[,"Inh"]) / (1e-2 + cellular_proportions$ICeDT[,"Exc"]))~ Diagnosis+BrainBank+Sequencing.Batch+log_depth + AgeDeath + RIN + seqSV1 + seqSV2 + seqSV3 + seqSV4, data=colData(rse_filtered)))
+summary_ICeDT[["Inh"]]
+summary_ICeDT[["Micro"]]=summary(lm(log((1e-2 + cellular_proportions$ICeDT[,"Micro"]) / (1e-2 + cellular_proportions$ICeDT[,"Exc"]))~ Diagnosis+BrainBank+Sequencing.Batch+log_depth + AgeDeath + RIN + seqSV1 + seqSV2 + seqSV3 + seqSV4, data=colData(rse_filtered)))
+summary_ICeDT[["Micro"]]
+summary_ICeDT[["Oligo"]]=summary(lm(log((1e-2 + cellular_proportions$ICeDT[,"Oligo"]) / (1e-2 + cellular_proportions$ICeDT[,"Exc"]))~ Diagnosis+BrainBank+Sequencing.Batch+log_depth + AgeDeath + RIN + seqSV1 + seqSV2 + seqSV3 + seqSV4, data=colData(rse_filtered)))
+summary_ICeDT[["Oligo"]]
+summary_ICeDT[["OPC"]]=summary(lm(log((1e-2 + cellular_proportions$ICeDT[,"OPC"]) / (1e-2 + cellular_proportions$ICeDT[,"Exc"]))~ Diagnosis+BrainBank+Sequencing.Batch+log_depth + AgeDeath + RIN + seqSV1 + seqSV2 + seqSV3 + seqSV4, data=colData(rse_filtered)))
+summary_ICeDT[["OPC"]]
+```
+
+## Autism cellular frequencies vs. case-control and institutions, CIBERSORT
+
+```{r autism_cellular_frequencies_on_case_control_CIBERSORT}
+# log ratio against Exc
+summary_CIBERSORT = list()
+summary_CIBERSORT[["Astro"]]=summary(lm(log((1e-2 + cellular_proportions$CIBERSORT[,"Astro"]) / (1e-2 + cellular_proportions$CIBERSORT[,"Exc"]))~ Diagnosis+BrainBank+Sequencing.Batch+log_depth + AgeDeath + RIN + seqSV1 + seqSV2 + seqSV3 + seqSV4, data=colData(rse_filtered)))
+summary_CIBERSORT[["Astro"]]
+summary_CIBERSORT[["Inh"]]=summary(lm(log((1e-2 + cellular_proportions$CIBERSORT[,"Inh"]) / (1e-2 + cellular_proportions$CIBERSORT[,"Exc"]))~ Diagnosis+BrainBank+Sequencing.Batch+log_depth + AgeDeath + RIN + seqSV1 + seqSV2 + seqSV3 + seqSV4, data=colData(rse_filtered)))
+summary_CIBERSORT[["Inh"]]
+summary_CIBERSORT[["Micro"]]=summary(lm(log((1e-2 + cellular_proportions$CIBERSORT[,"Micro"]) / (1e-2 + cellular_proportions$CIBERSORT[,"Exc"]))~ Diagnosis+BrainBank+Sequencing.Batch+log_depth + AgeDeath + RIN + seqSV1 + seqSV2 + seqSV3 + seqSV4, data=colData(rse_filtered)))
+summary_CIBERSORT[["Micro"]]
+summary_CIBERSORT[["Oligo"]]=summary(lm(log((1e-2 + cellular_proportions$CIBERSORT[,"Oligo"]) / (1e-2 + cellular_proportions$CIBERSORT[,"Exc"]))~ Diagnosis+BrainBank+Sequencing.Batch+log_depth + AgeDeath + RIN + seqSV1 + seqSV2 + seqSV3 + seqSV4, data=colData(rse_filtered)))
+summary_CIBERSORT[["Oligo"]]
+summary_CIBERSORT[["OPC"]]=summary(lm(log((1e-2 + cellular_proportions$CIBERSORT[,"OPC"]) / (1e-2 + cellular_proportions$CIBERSORT[,"Exc"]))~ Diagnosis+BrainBank+Sequencing.Batch+log_depth + AgeDeath + RIN + seqSV1 + seqSV2 + seqSV3 + seqSV4, data=colData(rse_filtered)))
+summary_CIBERSORT[["OPC"]]
+
+# The power is low is probably because CIBERSORT gave 0 estimates:
+table(cellular_proportions$CIBERSORT[, "Astro"] == 0)
+table(cellular_proportions$CIBERSORT[, "OPC"] == 0)
+```
+
+## Autism cellular frequencies vs. case-control figures
+
+```{r autism_cellular_frequencies_figures}
+# See http://www.cookbook-r.com/Graphs/Plotting_means_and_error_bars_(ggplot2)/
+# collect summary of cellular fraction linear models
+summary_table = NULL
+for (cell_type in names(summary_ICeDT)) {
+  summary_table = rbind(summary_table,
+                        data.frame(method="ICeDT",
+                                   cell_type=cell_type,
+                                   diagnosis_effect=summary_ICeDT[[cell_type]]$coefficients[2, "Estimate"],
+                                   se=summary_ICeDT[[cell_type]]$coefficients[2, "Std. Error"],
+                                   pval=summary_ICeDT[[cell_type]]$coefficients[2, "Pr(>|t|)"])
+                        )
+  summary_table = rbind(summary_table,
+                        data.frame(method="CIBERSORT",
+                                   cell_type=cell_type,
+                                   diagnosis_effect=summary_CIBERSORT[[cell_type]]$coefficients[2, "Estimate"],
+                                   se=summary_CIBERSORT[[cell_type]]$coefficients[2, "Std. Error"],
+                                   pval=summary_CIBERSORT[[cell_type]]$coefficients[2, "Pr(>|t|)"])
+                        )
+}
+summary_table$method = factor(summary_table$method, levels=c("ICeDT", "CIBERSORT"))
+summary_table
+
+# The errorbars overlapped, so use position_dodge to move them horizontally
+pd = position_dodge(0.3) # move them to the left and right
+
+summary_table$cell_type = factor(summary_table$cell_type, levels = rev(levels(summary_table$cell_type)))
+g_asd_2 = ggplot(summary_table, aes(x=cell_type, y=diagnosis_effect, colour=method, group=method)) + 
+    geom_errorbar(aes(ymin=diagnosis_effect-se, ymax=diagnosis_effect+se), colour="black", width=.1, position=pd) +
+    # geom_line(position=pd) +
+    geom_point(position=pd, size=3, shape=21, fill="white") + # 21 is filled circle
+    xlab("Cell types") +
+    ylab("Difference of log ratio between case and control") +
+    scale_colour_hue(name="Deconvolution method",    # Legend label, use darker colors
+                     breaks=c("ICeDT", "CIBERSORT"),
+                     labels=c("ICeDT", "CIBERSORT"),
+                     l=40) +                    # Use darker colors, lightness=40
+    ggtitle(" Cellular fraction estimates\n on ASD vs. Control\n adjusted for covariates") +
+    expand_limits(y=0) +                        # Expand y range
+    theme_bw() +
+    geom_hline(yintercept=0, linetype="dashed")
+g_asd_2
+```
+
+
+# Autism Volcano plot
+
+```{r autism_volcano_plot}
+volcano_plot_data = data.frame()
+for (cell_type in colnames(res_CARseq$p)) {
+  log10qvalue = -log10(CARseq:::get_qvalues_one_inflated(res_CARseq$p[, cell_type]))
+  log10qvalue_significant = which(log10qvalue > -log10(0.1))
+  if (length(log10qvalue_significant) > 0) {
+    volcano_plot_data = rbind(volcano_plot_data,
+                         data.frame(cell_type = cell_type,
+               gene_name = rowData(rse_filtered)$gene_name[log10qvalue_significant],
+               log10qvalue = log10qvalue[log10qvalue_significant],
+               LFC = res_CARseq$lfc[log10qvalue_significant, grep(cell_type, colnames(res_CARseq$lfc))]
+               ))
+  }
+}
+dim(volcano_plot_data)
+# remove the LFCs that are not finite
+volcano_plot_data = volcano_plot_data[is.finite(volcano_plot_data$LFC), ]
+dim(volcano_plot_data)
+volcano_plot_data$gene_name_subset = as.character(volcano_plot_data$gene_name)
+volcano_plot_data$gene_name_subset[rank(-volcano_plot_data$log10qvalue) > 10] = ""
+
+range(volcano_plot_data$log10qvalue)
+range(volcano_plot_data$LFC)
+ggplot(volcano_plot_data, aes(x=LFC, y=log10qvalue, label=gene_name_subset, color=cell_type)) +
+  geom_point(alpha = 0.5) +
+  geom_text_repel(hjust="outward", vjust="outward", position=position_jitter(width=0,height=0.0)) +
+  geom_hline(yintercept=1, linetype="dashed") +
+  # geom_hline(yintercept=-log10(0.25), linetype="dotted") +
+  xlim(-max(abs(volcano_plot_data$LFC)), max(abs(volcano_plot_data$LFC))) +
+  geom_vline(xintercept=0) +
+  theme_minimal()
+```
+
+
+
+## Use CARseq shrunken log fold change
+
+```{r autism_volcano_plot_shrunken_lfc}
+volcano_plot_data = data.frame()
+for (cell_type in colnames(res_CARseq$p)) {
+  log10qvalue = -log10(CARseq:::get_qvalues_one_inflated(res_CARseq$p[, cell_type]))
+  # only showing gene-cell type pairs with q value < 0.1 & shrunken lfc > 0.01 in abs value
+  log10qvalue_significant = which(log10qvalue > -log10(0.1) & abs(res_CARseq$shrunken_lfc[, grep(cell_type, colnames(res_CARseq$shrunken_lfc))]) > 0.01)
+  if (length(log10qvalue_significant) > 0) {
+    volcano_plot_data = rbind(volcano_plot_data,
+                         data.frame(cell_type = cell_type,
+               gene_name = rowData(rse_filtered)$gene_name[log10qvalue_significant],
+               pvalue = res_CARseq$p[log10qvalue_significant, cell_type],
+               log10qvalue = log10qvalue[log10qvalue_significant],
+               shrunken_LFC = res_CARseq$shrunken_lfc[log10qvalue_significant, grep(cell_type, colnames(res_CARseq$shrunken_lfc))]
+               ))
+  }
+}
+dim(volcano_plot_data)
+# remove the LFCs that are not finite
+volcano_plot_data = volcano_plot_data[is.finite(volcano_plot_data$shrunken_LFC), ]
+dim(volcano_plot_data)
+# show gene names on the plot when q value < 0.01
+volcano_plot_data$gene_name_subset = as.character(volcano_plot_data$gene_name)
+
+# neurons
+volcano_plot_data_neuronal = subset(volcano_plot_data, (cell_type %in% c("Exc","Inh")))
+if (nrow(volcano_plot_data_neuronal) >= 10) {
+    volcano_plot_data_neuronal$gene_name_subset[order(order(-volcano_plot_data_neuronal$log10qvalue, volcano_plot_data_neuronal$pvalue)) > 10] = ""
+  g_asd_3 = ggplot(volcano_plot_data_neuronal, aes(x=shrunken_LFC, y=log10qvalue, label=gene_name_subset, color=cell_type)) +
+    geom_point(alpha = 0.5) +
+    geom_text_repel(hjust="outward", vjust="outward", box.padding = 0.25, force = 20, size = 3, max.iter = 10000) +
+    geom_hline(yintercept=1, linetype="dashed") +
+    # geom_hline(yintercept=-log10(0.25), linetype="dotted") +
+    xlim(-max(abs(volcano_plot_data$shrunken_LFC)), max(abs(volcano_plot_data$shrunken_LFC))) +
+    geom_vline(xintercept=0) +
+    scale_color_manual(values = wes_palette(6, name="Darjeeling2", type="continuous"), limits = colnames(res_CARseq$p)) +
+    theme_minimal()
+  g_asd_3
+}
+  
+# non neurons
+volcano_plot_data_non_neuronal = subset(volcano_plot_data, !(cell_type %in% c("Exc","Inh")))
+if (nrow(volcano_plot_data_non_neuronal) >= 10) {
+    volcano_plot_data_non_neuronal$gene_name_subset[order(order(-volcano_plot_data_non_neuronal$log10qvalue, volcano_plot_data_neuronal$pvalue)) > 10] = ""
+  ggplot(volcano_plot_data_non_neuronal, aes(x=shrunken_LFC, y=log10qvalue, label=gene_name_subset, color=cell_type)) +
+    geom_point(alpha = 0.5) +
+    geom_text_repel(hjust="outward", vjust="outward", position=position_jitter(width=0,height=0.0)) +
+    geom_hline(yintercept=1, linetype="dashed") +
+    geom_hline(yintercept=-log10(0.25), linetype="dotted") +
+    xlim(-max(abs(volcano_plot_data$shrunken_LFC)), max(abs(volcano_plot_data$shrunken_LFC))) + ylim(0.5, max(volcano_plot_data$log10qvalue)) +
+    geom_vline(xintercept=0) +
+    scale_color_manual(values = wes_palette(6, name="Darjeeling2", type="continuous"), limits = colnames(res_CARseq$p)) +
+    theme_minimal()
+}
+```
+
+## Use DESeq2 shrunken log fold change
+
+
+```{r autism_volcano_plot_DESeq2_shrunken_lfc}
+volcano_plot_data = data.frame()
+log10qvalue = -log10(CARseq:::get_qvalues_one_inflated(res_DESeq2$p[, "pvalue"]))
+res_DESeq2$p$shrunken_LFC = res_DESeq2$p$log2FoldChange * log(2)  # transform log2 to natural log
+# only showing gene-cell type pairs with q value < 0.1 & shrunken lfc > 0.1 in abs value
+log10qvalue_significant = which(log10qvalue > -log10(0.1)) # & abs(res_DESeq2$p$shrunken_LFC) > 0.1)
+if (length(log10qvalue_significant) > 0) {
+  volcano_plot_data = rbind(volcano_plot_data,
+                       data.frame(cell_type = "DESeq2 bulk",
+             gene_name = rowData(rse_filtered)$gene_name[log10qvalue_significant],
+             log10qvalue = log10qvalue[log10qvalue_significant],
+             shrunken_LFC = res_DESeq2$p$shrunken_LFC[log10qvalue_significant]
+             ))
+}
+dim(volcano_plot_data)
+# remove the LFCs that are not finite
+volcano_plot_data = volcano_plot_data[is.finite(volcano_plot_data$shrunken_LFC), ]
+dim(volcano_plot_data)
+# show gene names on the plot when q value < 0.01
+volcano_plot_data$gene_name_subset = as.character(volcano_plot_data$gene_name)
+
+volcano_plot_data$gene_name_subset[rank(-volcano_plot_data$log10qvalue) > 10] = ""
+ggplot(volcano_plot_data, aes(x=shrunken_LFC, y=log10qvalue, label=gene_name_subset, color=cell_type)) +
+  geom_point(alpha = 0.5) +
+  geom_text_repel(hjust="outward", vjust="outward", position=position_jitter(width=0,height=0.0), box.padding = 0.25, force = 10, size = 4) +
+  geom_hline(yintercept=1, linetype="dashed") +
+  xlim(-max(abs(volcano_plot_data$shrunken_LFC)), max(abs(volcano_plot_data$shrunken_LFC))) + ylim(0.5, max(volcano_plot_data$log10qvalue)) +
+  geom_vline(xintercept=0) +
+  theme_minimal()
+```
+
+
+# Autism Venn plot
+
+```{r autism_venn_plot}
+library(gplots)
+autism_pvalues = data.frame(CARseq=res_CARseq$p, DESeq2.bulk=res_DESeq2$p$pvalue)
+autism_qvalues = apply(autism_pvalues, 2, CARseq:::get_qvalues_one_inflated)
+autism_significant = (autism_qvalues < 0.1)
+autism_significant[is.na(autism_significant)] = FALSE
+opar = par(cex = 0.7)
+venn(as.data.frame(autism_significant[,
+    c("CARseq.Exc", "CARseq.Inh", "DESeq2.bulk")]))
+par(opar)
+```
+
+
+
+# Read CARseq results for schizophrenia
+
+```{r scz_CARseq_summary}
+set.seed(1234)
+
+scz_working_dir = "."
+
+cache_dir = "reproducible_figures_cache"
+if (!file.exists(cache_dir)) dir.create(cache_dir)
+
+# load gene annotation:
+rse_filtered = readRDS(file.path(scz_working_dir, "data/rse_filtered_SV.rds"))
+
+############################################################
+# 2 SVs
+############################################################
+# CARseq, ICeDT
+# not permuted
+res_CARseq = readRDS(file.path(scz_working_dir, "results/SCZ_CARseq_ICeDT_SV2.rds"))
+par(mfrow=c(2,3), bty="n", mar=c(5,4,2,1))
+for(k in seq_len(ncol(res_CARseq$p))) {
+  hist(res_CARseq$p[,k], main=colnames(res_CARseq$p)[k], breaks=20,
+       xlab = paste0("p-value (", sum(CARseq:::get_qvalues_one_inflated(res_CARseq$p[, k]) < 0.1, na.rm=TRUE), " genes q value < 0.1)"))
+}
+
+# permuted
+res_CARseq_permuted = readRDS(file.path(scz_working_dir,  "results/SCZ_CARseq_ICeDT_permuted_SV2.rds"))
+par(mfrow=c(2,3), bty="n", mar=c(5,4,2,1))
+for(k in seq_len(ncol(res_CARseq_permuted$p))) {
+  hist(res_CARseq_permuted$p[,k], main=colnames(res_CARseq_permuted$p)[k], breaks=20,
+       xlab = paste0("p-value (", sum(CARseq:::get_qvalues_one_inflated(res_CARseq_permuted$p[, k]) < 0.1, na.rm=TRUE), " genes q value < 0.1)"))
+}
+```
+
+
+# Schizophrenia, TOAST, GSEA, REACTOME
+
+We use "classic" weight where no weight is added. The genes are ranked by p-values. The gene matching is done in gene symbol. There is a lot of genes with p-values being 1, which "may or may not cause trouble", so we only care about the genes that are enriched in small p-values:
+
+
+```{r scz_load_TOAST}
+############################################################
+# 2 SVs
+############################################################
+# CARseq, ICeDT
+# not permuted
+res_TOAST = list()
+res_TOAST$p = read.table(file.path(scz_working_dir, "results/SCZ_step1_TOAST_with_covariates_SV2.txt"))
+par(mfrow=c(2,3), bty="n", mar=c(5,4,2,1))
+for(k in seq_len(ncol(res_TOAST$p))) {
+  hist(res_TOAST$p[,k], main=colnames(res_TOAST$p)[k], breaks=20,
+       xlab = paste0("p-value (", sum(CARseq:::get_qvalues_one_inflated(res_TOAST$p[, k]) < 0.1, na.rm=TRUE), " genes q value < 0.1)"))
+}
+
+# permuted
+res_TOAST_permuted = list()
+res_TOAST_permuted$p = read.table(file.path(scz_working_dir,  "results/SCZ_step1_TOAST_with_covariates_SV2_permuted.txt"))
+par(mfrow=c(2,3), bty="n", mar=c(5,4,2,1))
+for(k in seq_len(ncol(res_TOAST_permuted$p))) {
+  hist(res_TOAST_permuted$p[,k], main=colnames(res_TOAST_permuted$p)[k], breaks=20,
+       xlab = paste0("p-value (", sum(CARseq:::get_qvalues_one_inflated(res_TOAST_permuted$p[, k]) < 0.1, na.rm=TRUE), " genes q value < 0.1)"))
+}
+```
+
+
+## Astro
+
+
+```{r scz_fgseaMultilevel_Astro_TOAST, fig.height=8, fig.width=12}
+# Running fgsea:
+pval = -log10(res_TOAST$p[, "Astro"])
+
+# Loading stats:
+stats = pval
+names(stats) = sub("\\.[0-9]*", "", rownames(res_TOAST$p))  # ensembl id
+names(stats) = rowData(rse_filtered)$gene_name               # gene symbol
+str(stats)
+length(stats)
+stats = stats[unique(names(stats))]  # deduplicate by only taking the highest one of possible duplicated gene symbols
+length(stats)
+stats = na.omit(stats)
+
+# And running fgsea:
+
+filename = file.path(cache_dir, "scz_TOAST_GSEAMultilevel_REACTOME_Astro.rds")
+if (!file.exists(filename)) {
+  set.seed(1234)
+  fgseaRes = fgseaMultilevel(pathways_reactome, stats, minSize=10, maxSize=1000, gseaParam = 0, eps = 0)
+  saveRDS(fgseaRes, filename)
+  write.csv(fgseaRes[,1:7], sub("rds", "csv", filename))
+} else {
+  fgseaRes = readRDS(filename)
+}
+# head(fgseaRes[order(fgseaRes[,"pval"]), ])
+fgseaResPositive = fgseaRes[fgseaRes$NES > 0, ] # genes that are enriched in small p-values
+topPathways = head(fgseaResPositive[order(fgseaResPositive[,"padj"], -fgseaResPositive[,"NES"]), ]$pathway, n = 10)
+plotGseaTable(pathways_reactome[topPathways], stats, fgseaResPositive, 
+              gseaParam = 0.5) # The 0.5 is only used for illustration purposes.
+fgseaRes[fgseaRes$pathway == "REACTOME_NEURONAL_SYSTEM"]
+```
+
+
+## Exc
+
+```{r scz_fgseaMultilevel_Exc_TOAST, fig.height=8, fig.width=12}
+# Running fgsea:
+pval = -log10(res_TOAST$p[, "Exc"])
+
+# Loading stats:
+stats = pval
+names(stats) = sub("\\.[0-9]*", "", rownames(res_TOAST$p))  # ensembl id
+names(stats) = rowData(rse_filtered)$gene_name               # gene symbol
+str(stats)
+length(stats)
+stats = stats[unique(names(stats))]  # deduplicate by only taking the highest one of possible duplicated gene symbols
+length(stats)
+stats = na.omit(stats)
+
+# And running fgsea:
+
+filename = file.path(cache_dir, "scz_TOAST_GSEAMultilevel_REACTOME_Exc.rds")
+if (!file.exists(filename)) {
+  set.seed(1234)
+  fgseaRes = fgseaMultilevel(pathways_reactome, stats, minSize=10, maxSize=1000, gseaParam = 0, eps = 0)
+  saveRDS(fgseaRes, filename)
+  write.csv(fgseaRes[,1:7], sub("rds", "csv", filename))
+} else {
+  fgseaRes = readRDS(filename)
+}
+
+# head(fgseaRes[order(fgseaRes[,"pval"]), ])
+fgseaResPositive = fgseaRes[fgseaRes$NES > 0, ] # genes that are enriched in small p-values
+topPathways = head(fgseaResPositive[order(fgseaResPositive[,"padj"], -fgseaResPositive[,"NES"]), ]$pathway, n = 10)
+plotGseaTable(pathways_reactome[topPathways], stats, fgseaResPositive, 
+              gseaParam = 0.5) # The 0.5 is only used for illustration purposes.
+fgseaRes[fgseaRes$pathway == "REACTOME_NEURONAL_SYSTEM"]
+```
+
+## Inh
+
+
+```{r scz_fgseaMultilevel_Inh_TOAST, fig.height=8, fig.width=12}
+# Running fgsea:
+pval = -log10(res_TOAST$p[, "Inh"])
+
+# Loading stats:
+stats = pval
+names(stats) = sub("\\.[0-9]*", "", rownames(res_TOAST$p))  # ensembl id
+names(stats) = rowData(rse_filtered)$gene_name               # gene symbol
+str(stats)
+length(stats)
+stats = stats[unique(names(stats))]  # deduplicate by only taking the highest one of possible duplicated gene symbols
+length(stats)
+stats = na.omit(stats)
+
+# And running fgsea:
+
+filename = file.path(cache_dir, "scz_TOAST_GSEAMultilevel_REACTOME_Inh.rds")
+if (!file.exists(filename)) {
+  set.seed(1234)
+  fgseaRes = fgseaMultilevel(pathways_reactome, stats, minSize=10, maxSize=1000, gseaParam = 0, eps = 0)
+  saveRDS(fgseaRes, filename)
+  write.csv(fgseaRes[,1:7], sub("rds", "csv", filename))
+} else {
+  fgseaRes = readRDS(filename)
+}
+# head(fgseaRes[order(fgseaRes[,"pval"]), ])
+fgseaResPositive = fgseaRes[fgseaRes$NES > 0, ] # genes that are enriched in small p-values
+topPathways = head(fgseaResPositive[order(fgseaResPositive[,"padj"], -fgseaResPositive[,"NES"]), ]$pathway, n = 10)
+plotGseaTable(pathways_reactome[topPathways], stats, fgseaResPositive, 
+              gseaParam = 0.5) # The 0.5 is only used for illustration purposes.
+fgseaRes[fgseaRes$pathway == "REACTOME_NEURONAL_SYSTEM"]
+```
+
+
+## Oligo
+
+
+```{r scz_fgseaMultilevel_Oligo_TOAST, fig.height=8, fig.width=12}
+# Running fgsea:
+pval = -log10(res_TOAST$p[, "Oligo"])
+
+# Loading stats:
+stats = pval
+names(stats) = sub("\\.[0-9]*", "", rownames(res_TOAST$p))  # ensembl id
+names(stats) = rowData(rse_filtered)$gene_name               # gene symbol
+str(stats)
+length(stats)
+stats = stats[unique(names(stats))]  # deduplicate by only taking the highest one of possible duplicated gene symbols
+length(stats)
+stats = na.omit(stats)
+
+# And running fgsea:
+
+filename = file.path(cache_dir, "scz_TOAST_GSEAMultilevel_REACTOME_Oligo.rds")
+if (!file.exists(filename)) {
+  set.seed(1234)
+  fgseaRes = fgseaMultilevel(pathways_reactome, stats, minSize=10, maxSize=1000, gseaParam = 0, eps = 0)
+  saveRDS(fgseaRes, filename)
+  write.csv(fgseaRes[,1:7], sub("rds", "csv", filename))
+} else {
+  fgseaRes = readRDS(filename)
+}
+# head(fgseaRes[order(fgseaRes[,"pval"]), ])
+fgseaResPositive = fgseaRes[fgseaRes$NES > 0, ] # genes that are enriched in small p-values
+topPathways = head(fgseaResPositive[order(fgseaResPositive[,"padj"], -fgseaResPositive[,"NES"]), ]$pathway, n = 10)
+plotGseaTable(pathways_reactome[topPathways], stats, fgseaResPositive, 
+              gseaParam = 0.5) # The 0.5 is only used for illustration purposes.
+fgseaRes[fgseaRes$pathway == "REACTOME_NEURONAL_SYSTEM"]
+```
+
+
+## Micro
+
+
+```{r scz_fgseaMultilevel_Micro_TOAST, fig.height=8, fig.width=12}
+# Running fgsea:
+pval = -log10(res_TOAST$p[, "Micro"])
+
+# Loading stats:
+stats = pval
+names(stats) = sub("\\.[0-9]*", "", rownames(res_TOAST$p))  # ensembl id
+names(stats) = rowData(rse_filtered)$gene_name               # gene symbol
+str(stats)
+length(stats)
+stats = stats[unique(names(stats))]  # deduplicate by only taking the highest one of possible duplicated gene symbols
+length(stats)
+stats = na.omit(stats)
+
+# And running fgsea:
+
+filename = file.path(cache_dir, "scz_TOAST_GSEAMultilevel_REACTOME_Micro.rds")
+if (!file.exists(filename)) {
+  set.seed(1234)
+  fgseaRes = fgseaMultilevel(pathways_reactome, stats, minSize=10, maxSize=1000, gseaParam = 0, eps = 0)
+  saveRDS(fgseaRes, filename)
+  write.csv(fgseaRes[,1:7], sub("rds", "csv", filename))
+} else {
+  fgseaRes = readRDS(filename)
+}
+# head(fgseaRes[order(fgseaRes[,"pval"]), ])
+fgseaResPositive = fgseaRes[fgseaRes$NES > 0, ] # genes that are enriched in small p-values
+topPathways = head(fgseaResPositive[order(fgseaResPositive[,"padj"], -fgseaResPositive[,"NES"]), ]$pathway, n = 10)
+plotGseaTable(pathways_reactome[topPathways], stats, fgseaResPositive, 
+              gseaParam = 0.5) # The 0.5 is only used for illustration purposes.
+fgseaRes[fgseaRes$pathway == "REACTOME_NEURONAL_SYSTEM"]
+```
+
+## OPC
+
+
+```{r scz_fgseaMultilevel_OPC_TOAST, fig.height=8, fig.width=12}
+# Running fgsea:
+pval = -log10(res_TOAST$p[, "OPC"])
+
+# Loading stats:
+stats = pval
+names(stats) = sub("\\.[0-9]*", "", rownames(res_TOAST$p))  # ensembl id
+names(stats) = rowData(rse_filtered)$gene_name               # gene symbol
+str(stats)
+length(stats)
+stats = stats[unique(names(stats))]  # deduplicate by only taking the highest one of possible duplicated gene symbols
+length(stats)
+stats = na.omit(stats)
+
+# And running fgsea:
+
+filename = file.path(cache_dir, "scz_TOAST_GSEAMultilevel_REACTOME_OPC.rds")
+if (!file.exists(filename)) {
+  set.seed(1234)
+  fgseaRes = fgseaMultilevel(pathways_reactome, stats, minSize=10, maxSize=1000, gseaParam = 0, eps = 0)
+  saveRDS(fgseaRes, filename)
+  write.csv(fgseaRes[,1:7], sub("rds", "csv", filename))
+} else {
+  fgseaRes = readRDS(filename)
+}
+# head(fgseaRes[order(fgseaRes[,"pval"]), ])
+fgseaResPositive = fgseaRes[fgseaRes$NES > 0, ] # genes that are enriched in small p-values
+topPathways = head(fgseaResPositive[order(fgseaResPositive[,"padj"], -fgseaResPositive[,"NES"]), ]$pathway, n = 10)
+plotGseaTable(pathways_reactome[topPathways], stats, fgseaResPositive, 
+              gseaParam = 0.5) # The 0.5 is only used for illustration purposes.
+fgseaRes[fgseaRes$pathway == "REACTOME_NEURONAL_SYSTEM"]
+```
+
+
+# Schizophrenia, CARseq, GSEA, REACTOME
+
+
+The results are similar to what we see in Huckins et al. 2019, where we did not find enrichment in pathways about synapse or neuron functions among excitatory or inhibitory neurons. 
+
+We use "classic" weight where no weight is added. The genes are ranked by p-values. The gene matching is done in gene symbol. There is a lot of genes with p-values being 1, which "may or may not cause trouble", so we only care about the genes that are enriched in small p-values:
+
+
+## Astro
+
+
+```{r scz_fgseaMultilevel_Astro, fig.height=8, fig.width=12}
+# Running fgsea:
+pval = -log10(res_CARseq$p[, "Astro"])
+
+# Loading stats:
+stats = pval
+names(stats) = sub("\\.[0-9]*", "", rownames(res_CARseq$p))  # ensembl id
+names(stats) = rowData(rse_filtered)$gene_name               # gene symbol
+str(stats)
+length(stats)
+stats = stats[unique(names(stats))]  # deduplicate by only taking the highest one of possible duplicated gene symbols
+length(stats)
+stats = na.omit(stats)
+
+# And running fgsea:
+
+filename = file.path(cache_dir, "scz_CARseq_GSEAMultilevel_REACTOME_Astro.rds")
+if (!file.exists(filename)) {
+  set.seed(1234)
+  fgseaRes = fgseaMultilevel(pathways_reactome, stats, minSize=10, maxSize=1000, gseaParam = 0, eps = 0)
+  saveRDS(fgseaRes, filename)
+  write.csv(fgseaRes[,1:7], sub("rds", "csv", filename))
+} else {
+  fgseaRes = readRDS(filename)
+}
+# head(fgseaRes[order(fgseaRes[,"pval"]), ])
+fgseaResPositive = fgseaRes[fgseaRes$NES > 0, ] # genes that are enriched in small p-values
+topPathways = head(fgseaResPositive[order(fgseaResPositive[,"padj"], -fgseaResPositive[,"NES"]), ]$pathway, n = 10)
+plotGseaTable(pathways_reactome[topPathways], stats, fgseaResPositive, 
+              gseaParam = 0.5) # The 0.5 is only used for illustration purposes.
+fgseaRes[fgseaRes$pathway == "REACTOME_NEURONAL_SYSTEM"]
+```
+
+## Exc
+
+```{r scz_fgseaMultilevel_Exc, fig.height=8, fig.width=12}
+# Running fgsea:
+pval = -log10(res_CARseq$p[, "Exc"])
+
+# Loading stats:
+stats = pval
+names(stats) = sub("\\.[0-9]*", "", rownames(res_CARseq$p))  # ensembl id
+names(stats) = rowData(rse_filtered)$gene_name               # gene symbol
+str(stats)
+length(stats)
+stats = stats[unique(names(stats))]  # deduplicate by only taking the highest one of possible duplicated gene symbols
+length(stats)
+stats = na.omit(stats)
+
+# And running fgsea:
+
+filename = file.path(cache_dir, "scz_CARseq_GSEAMultilevel_REACTOME_Exc.rds")
+if (!file.exists(filename)) {
+  set.seed(1234)
+  fgseaRes = fgseaMultilevel(pathways_reactome, stats, minSize=10, maxSize=1000, gseaParam = 0, eps = 0)
+  saveRDS(fgseaRes, filename)
+  write.csv(fgseaRes[,1:7], sub("rds", "csv", filename))
+} else {
+  fgseaRes = readRDS(filename)
+}
+# head(fgseaRes[order(fgseaRes[,"pval"]), ])
+fgseaResPositive = fgseaRes[fgseaRes$NES > 0, ] # genes that are enriched in small p-values
+topPathways = head(fgseaResPositive[order(fgseaResPositive[,"padj"], -fgseaResPositive[,"NES"]), ]$pathway, n = 10)
+plotGseaTable(pathways_reactome[topPathways], stats, fgseaResPositive, 
+              gseaParam = 0.5) # The 0.5 is only used for illustration purposes.
+fgseaRes[fgseaRes$pathway == "REACTOME_NEURONAL_SYSTEM"]
+```
+
+## Inh
+
+```{r scz_fgseaMultilevel_Inh, fig.height=8, fig.width=12}
+# Running fgsea:
+pval = -log10(res_CARseq$p[, "Inh"])
+
+# Loading stats:
+stats = pval
+names(stats) = sub("\\.[0-9]*", "", rownames(res_CARseq$p))  # ensembl id
+names(stats) = rowData(rse_filtered)$gene_name               # gene symbol
+str(stats)
+length(stats)
+stats = stats[unique(names(stats))]  # deduplicate by only taking the highest one of possible duplicated gene symbols
+length(stats)
+stats = na.omit(stats)
+
+# And running fgsea:
+
+filename = file.path(cache_dir, "scz_CARseq_GSEAMultilevel_REACTOME_Inh.rds")
+if (!file.exists(filename)) {
+  set.seed(1234)
+  fgseaRes = fgseaMultilevel(pathways_reactome, stats, minSize=10, maxSize=1000, gseaParam = 0, eps = 0)
+  saveRDS(fgseaRes, filename)
+  write.csv(fgseaRes[,1:7], sub("rds", "csv", filename))
+} else {
+  fgseaRes = readRDS(filename)
+}
+# head(fgseaRes[order(fgseaRes[,"pval"]), ])
+fgseaResPositive = fgseaRes[fgseaRes$NES > 0, ] # genes that are enriched in small p-values
+topPathways = head(fgseaResPositive[order(fgseaResPositive[,"padj"], -fgseaResPositive[,"NES"]), ]$pathway, n = 10)
+plotGseaTable(pathways_reactome[topPathways], stats, fgseaResPositive, 
+              gseaParam = 0.5) # The 0.5 is only used for illustration purposes.
+fgseaRes[fgseaRes$pathway == "REACTOME_NEURONAL_SYSTEM"]
+```
+
+## Oligo
+
+```{r scz_fgseaMultilevel_Oligo, fig.height=8, fig.width=12}
+# Running fgsea:
+pval = -log10(res_CARseq$p[, "Oligo"])
+
+# Loading stats:
+stats = pval
+names(stats) = sub("\\.[0-9]*", "", rownames(res_CARseq$p))  # ensembl id
+names(stats) = rowData(rse_filtered)$gene_name               # gene symbol
+str(stats)
+length(stats)
+stats = stats[unique(names(stats))]  # deduplicate by only taking the highest one of possible duplicated gene symbols
+length(stats)
+stats = na.omit(stats)
+
+# And running fgsea:
+
+filename = file.path(cache_dir, "scz_CARseq_GSEAMultilevel_REACTOME_Oligo.rds")
+if (!file.exists(filename)) {
+  set.seed(1234)
+  fgseaRes = fgseaMultilevel(pathways_reactome, stats, minSize=10, maxSize=1000, gseaParam = 0, eps = 0)
+  saveRDS(fgseaRes, filename)
+  write.csv(fgseaRes[,1:7], sub("rds", "csv", filename))
+} else {
+  fgseaRes = readRDS(filename)
+}
+# head(fgseaRes[order(fgseaRes[,"pval"]), ])
+fgseaResPositive = fgseaRes[fgseaRes$NES > 0, ] # genes that are enriched in small p-values
+topPathways = head(fgseaResPositive[order(fgseaResPositive[,"padj"], -fgseaResPositive[,"NES"]), ]$pathway, n = 10)
+plotGseaTable(pathways_reactome[topPathways], stats, fgseaResPositive, 
+              gseaParam = 0.5) # The 0.5 is only used for illustration purposes.
+fgseaRes[fgseaRes$pathway == "REACTOME_NEURONAL_SYSTEM"]
+```
+
+## Micro
+
+```{r scz_fgseaMultilevel_Micro, fig.height=8, fig.width=12}
+# Running fgsea:
+pval = -log10(res_CARseq$p[, "Micro"])
+
+# Loading stats:
+stats = pval
+names(stats) = sub("\\.[0-9]*", "", rownames(res_CARseq$p))  # ensembl id
+names(stats) = rowData(rse_filtered)$gene_name               # gene symbol
+str(stats)
+length(stats)
+stats = stats[unique(names(stats))]  # deduplicate by only taking the highest one of possible duplicated gene symbols
+length(stats)
+stats = na.omit(stats)
+
+# And running fgsea:
+
+filename = file.path(cache_dir, "scz_CARseq_GSEAMultilevel_REACTOME_Micro.rds")
+if (!file.exists(filename)) {
+  set.seed(1234)
+  fgseaRes = fgseaMultilevel(pathways_reactome, stats, minSize=10, maxSize=1000, gseaParam = 0, eps = 0)
+  saveRDS(fgseaRes, filename)
+  write.csv(fgseaRes[,1:7], sub("rds", "csv", filename))
+} else {
+  fgseaRes = readRDS(filename)
+}
+# head(fgseaRes[order(fgseaRes[,"pval"]), ])
+fgseaResPositive = fgseaRes[fgseaRes$NES > 0, ] # genes that are enriched in small p-values
+topPathways = head(fgseaResPositive[order(fgseaResPositive[,"padj"], -fgseaResPositive[,"NES"]), ]$pathway, n = 10)
+plotGseaTable(pathways_reactome[topPathways], stats, fgseaResPositive, 
+              gseaParam = 0.5) # The 0.5 is only used for illustration purposes.
+fgseaRes[fgseaRes$pathway == "REACTOME_NEURONAL_SYSTEM"]
+```
+
+## OPC
+
+
+```{r scz_fgseaMultilevel_OPC, fig.height=8, fig.width=12}
+# Running fgsea:
+pval = -log10(res_CARseq$p[, "OPC"])
+
+# Loading stats:
+stats = pval
+names(stats) = sub("\\.[0-9]*", "", rownames(res_CARseq$p))  # ensembl id
+names(stats) = rowData(rse_filtered)$gene_name               # gene symbol
+str(stats)
+length(stats)
+stats = stats[unique(names(stats))]  # deduplicate by only taking the highest one of possible duplicated gene symbols
+length(stats)
+stats = na.omit(stats)
+
+# And running fgsea:
+
+filename = file.path(cache_dir, "scz_CARseq_GSEAMultilevel_REACTOME_OPC.rds")
+if (!file.exists(filename)) {
+  set.seed(1234)
+  fgseaRes = fgseaMultilevel(pathways_reactome, stats, minSize=10, maxSize=1000, gseaParam = 0, eps = 0)
+  saveRDS(fgseaRes, filename)
+  write.csv(fgseaRes[,1:7], sub("rds", "csv", filename))
+} else {
+  fgseaRes = readRDS(filename)
+}
+# head(fgseaRes[order(fgseaRes[,"pval"]), ])
+fgseaResPositive = fgseaRes[fgseaRes$NES > 0, ] # genes that are enriched in small p-values
+topPathways = head(fgseaResPositive[order(fgseaResPositive[,"padj"], -fgseaResPositive[,"NES"]), ]$pathway, n = 10)
+plotGseaTable(pathways_reactome[topPathways], stats, fgseaResPositive, 
+              gseaParam = 0.5) # The 0.5 is only used for illustration purposes.
+fgseaRes[fgseaRes$pathway == "REACTOME_NEURONAL_SYSTEM"]
+```
+
+
+
+# Schizophrenia, DESeq2, GSEA, REACTOME
+
+```{r scz_DESeq2_summary, fig.height=4, fig.width=8}
+# Running fgsea:
+
+res_DESeq2 = list()
+res_DESeq2$p = read.table(file.path(scz_working_dir, "results/SCZ_step1_DESeq2_bulk_adj_covariates_SV2_lfcShrink.txt"))
+res_DESeq2$p_permuted = read.table(file.path(scz_working_dir, "results/SCZ_step1_DESeq2_bulk_adj_covariates_SV2_permuted.txt"))
+pval = -log10(res_DESeq2$p[, "pvalue"])
+
+# plot distribution of p-values
+opar = par(mfrow=c(1,2), bty="n", mar=c(5,4,2,1))
+hist(res_DESeq2$p[, "pvalue"], main="DESeq2 bulk", breaks=20,
+     xlab = paste0("p-value (", sum(CARseq:::get_qvalues_one_inflated(res_DESeq2$p[, "pvalue"]) < 0.1, na.rm=TRUE), " genes q value < 0.1)"))
+hist(res_DESeq2$p_permuted[, "pvalue"], main="DESeq2 bulk permuted", breaks=20,
+     xlab = paste0("p-value (", sum(CARseq:::get_qvalues_one_inflated(res_DESeq2$p_permuted[, "pvalue"]) < 0.1, na.rm=TRUE), " genes q value < 0.1)"))
+par(opar)
+
+```
+
+
+```{r scz_fgseaMultilevel_DESeq2, fig.height=8, fig.width=12}
+# Loading stats:
+stats = pval
+names(stats) = sub("\\.[0-9]*", "", rownames(res_DESeq2$p))  # ensembl id
+names(stats) = rowData(rse_filtered)$gene_name               # gene symbol
+str(stats)
+length(stats)
+stats = stats[unique(names(stats))]  # deduplicate by only taking the highest one of possible duplicated gene symbols
+length(stats)
+stats = na.omit(stats)
+
+# And running fgsea:
+
+filename = file.path(cache_dir, "scz_DESeq2_GSEAMultilevel_REACTOME.rds")
+if (!file.exists(filename)) {
+  set.seed(1234)
+  fgseaRes = fgseaMultilevel(pathways_reactome, stats, minSize=10, maxSize=1000, gseaParam = 0, eps = 0)
+  saveRDS(fgseaRes, filename)
+  write.csv(fgseaRes[,1:7], sub("rds", "csv", filename))
+} else {
+  fgseaRes = readRDS(filename)
+}
+# head(fgseaRes[order(fgseaRes[,"pval"]), ])
+fgseaResPositive = fgseaRes[fgseaRes$NES > 0, ] # genes that are enriched in small p-values
+topPathways = head(fgseaResPositive[order(fgseaResPositive[,"padj"], -fgseaResPositive[,"NES"]), ]$pathway, n = 10)
+plotGseaTable(pathways_reactome[topPathways], stats, fgseaResPositive, 
+              gseaParam = 0.5) # The 0.5 is only used for illustration purposes.
+fgseaRes[fgseaRes$pathway == "REACTOME_NEURONAL_SYSTEM"]
+```
+
+
+# Schizophrenia GSEA CARseq vs. TOAST REACTOME
+
+```{r scz_save_pvals}
+pval_dir = file.path(autism_working_dir, "results/_pvalues")
+if (!dir.exists(pval_dir)) dir.create(pval_dir)
+for (cell_type in colnames(res_CARseq$p)) {
+  pvalues = data.frame(gene_id=rowData(rse_filtered)$gene_id, 
+                       gene_name=rowData(rse_filtered)$gene_name,
+                       pvalue=res_CARseq$p[, cell_type])
+  write_delim(pvalues, path = file.path(pval_dir, sprintf("SCZ_CARseq_%s.txt", cell_type)))
+}
+for (cell_type in colnames(res_TOAST$p)) {
+  pvalues = data.frame(gene_id=rowData(rse_filtered)$gene_id, 
+                       gene_name=rowData(rse_filtered)$gene_name,
+                       pvalue=res_TOAST$p[, cell_type])
+  write_delim(pvalues, path = file.path(pval_dir, sprintf("SCZ_TOAST_%s.txt", cell_type)))
+}
+pvalues = data.frame(gene_id=rowData(rse_filtered)$gene_id, 
+                     gene_name=rowData(rse_filtered)$gene_name,
+                     pvalue=res_DESeq2$p[, "pvalue"])
+write_delim(pvalues, path = file.path(pval_dir, "SCZ_DESeq2_bulk.txt"))
+```
+
+
+## Heatmap CARseq
+
+Figure: Top 3 CARseq cell type-specific REACTOME pathways ranked by -log10 q value with the sign of NES in the SCZ study.
+
+```{r scz_gsea_CARseq_vs_TOAST_REACTOME_heatmap, fig.height = 8, fig.width = 10}
+topPathways_table = NULL
+for (cell_type in colnames(res_CARseq$p)) {
+  CARseq_filename = file.path(cache_dir, sprintf("scz_CARseq_GSEAMultilevel_REACTOME_%s.rds", cell_type))
+  TOAST_filename = file.path(cache_dir, sprintf("scz_TOAST_GSEAMultilevel_REACTOME_%s.rds", cell_type))
+  CARseq_fgseaRes = readRDS(CARseq_filename)
+  TOAST_fgseaRes = readRDS(TOAST_filename)
+  CARseq_fgseaResPositive = CARseq_fgseaRes[CARseq_fgseaRes$NES > 0, ] # genes that are enriched in small p-values
+  CARseq_topPathways = CARseq_fgseaResPositive[order(CARseq_fgseaResPositive[,"padj"], -CARseq_fgseaResPositive[,"NES"]), ]$pathway
+  topPathways_table = rbind(topPathways_table, 
+                            data.frame(pathway=CARseq_topPathways,
+                                       cell_type=cell_type,
+                                       log10qvalue = -log10(CARseq:::get_qvalues_one_inflated(CARseq_fgseaRes$pval)
+                                                            [match(CARseq_topPathways, CARseq_fgseaRes$pathway)]),
+                                       NES = CARseq_fgseaRes[,"NES"]
+                                                            [match(CARseq_topPathways, CARseq_fgseaRes$pathway)],
+                                       CT_specific_rank=seq_along(CARseq_topPathways)))
+}
+topPathways_table$cell_type = factor(as.character(topPathways_table$cell_type), levels = colnames(res_CARseq$p))
+# deduplicate to remove the same pathway with a less significant q value
+topPathways_table = topPathways_table[order(topPathways_table$CT_specific_rank, -topPathways_table$log10qvalue, -topPathways_table$NES), ]
+topPathways_table = topPathways_table[!duplicated(topPathways_table$pathway), ]
+# remove pathways that are not in the top N of each cell type
+N = 3
+topN_Pathways_table = data.frame()
+for (cell_type in colnames(res_CARseq$p)) {
+  cell_type_pathway_table = topPathways_table[topPathways_table$cell_type == cell_type, ]
+  topN_Pathways_table = rbind(topN_Pathways_table, cell_type_pathway_table[1:N, ])
+}
+
+# create a matrix for log10 q values of GSEA results of REACTOME
+# The first 6 columns are CARseq, and the next 6 columns are TOAST, and the last column is DESeq2 
+pathway_log10qvalue_matrix = matrix(NA, nrow = nrow(topN_Pathways_table), ncol = ncol(res_CARseq$p) * 2 + 1)
+rownames(pathway_log10qvalue_matrix) = as.character(topN_Pathways_table$pathway)
+colnames(pathway_log10qvalue_matrix) = c(paste("CARseq", colnames(res_CARseq$p)), paste("TOAST", colnames(res_CARseq$p)), "DESeq2 bulk")
+
+# fill in the blanks for CARseq, TOAST, and DESeq2 log 10 q values
+DESeq2_filename = file.path(cache_dir, "scz_DESeq2_GSEAMultilevel_REACTOME.rds")
+DESeq2_fgseaRes = readRDS(DESeq2_filename)
+indices_CARseq = match(rownames(pathway_log10qvalue_matrix), CARseq_fgseaRes$pathway)
+indices_TOAST = match(rownames(pathway_log10qvalue_matrix), TOAST_fgseaRes$pathway)
+indices_DESeq2 = match(rownames(pathway_log10qvalue_matrix), DESeq2_fgseaRes$pathway)
+pathway_log10qvalue_matrix[, 1 + 2 * ncol(res_CARseq$p)] =
+    (-log10(CARseq:::get_qvalues_one_inflated(DESeq2_fgseaRes$pval)) *
+    sign(DESeq2_fgseaRes$NES))[indices_DESeq2]
+for (j in seq_len(ncol(res_CARseq$p))) {
+  cell_type = colnames(res_CARseq$p)[j]
+  CARseq_filename = file.path(cache_dir, sprintf("scz_CARseq_GSEAMultilevel_REACTOME_%s.rds", cell_type))
+  TOAST_filename = file.path(cache_dir, sprintf("scz_TOAST_GSEAMultilevel_REACTOME_%s.rds", cell_type))
+  CARseq_fgseaRes = readRDS(CARseq_filename)
+  TOAST_fgseaRes = readRDS(TOAST_filename)
+
+  pathway_log10qvalue_matrix[, j] = 
+      (-log10(CARseq:::get_qvalues_one_inflated(CARseq_fgseaRes$pval)) *
+      sign(CARseq_fgseaRes$NES))[indices_CARseq]
+  pathway_log10qvalue_matrix[, j + ncol(res_CARseq$p)] =
+      (-log10(CARseq:::get_qvalues_one_inflated(TOAST_fgseaRes$pval)) *
+      sign(TOAST_fgseaRes$NES))[indices_TOAST]
+}
+
+write.csv(pathway_log10qvalue_matrix, file=file.path(cache_dir, "scz_gsea_CARseq_vs_TOAST_REACTOME_ranked_by_CARseq_heatmap.csv"), quote=FALSE)
+
+# heatmap
+# remove _ -> remove "REACTOME" -> wrap
+rownames(pathway_log10qvalue_matrix) = str_wrap(sub("REACTOME", "", gsub("_", " ", rownames(pathway_log10qvalue_matrix))), 75)
+ann_colors = list(TopPathwaysByCT = as.character(wes_palette(name="Darjeeling2", 6, type="continuous")),
+                  Method = as.character(wes_palette("FantasticFox1", 3)),
+                  CellType = c(as.character(wes_palette(name="Darjeeling2", 6, type="continuous")), "grey"))
+names(ann_colors[["TopPathwaysByCT"]]) = colnames(res_CARseq$p)
+names(ann_colors[["Method"]]) = c("CARseq", "TOAST", "DESeq2")
+names(ann_colors[["CellType"]]) = c(colnames(res_CARseq$p), "bulk")
+
+annotation_row = data.frame(TopPathwaysByCT=factor(rep(colnames(res_CARseq$p), each=N)))
+rownames(annotation_row) = rownames(pathway_log10qvalue_matrix)
+annotation_col = data.frame(Method=factor(c(rep("CARseq", ncol(res_CARseq$p)), rep("TOAST", ncol(res_CARseq$p)), "DESeq2"),
+                                          levels=c("CARseq", "TOAST", "DESeq2")),
+                            CellType=factor(c(rep(colnames(res_CARseq$p), times=2), "bulk")))
+rownames(annotation_col) = colnames(pathway_log10qvalue_matrix)
+g_scz_4 = pheatmap(pathway_log10qvalue_matrix,
+                   cluster_rows = F, cluster_cols = F,
+                   border_color ="grey60", na_col = "white", angle_col = "90",
+                   colorRampPalette(c("darkblue", "royalblue", "grey95", "grey95", "pink1", "darkred"))(8),
+                   breaks = seq(-4, 4, by=1), legend_breaks = c(seq(-3, 3, by=1), 4),
+                   legend_labels = c(seq(-3, 3, by=1), "signed\n-log10(q)"),
+                   gaps_row = seq(N, N*ncol(res_CARseq$p), by = N),
+                   gaps_col = c(ncol(res_CARseq$p), ncol(res_CARseq$p)*2),
+                   annotation_row = annotation_row, annotation_col=annotation_col,
+                   annotation_colors = ann_colors, fontsize_row = 8,
+                   cellwidth = 12, cellheight = 10)
+g_scz_4
+```
+
+
+
+## Heatmap TOAST
+
+Figure: Top 3 TOAST cell type-specific REACTOME pathways ranked by -log10 q value with the sign of NES in the SCZ study.
+
+```{r scz_gsea_CARseq_vs_TOAST_REACTOME_heatmap_TOAST, fig.height = 8, fig.width = 10}
+topPathways_table = NULL
+for (cell_type in colnames(res_CARseq$p)) {
+  CARseq_filename = file.path(cache_dir, sprintf("scz_CARseq_GSEAMultilevel_REACTOME_%s.rds", cell_type))
+  TOAST_filename = file.path(cache_dir, sprintf("scz_TOAST_GSEAMultilevel_REACTOME_%s.rds", cell_type))
+  CARseq_fgseaRes = readRDS(CARseq_filename)
+  TOAST_fgseaRes = readRDS(TOAST_filename)
+  TOAST_fgseaResPositive = TOAST_fgseaRes[TOAST_fgseaRes$NES > 0, ] # genes that are enriched in small p-values
+  # TOAST_topPathways = head(TOAST_fgseaResPositive[order(TOAST_fgseaResPositive[,"padj"], -TOAST_fgseaResPositive[,"NES"]), ]$pathway, n = 100)
+  TOAST_topPathways = TOAST_fgseaResPositive[order(TOAST_fgseaResPositive[,"padj"], -TOAST_fgseaResPositive[,"NES"]), ]$pathway
+  topPathways_table = rbind(topPathways_table, 
+                            data.frame(pathway=TOAST_topPathways,
+                                       cell_type=cell_type,
+                                       log10qvalue = -log10(CARseq:::get_qvalues_one_inflated(TOAST_fgseaRes$pval)
+                                                            [match(TOAST_topPathways, TOAST_fgseaRes$pathway)]),
+                                       NES = TOAST_fgseaRes[,"NES"]
+                                                            [match(TOAST_topPathways, TOAST_fgseaRes$pathway)],
+                                       CT_specific_rank=seq_along(TOAST_topPathways)))
+}
+topPathways_table$cell_type = factor(as.character(topPathways_table$cell_type), levels = colnames(res_TOAST$p))
+# deduplicate to remove the same pathway with a less significant q value
+topPathways_table = topPathways_table[order(topPathways_table$CT_specific_rank, -topPathways_table$log10qvalue, -topPathways_table$NES), ]
+topPathways_table = topPathways_table[!duplicated(topPathways_table$pathway), ]
+# remove pathways that are not in the top N of each cell type
+N = 3
+topN_Pathways_table = data.frame()
+for (cell_type in colnames(res_CARseq$p)) {
+  cell_type_pathway_table = topPathways_table[topPathways_table$cell_type == cell_type, ]
+  topN_Pathways_table = rbind(topN_Pathways_table, cell_type_pathway_table[1:N, ])
+}
+
+# create a matrix for log10 q values of GSEA results of REACTOME
+# The first 6 columns are CARseq, and the next 6 columns are TOAST, and the last column is DESeq2 
+pathway_log10qvalue_matrix = matrix(NA, nrow = nrow(topN_Pathways_table), ncol = ncol(res_CARseq$p) * 2 + 1)
+rownames(pathway_log10qvalue_matrix) = as.character(topN_Pathways_table$pathway)
+colnames(pathway_log10qvalue_matrix) = c(paste("CARseq", colnames(res_CARseq$p)), paste("TOAST", colnames(res_CARseq$p)), "DESeq2 bulk")
+
+# fill in the blanks for CARseq, TOAST, and DESeq2 log 10 q values
+DESeq2_filename = file.path(cache_dir, "scz_DESeq2_GSEAMultilevel_REACTOME.rds")
+DESeq2_fgseaRes = readRDS(DESeq2_filename)
+indices_CARseq = match(rownames(pathway_log10qvalue_matrix), CARseq_fgseaRes$pathway)
+indices_TOAST = match(rownames(pathway_log10qvalue_matrix), TOAST_fgseaRes$pathway)
+indices_DESeq2 = match(rownames(pathway_log10qvalue_matrix), DESeq2_fgseaRes$pathway)
+pathway_log10qvalue_matrix[, 1 + 2 * ncol(res_CARseq$p)] =
+    (-log10(CARseq:::get_qvalues_one_inflated(DESeq2_fgseaRes$pval)) *
+    sign(DESeq2_fgseaRes$NES))[indices_DESeq2]
+for (j in seq_len(ncol(res_CARseq$p))) {
+  cell_type = colnames(res_CARseq$p)[j]
+  CARseq_filename = file.path(cache_dir, sprintf("scz_CARseq_GSEAMultilevel_REACTOME_%s.rds", cell_type))
+  TOAST_filename = file.path(cache_dir, sprintf("scz_TOAST_GSEAMultilevel_REACTOME_%s.rds", cell_type))
+  CARseq_fgseaRes = readRDS(CARseq_filename)
+  TOAST_fgseaRes = readRDS(TOAST_filename)
+
+  pathway_log10qvalue_matrix[, j] = 
+      (-log10(CARseq:::get_qvalues_one_inflated(CARseq_fgseaRes$pval)) *
+      sign(CARseq_fgseaRes$NES))[indices_CARseq]
+  pathway_log10qvalue_matrix[, j + ncol(res_CARseq$p)] =
+      (-log10(CARseq:::get_qvalues_one_inflated(TOAST_fgseaRes$pval)) *
+      sign(TOAST_fgseaRes$NES))[indices_TOAST]
+}
+
+write.csv(pathway_log10qvalue_matrix, file=file.path(cache_dir, "scz_gsea_CARseq_vs_TOAST_REACTOME_ranked_by_TOAST_heatmap.csv"), quote=FALSE)
+
+# heatmap
+# remove _ -> remove "REACTOME" -> wrap
+rownames(pathway_log10qvalue_matrix) = str_wrap(sub("REACTOME", "", gsub("_", " ", rownames(pathway_log10qvalue_matrix))), 60)
+ann_colors = list(TopPathwaysByCT = as.character(wes_palette(name="Darjeeling2", 6, type="continuous")),
+                  Method = as.character(wes_palette("FantasticFox1", 3)),
+                  CellType = c(as.character(wes_palette(name="Darjeeling2", 6, type="continuous")), "grey"))
+names(ann_colors[["TopPathwaysByCT"]]) = colnames(res_CARseq$p)
+names(ann_colors[["Method"]]) = c("CARseq", "TOAST", "DESeq2")
+names(ann_colors[["CellType"]]) = c(colnames(res_CARseq$p), "bulk")
+
+annotation_row = data.frame(TopPathwaysByCT=factor(rep(colnames(res_CARseq$p), each=N)))
+rownames(annotation_row) = rownames(pathway_log10qvalue_matrix)
+annotation_col = data.frame(Method=factor(c(rep("CARseq", ncol(res_CARseq$p)), rep("TOAST", ncol(res_CARseq$p)), "DESeq2"),
+                                          levels=c("CARseq", "TOAST", "DESeq2")),
+                            CellType=factor(c(rep(colnames(res_CARseq$p), times=2), "bulk")))
+rownames(annotation_col) = colnames(pathway_log10qvalue_matrix)
+pheatmap(pathway_log10qvalue_matrix,
+                  cluster_rows = F, cluster_cols = F,
+                  border_color ="grey60", na_col = "white", angle_col = "90",
+                  colorRampPalette(c("darkblue", "royalblue", "grey95", "grey95", "pink1", "darkred"))(8),
+                  breaks = seq(-4, 4, by=1), legend_breaks = c(seq(-3, 3, by=1), 4),
+                  legend_labels = c(seq(-3, 3, by=1), "signed\n-log10(q)"),
+                  gaps_row = seq(N, N*ncol(res_CARseq$p), by = N),
+                  gaps_col = c(ncol(res_CARseq$p), ncol(res_CARseq$p)*2),
+                  annotation_row = annotation_row, annotation_col=annotation_col,
+                  annotation_colors = ann_colors, fontsize_row = 8,
+                  cellwidth = 12, cellheight = 15)
+```
+
+
+
+# Schizophrenia, CARseq, GSEA, GO_BP
+
+We use "classic" weight where no weight is added. The genes are ranked by p-values. The gene matching is done in gene symbol. There is a lot of genes with p-values being 1, which "may or may not cause trouble", so we only care about the genes that are enriched in small p-values:
+
+## Astro
+
+
+```{r scz_fgseaMultilevel_Astro_BP, fig.height=8, fig.width=12}
+# Running fgsea:
+pval = -log10(res_CARseq$p[, "Astro"])
+
+# Loading stats:
+stats = pval
+names(stats) = sub("\\.[0-9]*", "", rownames(res_CARseq$p))  # ensembl id
+names(stats) = rowData(rse_filtered)$gene_name               # gene symbol
+str(stats)
+length(stats)
+stats = stats[unique(names(stats))]  # deduplicate by only taking the highest one of possible duplicated gene symbols
+length(stats)
+stats = na.omit(stats)
+
+# And running fgsea:
+
+filename = file.path(cache_dir, "scz_CARseq_GSEAMultilevel_BP_Astro.rds")
+if (!file.exists(filename)) {
+  set.seed(1234)
+  fgseaRes = fgseaMultilevel(pathways_go_bp, stats, minSize=10, maxSize=1000, gseaParam = 0, eps = 0)
+  saveRDS(fgseaRes, filename)
+  write.csv(fgseaRes[,1:7], sub("rds", "csv", filename))
+} else {
+  fgseaRes = readRDS(filename)
+}
+# head(fgseaRes[order(fgseaRes[,"pval"]), ])
+fgseaResPositive = fgseaRes[fgseaRes$NES > 0, ] # genes that are enriched in small p-values
+topPathways = head(fgseaResPositive[order(fgseaResPositive[,"padj"], -fgseaResPositive[,"NES"]), ]$pathway, n = 10)
+plotGseaTable(pathways_go_bp[topPathways], stats, fgseaResPositive, 
+              gseaParam = 0.5) # The 0.5 is only used for illustration purposes.
+```
+
+
+## Exc
+
+```{r scz_fgseaMultilevel_Exc_BP, fig.height=8, fig.width=12}
+# Running fgsea:
+pval = -log10(res_CARseq$p[, "Exc"])
+
+# Loading stats:
+stats = pval
+names(stats) = sub("\\.[0-9]*", "", rownames(res_CARseq$p))  # ensembl id
+names(stats) = rowData(rse_filtered)$gene_name               # gene symbol
+str(stats)
+length(stats)
+stats = stats[unique(names(stats))]  # deduplicate by only taking the highest one of possible duplicated gene symbols
+length(stats)
+stats = na.omit(stats)
+
+# And running fgsea:
+
+filename = file.path(cache_dir, "scz_CARseq_GSEAMultilevel_BP_Exc.rds")
+if (!file.exists(filename)) {
+  set.seed(1234)
+  fgseaRes = fgseaMultilevel(pathways_go_bp, stats, minSize=10, maxSize=1000, gseaParam = 0, eps = 0)
+  saveRDS(fgseaRes, filename)
+  write.csv(fgseaRes[,1:7], sub("rds", "csv", filename))
+} else {
+  fgseaRes = readRDS(filename)
+}
+
+# head(fgseaRes[order(fgseaRes[,"pval"]), ])
+fgseaResPositive = fgseaRes[fgseaRes$NES > 0, ] # genes that are enriched in small p-values
+topPathways = head(fgseaResPositive[order(fgseaResPositive[,"padj"], -fgseaResPositive[,"NES"]), ]$pathway, n = 10)
+plotGseaTable(pathways_go_bp[topPathways], stats, fgseaResPositive, 
+              gseaParam = 0.5) # The 0.5 is only used for illustration purposes.
+```
+
+## Inh
+
+
+```{r scz_fgseaMultilevel_Inh_BP, fig.height=8, fig.width=12}
+# Running fgsea:
+pval = -log10(res_CARseq$p[, "Inh"])
+
+# Loading stats:
+stats = pval
+names(stats) = sub("\\.[0-9]*", "", rownames(res_CARseq$p))  # ensembl id
+names(stats) = rowData(rse_filtered)$gene_name               # gene symbol
+str(stats)
+length(stats)
+stats = stats[unique(names(stats))]  # deduplicate by only taking the highest one of possible duplicated gene symbols
+length(stats)
+stats = na.omit(stats)
+
+# And running fgsea:
+
+filename = file.path(cache_dir, "scz_CARseq_GSEAMultilevel_BP_Inh.rds")
+if (!file.exists(filename)) {
+  set.seed(1234)
+  fgseaRes = fgseaMultilevel(pathways_go_bp, stats, minSize=10, maxSize=1000, gseaParam = 0, eps = 0)
+  saveRDS(fgseaRes, filename)
+  write.csv(fgseaRes[,1:7], sub("rds", "csv", filename))
+} else {
+  fgseaRes = readRDS(filename)
+}
+# head(fgseaRes[order(fgseaRes[,"pval"]), ])
+fgseaResPositive = fgseaRes[fgseaRes$NES > 0, ] # genes that are enriched in small p-values
+topPathways = head(fgseaResPositive[order(fgseaResPositive[,"padj"], -fgseaResPositive[,"NES"]), ]$pathway, n = 10)
+plotGseaTable(pathways_go_bp[topPathways], stats, fgseaResPositive, 
+              gseaParam = 0.5) # The 0.5 is only used for illustration purposes.
+```
+
+
+## Oligo
+
+
+```{r scz_fgseaMultilevel_Oligo_BP, fig.height=8, fig.width=12}
+# Running fgsea:
+pval = -log10(res_CARseq$p[, "Oligo"])
+
+# Loading stats:
+stats = pval
+names(stats) = sub("\\.[0-9]*", "", rownames(res_CARseq$p))  # ensembl id
+names(stats) = rowData(rse_filtered)$gene_name               # gene symbol
+str(stats)
+length(stats)
+stats = stats[unique(names(stats))]  # deduplicate by only taking the highest one of possible duplicated gene symbols
+length(stats)
+stats = na.omit(stats)
+
+# And running fgsea:
+
+filename = file.path(cache_dir, "scz_CARseq_GSEAMultilevel_BP_Oligo.rds")
+if (!file.exists(filename)) {
+  set.seed(1234)
+  fgseaRes = fgseaMultilevel(pathways_go_bp, stats, minSize=10, maxSize=1000, gseaParam = 0, eps = 0)
+  saveRDS(fgseaRes, filename)
+  write.csv(fgseaRes[,1:7], sub("rds", "csv", filename))
+} else {
+  fgseaRes = readRDS(filename)
+}
+# head(fgseaRes[order(fgseaRes[,"pval"]), ])
+fgseaResPositive = fgseaRes[fgseaRes$NES > 0, ] # genes that are enriched in small p-values
+topPathways = head(fgseaResPositive[order(fgseaResPositive[,"padj"], -fgseaResPositive[,"NES"]), ]$pathway, n = 10)
+plotGseaTable(pathways_go_bp[topPathways], stats, fgseaResPositive, 
+              gseaParam = 0.5) # The 0.5 is only used for illustration purposes.
+```
+
+
+## Micro
+
+
+```{r scz_fgseaMultilevel_Micro_BP, fig.height=8, fig.width=12}
+# Running fgsea:
+pval = -log10(res_CARseq$p[, "Micro"])
+
+# Loading stats:
+stats = pval
+names(stats) = sub("\\.[0-9]*", "", rownames(res_CARseq$p))  # ensembl id
+names(stats) = rowData(rse_filtered)$gene_name               # gene symbol
+str(stats)
+length(stats)
+stats = stats[unique(names(stats))]  # deduplicate by only taking the highest one of possible duplicated gene symbols
+length(stats)
+stats = na.omit(stats)
+
+# And running fgsea:
+
+filename = file.path(cache_dir, "scz_CARseq_GSEAMultilevel_BP_Micro.rds")
+if (!file.exists(filename)) {
+  set.seed(1234)
+  fgseaRes = fgseaMultilevel(pathways_go_bp, stats, minSize=10, maxSize=1000, gseaParam = 0, eps = 0)
+  saveRDS(fgseaRes, filename)
+  write.csv(fgseaRes[,1:7], sub("rds", "csv", filename))
+} else {
+  fgseaRes = readRDS(filename)
+}
+# head(fgseaRes[order(fgseaRes[,"pval"]), ])
+fgseaResPositive = fgseaRes[fgseaRes$NES > 0, ] # genes that are enriched in small p-values
+topPathways = head(fgseaResPositive[order(fgseaResPositive[,"padj"], -fgseaResPositive[,"NES"]), ]$pathway, n = 10)
+plotGseaTable(pathways_go_bp[topPathways], stats, fgseaResPositive, 
+              gseaParam = 0.5) # The 0.5 is only used for illustration purposes.
+```
+
+## OPC
+
+
+```{r scz_fgseaMultilevel_OPC_BP, fig.height=8, fig.width=12}
+# Running fgsea:
+pval = -log10(res_CARseq$p[, "OPC"])
+
+# Loading stats:
+stats = pval
+names(stats) = sub("\\.[0-9]*", "", rownames(res_CARseq$p))  # ensembl id
+names(stats) = rowData(rse_filtered)$gene_name               # gene symbol
+str(stats)
+length(stats)
+stats = stats[unique(names(stats))]  # deduplicate by only taking the highest one of possible duplicated gene symbols
+length(stats)
+stats = na.omit(stats)
+
+# And running fgsea:
+
+filename = file.path(cache_dir, "scz_CARseq_GSEAMultilevel_BP_OPC.rds")
+if (!file.exists(filename)) {
+  set.seed(1234)
+  fgseaRes = fgseaMultilevel(pathways_go_bp, stats, minSize=10, maxSize=1000, gseaParam = 0, eps = 0)
+  saveRDS(fgseaRes, filename)
+  write.csv(fgseaRes[,1:7], sub("rds", "csv", filename))
+} else {
+  fgseaRes = readRDS(filename)
+}
+# head(fgseaRes[order(fgseaRes[,"pval"]), ])
+fgseaResPositive = fgseaRes[fgseaRes$NES > 0, ] # genes that are enriched in small p-values
+topPathways = head(fgseaResPositive[order(fgseaResPositive[,"padj"], -fgseaResPositive[,"NES"]), ]$pathway, n = 10)
+plotGseaTable(pathways_go_bp[topPathways], stats, fgseaResPositive, 
+              gseaParam = 0.5) # The 0.5 is only used for illustration purposes.
+```
+
+
+
+
+
+
+
+# Compare cell type-specific gene expression in deconvolved bulk and scRNAseq for schizophrenia
+
+```{r  scz_deconvolved_bulk_and_scRNAseq}
+scRNAseq_sig = readRDS(file.path(scz_working_dir, "./MTG/all_genes_MTG.rds"))
+scRNAseq_sig$sig_matched = scRNAseq_sig$SIG[match(rowData(rse_filtered)$gene_name, rownames(scRNAseq_sig$SIG)), ]
+colnames(scRNAseq_sig$sig_matched) = paste("scRNAseq", colnames(scRNAseq_sig$sig_matched))  # expression from MTG scRNAseq
+dim(scRNAseq_sig$sig_matched)
+```
+
+## Compare cell type-specific expression in single cell reference, MLE expression in case and MLE expression in control
+
+Plot a heatmap of correlation matrix
+
+```{r scz_heatmap_corr_expr}
+# Spearman correlation
+# With infinite LFCs
+res_CARseq_coefficients = res_CARseq$coefficients[, grep("Control|SCZ", colnames(res_CARseq$coefficients))]
+cor(res_CARseq_coefficients, method="spearman", use="pairwise.complete.obs")[1:6,7:12]
+cor(cbind(scRNAseq_sig$sig_matched, res_CARseq_coefficients[,1:6]), method="spearman", use="pairwise.complete.obs")[1:6,7:12]
+cor(cbind(scRNAseq_sig$sig_matched, res_CARseq_coefficients[,7:12]), method="spearman", use="pairwise.complete.obs")[1:6,7:12]
+
+# With shrunken LFCs -- note that the shrunken LFCs are not very good
+res_CARseq_shrunken_coefficients = res_CARseq$shrunken_coefficients[, grep("Control|SCZ", colnames(res_CARseq$shrunken_coefficients))]
+res_CARseq_shrunken_coefficients[] = c(res_CARseq_shrunken_coefficients) + c(res_CARseq$shrunken_coefficients[, grep("intercept", colnames(res_CARseq$shrunken_coefficients))])
+cor(res_CARseq_shrunken_coefficients, method="spearman", use="pairwise.complete.obs")[1:6,7:12]
+cor(cbind(scRNAseq_sig$sig_matched, res_CARseq_shrunken_coefficients[,1:6]), method="spearman", use="pairwise.complete.obs")[1:6,7:12]
+cor(cbind(scRNAseq_sig$sig_matched, res_CARseq_shrunken_coefficients[,7:12]), method="spearman", use="pairwise.complete.obs")[1:6,7:12]
+
+# With infinite LFCs as NAs
+res_CARseq_coefficients_as_NAs = res_CARseq$coefficients[, grep("Control|SCZ", colnames(res_CARseq$coefficients))]
+res_CARseq_coefficients_as_NAs[!is.finite(res_CARseq_coefficients_as_NAs)] = NA
+cor(res_CARseq_coefficients_as_NAs, method="spearman", use="pairwise.complete.obs")[1:6,7:12]
+cor(cbind(scRNAseq_sig$sig_matched, res_CARseq_coefficients_as_NAs[,1:6]), method="spearman", use="pairwise.complete.obs")[1:6,7:12]
+cor(cbind(scRNAseq_sig$sig_matched, res_CARseq_coefficients_as_NAs[,7:12]), method="spearman", use="pairwise.complete.obs")[1:6,7:12]
+
+# With infinite LFCs as NAs & Pearson correlation
+cor(res_CARseq_coefficients_as_NAs, method="pearson", use="pairwise.complete.obs")[1:6,7:12]
+cor(cbind(log(1 + scRNAseq_sig$sig_matched), res_CARseq_coefficients_as_NAs[,1:6]), method="pearson", use="pairwise.complete.obs")[1:6,7:12]
+cor(cbind(log(1 + scRNAseq_sig$sig_matched), res_CARseq_coefficients_as_NAs[,7:12]), method="pearson", use="pairwise.complete.obs")[1:6,7:12]
+
+# plot
+# library(pheatmap)
+cor_all = cor(cbind(res_CARseq_coefficients_as_NAs, log(1 + scRNAseq_sig$sig_matched)), method="pearson", use="pairwise.complete.obs")
+# cor_all[lower.tri(cor_all, diag=TRUE)] = NA
+cor_all = cor_all[1:12, 7:18]
+cor_all[7:12, 1:6] = NA
+cor_all_as_character = matrix(sprintf("%.2f", cor_all), nrow=nrow(cor_all))
+cor_all_as_character[cor_all_as_character == "NA"] = ""
+pheatmap(cor_all, cluster_rows = F, cluster_cols = F, display_numbers = cor_all_as_character, border_color = NA, na_col = "white", angle_col = "90",  colorRampPalette(c("blue", "royalblue", "white", "pink", "red"))(21), breaks = seq(-1, 1, by=0.1), gaps_row = 6, gaps_col = 6)
+
+# shrunken
+# not as good since the previously infinite estimates (signifying poor fit of the model) are now
+# around 0 after shrinkage, which will be included in the calculation of corr now.
+cor_all_shrunken = cor(cbind(res_CARseq_shrunken_coefficients, log(1 + scRNAseq_sig$sig_matched)), method="pearson", use="pairwise.complete.obs")
+# cor_all_shrunken[lower.tri(cor_all_shrunken, diag=TRUE)] = NA
+cor_all_shrunken = cor_all_shrunken[1:12, 7:18]
+cor_all_shrunken[7:12, 1:6] = NA
+cor_all_shrunken_as_character = matrix(sprintf("%.2f", cor_all_shrunken), nrow=nrow(cor_all_shrunken))
+cor_all_shrunken_as_character[cor_all_shrunken_as_character == "NA"] = ""
+pheatmap(cor_all_shrunken, cluster_rows = F, cluster_cols = F, display_numbers = cor_all_shrunken_as_character, border_color = NA, na_col = "white", angle_col = "90",  colorRampPalette(c("blue", "royalblue", "white", "pink", "red"))(21), breaks = seq(-1, 1, by=0.1), gaps_row = 6, gaps_col = 6)
+
+```
+
+## compare scRNAseq ref vs. cell type-specific expression after bulk expression deconvolution
+
+```{r scz_heatmap_corr_expr_rectangle}
+pheatmap(cor_all[,7:12], cluster_rows = F, cluster_cols = F, display_numbers = cor_all_as_character[,7:12], border_color = NA, na_col = "white", angle_col = "90",  colorRampPalette(c("blue", "royalblue", "white", "pink", "red"))(21), breaks = seq(-1, 1, by=0.1),gaps_row = 6)
+```
+
+# Schizophrenia cellular proportions
+
+The samples sequenced in Pitt has a higher read depth than in MSSM and in Penn.
+
+Figure: Cellular fractions in CommonMind Consortium SCZ and control samples deconvoluted using ICeDT. The samples are sorted by increasing cellular fractions in Exc among each group.
+
+```{r scz_cellular_proportions}
+# library(wesanderson)
+cellular_proportions = readRDS(file.path(scz_working_dir, "data/SCZ_prop.rds"))
+cellular_proportions$ICeDT = cellular_proportions$ICeDT[colnames(rse_filtered), ]
+cellular_proportions$CIBERSORT = cellular_proportions$CIBERSORT[colnames(rse_filtered), ]
+
+cellular_proportions_longtable =
+    cellular_proportions$ICeDT[colnames(rse_filtered), ] %>% as.data.frame() %>%
+    rownames_to_column(var = "samples") %>%
+    add_column(group = colData(rse_filtered)$Project.ID) %>%
+    add_column(Exc_prop = cellular_proportions$ICeDT[,"Exc"]) %>%
+    pivot_longer(cols = Astro:OPC, names_to = "cell type", values_to = "cellular proportions")
+
+# There are three centers: MSSM, Penn, and Pitt.
+colData(rse_filtered)$Institution = "MSSM"
+colData(rse_filtered)$Institution[colData(rse_filtered)$InstitutionPenn == 1] = "Penn"
+colData(rse_filtered)$Institution[colData(rse_filtered)$InstitutionPitt == 1] = "Pitt"
+opar = par(cex.axis = 0.7)
+boxplot(log_depth~Institution+Project.ID, colData(rse_filtered))
+par(opar)
+
+g_scz_1_SCZ = ggplot(data=cellular_proportions_longtable %>% subset(group %in% "SCZ"), aes(x=reorder(samples, Exc_prop), y=`cellular proportions`, fill=`cell type`)) +
+    geom_bar(stat = "identity", width=1) +
+    ggtitle("SCZ samples") +
+    xlab("sample") +
+    scale_fill_manual(values = wes_palette(6, name="Darjeeling2", type="continuous")) +
+    theme_minimal() +
+    theme(panel.grid.major = element_blank(),  axis.text.x = element_blank(), legend.position = "none")
+
+g_scz_1_Control = ggplot(data=cellular_proportions_longtable %>% subset(group %in% "Control"), aes(x=reorder(samples, Exc_prop), y=`cellular proportions`, fill=`cell type`)) +
+    geom_bar(stat = "identity", width=1) +
+    ggtitle("Control samples") +
+    xlab("sample") +
+    scale_fill_manual(values = wes_palette(6, name="Darjeeling2", type="continuous")) + 
+    theme_minimal() +
+    theme(panel.grid.major = element_blank(),  axis.text.x = element_blank())
+
+g_scz_1 = ggarrange(g_scz_1_SCZ, g_scz_1_Control, ncol = 2, widths = c(4,5), nrow = 1)
+g_scz_1
+```
+
+## Cellular frequencies vs. case-control and institutions, ICeDT
+
+```{r scz_cellular_frequencies_on_case_control_ICeDT}
+# log ratio against Exc
+summary_ICeDT = list()
+summary_ICeDT[["Astro"]]=summary(lm(log((1e-2 + cellular_proportions$ICeDT[,"Astro"] / (1e-2 + cellular_proportions$ICeDT[,"Exc"])))~ Project.ID + log_depth + Institution +
+                                   genderMale + scaled_age_death + scaled_PMI + scaled_RIN + scaled_RIN2 +
+                                   genoPC1 + genoPC2 +
+                                   sv1 + sv2 +
+                                   libclustB + libclustbase + libclustC + libclustD + libclustE + libclustF + libclustG, data=colData(rse_filtered)))
+summary_ICeDT[["Astro"]]
+summary_ICeDT[["Inh"]]=summary(lm(log((1e-2 + cellular_proportions$ICeDT[,"Inh"] / (1e-2 + cellular_proportions$ICeDT[,"Exc"])))~ Project.ID + log_depth + Institution+
+                                   genderMale + scaled_age_death + scaled_PMI + scaled_RIN + scaled_RIN2 +
+                                   genoPC1 + genoPC2 +
+                                   sv1 + sv2 +
+                                   libclustB + libclustbase + libclustC + libclustD + libclustE + libclustF + libclustG, data=colData(rse_filtered)))
+summary_ICeDT[["Inh"]]
+summary_ICeDT[["Micro"]]=summary(lm(log((1e-2 + cellular_proportions$ICeDT[,"Micro"] / (1e-2 + cellular_proportions$ICeDT[,"Exc"])))~ Project.ID + log_depth + Institution+
+                                   genderMale + scaled_age_death + scaled_PMI + scaled_RIN + scaled_RIN2 +
+                                   genoPC1 + genoPC2 +
+                                   sv1 + sv2 +
+                                   libclustB + libclustbase + libclustC + libclustD + libclustE + libclustF + libclustG, data=colData(rse_filtered)))
+
+summary_ICeDT[["Micro"]]
+summary_ICeDT[["Oligo"]]=summary(lm(log((1e-2 + cellular_proportions$ICeDT[,"Oligo"] / (1e-2 + cellular_proportions$ICeDT[,"Exc"])))~ Project.ID + log_depth + Institution+
+                                   genderMale + scaled_age_death + scaled_PMI + scaled_RIN + scaled_RIN2 +
+                                   genoPC1 + genoPC2 +
+                                   sv1 + sv2 +
+                                   libclustB + libclustbase + libclustC + libclustD + libclustE + libclustF + libclustG, data=colData(rse_filtered)))
+summary_ICeDT[["Oligo"]]
+summary_ICeDT[["OPC"]]=summary(lm(log((1e-2 + cellular_proportions$ICeDT[,"OPC"] / (1e-2 + cellular_proportions$ICeDT[,"Exc"])))~ Project.ID + log_depth + Institution+
+                                   genderMale + scaled_age_death + scaled_PMI + scaled_RIN + scaled_RIN2 +
+                                   genoPC1 + genoPC2 +
+                                   sv1 + sv2 +
+                                   libclustB + libclustbase + libclustC + libclustD + libclustE + libclustF + libclustG, data=colData(rse_filtered)))
+summary_ICeDT[["OPC"]]
+```
+
+
+## Cellular frequencies vs. case-control and institutions, CIBERSORT
+
+```{r scz_cellular_frequencies_on_case_control_CIBERSORT}
+# log ratio against Exc
+summary_CIBERSORT = list()
+summary_CIBERSORT[["Astro"]]=summary(lm(log((1e-2 + cellular_proportions$CIBERSORT[,"Astro"] / (1e-2 + cellular_proportions$CIBERSORT[,"Exc"])))~ Project.ID + log_depth + Institution +
+                                   genderMale + scaled_age_death + scaled_PMI + scaled_RIN + scaled_RIN2 +
+                                   genoPC1 + genoPC2 +
+                                   sv1 + sv2 +
+                                   libclustB + libclustbase + libclustC + libclustD + libclustE + libclustF + libclustG, data=colData(rse_filtered)))
+summary_CIBERSORT[["Astro"]]
+summary_CIBERSORT[["Inh"]]=summary(lm(log((1e-2 + cellular_proportions$CIBERSORT[,"Inh"] / (1e-2 + cellular_proportions$CIBERSORT[,"Exc"])))~ Project.ID + log_depth + Institution+
+                                   genderMale + scaled_age_death + scaled_PMI + scaled_RIN + scaled_RIN2 +
+                                   genoPC1 + genoPC2 +
+                                   sv1 + sv2 +
+                                   libclustB + libclustbase + libclustC + libclustD + libclustE + libclustF + libclustG, data=colData(rse_filtered)))
+summary_CIBERSORT[["Inh"]]
+summary_CIBERSORT[["Micro"]]=summary(lm(log((1e-2 + cellular_proportions$CIBERSORT[,"Micro"] / (1e-2 + cellular_proportions$CIBERSORT[,"Exc"])))~ Project.ID + log_depth + Institution+
+                                   genderMale + scaled_age_death + scaled_PMI + scaled_RIN + scaled_RIN2 +
+                                   genoPC1 + genoPC2 +
+                                   sv1 + sv2 +
+                                   libclustB + libclustbase + libclustC + libclustD + libclustE + libclustF + libclustG, data=colData(rse_filtered)))
+
+summary_CIBERSORT[["Micro"]]
+summary_CIBERSORT[["Oligo"]]=summary(lm(log((1e-2 + cellular_proportions$CIBERSORT[,"Oligo"] / (1e-2 + cellular_proportions$CIBERSORT[,"Exc"])))~ Project.ID + log_depth + Institution+
+                                   genderMale + scaled_age_death + scaled_PMI + scaled_RIN + scaled_RIN2 +
+                                   genoPC1 + genoPC2 +
+                                   sv1 + sv2 +
+                                   libclustB + libclustbase + libclustC + libclustD + libclustE + libclustF + libclustG, data=colData(rse_filtered)))
+summary_CIBERSORT[["Oligo"]]
+summary_CIBERSORT[["OPC"]]=summary(lm(log((1e-2 + cellular_proportions$CIBERSORT[,"OPC"] / (1e-2 + cellular_proportions$CIBERSORT[,"Exc"])))~ Project.ID + log_depth + Institution+
+                                   genderMale + scaled_age_death + scaled_PMI + scaled_RIN + scaled_RIN2 +
+                                   genoPC1 + genoPC2 +
+                                   sv1 + sv2 +
+                                   libclustB + libclustbase + libclustC + libclustD + libclustE + libclustF + libclustG, data=colData(rse_filtered)))
+summary_CIBERSORT[["OPC"]]
+```
+
+## Schizophrenia cellular frequencies vs. case-control figures
+
+```{r scz_cellular_frequencies_figures}
+# collect summary of cellular fraction linear models
+summary_table = NULL
+for (cell_type in names(summary_ICeDT)) {
+  summary_table = rbind(summary_table,
+                        data.frame(method="ICeDT",
+                                   cell_type=cell_type,
+                                   diagnosis_effect=summary_ICeDT[[cell_type]]$coefficients[2, "Estimate"],
+                                   se=summary_ICeDT[[cell_type]]$coefficients[2, "Std. Error"],
+                                   pval=summary_ICeDT[[cell_type]]$coefficients[2, "Pr(>|t|)"]))
+  summary_table = rbind(summary_table,
+                        data.frame(method="CIBERSORT",
+                                   cell_type=cell_type,
+                                   diagnosis_effect=summary_CIBERSORT[[cell_type]]$coefficients[2, "Estimate"],
+                                   se=summary_CIBERSORT[[cell_type]]$coefficients[2, "Std. Error"],
+                                   pval=summary_CIBERSORT[[cell_type]]$coefficients[2, "Pr(>|t|)"]))
+}
+summary_table$method = factor(summary_table$method, levels=c("ICeDT", "CIBERSORT"))
+summary_table$pval_formatted = sprintf("%.3f", summary_table$pval)
+summary_table
+
+# The errorbars overlapped, so use position_dodge to move them horizontally
+pd = position_dodge(0.2) # move them x.x to the left and right
+
+summary_table$cell_type = factor(summary_table$cell_type, levels = rev(levels(summary_table$cell_type)))
+g_scz_2 = ggplot(summary_table, aes(x=cell_type, y=diagnosis_effect, colour=method, group=method)) + 
+    geom_errorbar(aes(ymin=diagnosis_effect-se, ymax=diagnosis_effect+se), colour="black", width=.1, position=pd) +
+    # geom_line(position=pd) +
+    geom_point(position=pd, size=3, shape=21, fill="white") + # 21 is filled circle
+    xlab("Cell types") +
+    ylab("Difference of log ratio between case and control") +
+    scale_colour_hue(name="Deconvolution method",    # Legend label, use darker colors
+                     breaks=c("ICeDT", "CIBERSORT"),
+                     labels=c("ICeDT", "CIBERSORT"),
+                     l=40) +                    # Use darker colors, lightness=40
+    ggtitle(" Cellular fraction estimates\n on SCZ vs. Control\n adjusted for covariates") +
+    expand_limits(y=0) +                        # Expand y range
+    theme_bw() +
+    geom_hline(yintercept=0, linetype="dashed")
+g_scz_2
+```
+
+
+
+# Schizophrenia Volcano plot
+
+Figure: Volcano plot of cell-type specific differential expression between schizophrenia vs. control bulk RNA-seq samples inferred by CARseq. Each point represents a gene whose differential expression is significant (q value < 0.1) among a cell type. There are no genes making the cut in astrocytes or oligodendrocyte progenitor cells (OPCs). Genes with a q value < 0.01 are labeled. Exc, excitatory neurons; Inh, inhibitory neurons; Micro, microglia; Oligo, oligodendrocytes.
+
+```{r scz_volcano_plot}
+volcano_plot_data = data.frame()
+for (cell_type in colnames(res_CARseq$p)) {
+  log10qvalue = -log10(CARseq:::get_qvalues_one_inflated(res_CARseq$p[, cell_type]))
+  log10qvalue_significant = which(log10qvalue > -log10(0.1))
+  if (length(log10qvalue_significant) > 0) {
+    volcano_plot_data = rbind(volcano_plot_data,
+                         data.frame(cell_type = cell_type,
+               gene_name = rowData(rse_filtered)$gene_name[log10qvalue_significant],
+               log10qvalue = log10qvalue[log10qvalue_significant],
+               LFC = res_CARseq$lfc[log10qvalue_significant, grep(cell_type, colnames(res_CARseq$lfc))]
+               ))
+  }
+}
+dim(volcano_plot_data)
+# remove the LFCs that are not finite
+volcano_plot_data = volcano_plot_data[is.finite(volcano_plot_data$LFC), ]
+dim(volcano_plot_data)
+# show gene names on the plot when q value < 0.01
+volcano_plot_data$gene_name_subset = as.character(volcano_plot_data$gene_name)
+volcano_plot_data$gene_name_subset[rank(-volcano_plot_data$log10qvalue) > 10] = ""
+
+ggplot(volcano_plot_data, aes(x=LFC, y=log10qvalue, label=gene_name_subset, color=cell_type)) +
+  geom_point(alpha = 0.5) +
+  geom_text_repel(hjust="outward", vjust="outward", position=position_jitter(width=0,height=0.0)) +
+  geom_hline(yintercept=1, linetype="dashed") +
+  xlim(-max(abs(volcano_plot_data$LFC)), max(abs(volcano_plot_data$LFC))) +
+  geom_vline(xintercept=0) +
+  theme_minimal()
+```
+
+## Use CARseq shrunken log fold change
+
+```{r scz_volcano_plot_shrunken_lfc}
+volcano_plot_data = data.frame()
+for (cell_type in colnames(res_CARseq$p)) {
+  log10qvalue = -log10(CARseq:::get_qvalues_one_inflated(res_CARseq$p[, cell_type]))
+  log10qvalue_significant = which(log10qvalue > -log10(0.1) & abs(res_CARseq$shrunken_lfc[, grep(cell_type, colnames(res_CARseq$shrunken_lfc))]) > 0.01)
+  if (length(log10qvalue_significant) > 0) {
+    volcano_plot_data = rbind(volcano_plot_data,
+                         data.frame(cell_type = cell_type,
+               gene_name = rowData(rse_filtered)$gene_name[log10qvalue_significant],
+               log10qvalue = log10qvalue[log10qvalue_significant],
+               shrunken_LFC = res_CARseq$shrunken_lfc[log10qvalue_significant, grep(cell_type, colnames(res_CARseq$shrunken_lfc))]
+               ))
+  }
+}
+dim(volcano_plot_data)
+# remove the LFCs that are not finite
+volcano_plot_data = volcano_plot_data[is.finite(volcano_plot_data$shrunken_LFC), ]
+dim(volcano_plot_data)
+volcano_plot_data$gene_name_subset = as.character(volcano_plot_data$gene_name)
+
+# all cell types
+volcano_plot = volcano_plot_data
+if (nrow(volcano_plot) >= 10) {
+  volcano_plot$gene_name_subset[rank(-volcano_plot$log10qvalue) > 10] = ""
+  g_scz_3 = ggplot(volcano_plot, aes(x=shrunken_LFC, y=log10qvalue, label=gene_name_subset, color=cell_type)) +
+    geom_point(alpha = 0.5) +
+    geom_text_repel(hjust="outward", vjust="outward", position=position_jitter(width=0,height=0.0)) +
+    geom_hline(yintercept=1, linetype="dashed") +
+    xlim(-max(abs(volcano_plot_data$shrunken_LFC)), max(abs(volcano_plot_data$shrunken_LFC))) + ylim(1, max(volcano_plot_data$log10qvalue)) +
+    geom_vline(xintercept=0) +
+    scale_color_manual(values = wes_palette(6, name="Darjeeling2", type="continuous"), limits = colnames(res_CARseq$p)) +
+    theme_minimal()
+  g_scz_3
+}
+
+# neurons
+volcano_plot_data_neuronal = subset(volcano_plot_data, (cell_type %in% c("Exc","Inh")))
+if (nrow(volcano_plot_data_neuronal) >= 10) {
+  volcano_plot_data_neuronal$gene_name_subset[rank(-volcano_plot_data_neuronal$log10qvalue) > 10] = ""
+  ggplot(volcano_plot_data_neuronal, aes(x=shrunken_LFC, y=log10qvalue, label=gene_name_subset, color=cell_type)) +
+    geom_point(alpha = 0.5) +
+    geom_text_repel(hjust="outward", vjust="outward", position=position_jitter(width=0,height=0.0)) +
+    geom_hline(yintercept=1, linetype="dashed") +
+    xlim(-max(abs(volcano_plot_data$shrunken_LFC)), max(abs(volcano_plot_data$shrunken_LFC))) + ylim(1, max(volcano_plot_data$log10qvalue)) +
+    geom_vline(xintercept=0) +
+    scale_color_manual(values = wes_palette(6, name="Darjeeling2", type="continuous"), limits = colnames(res_CARseq$p)) +
+    theme_minimal()
+}
+
+# non neurons
+volcano_plot_data_non_neuronal = subset(volcano_plot_data, !(cell_type %in% c("Exc","Inh")))
+if (nrow(volcano_plot_data_non_neuronal) >= 10) {
+  volcano_plot_data_non_neuronal$gene_name_subset[rank(-volcano_plot_data_non_neuronal$log10qvalue) > 10] = ""
+
+  ggplot(volcano_plot_data_non_neuronal, aes(x=shrunken_LFC, y=log10qvalue, label=gene_name_subset, color=cell_type)) +
+    geom_point(alpha = 0.5) +
+    geom_text_repel(hjust="outward", vjust="outward", position=position_jitter(width=0,height=0.0)) +
+    geom_hline(yintercept=1, linetype="dashed") +
+    xlim(-max(abs(volcano_plot_data$shrunken_LFC)), max(abs(volcano_plot_data$shrunken_LFC))) + ylim(1, max(volcano_plot_data$log10qvalue)) +
+    geom_vline(xintercept=0) +
+    scale_color_manual(values = wes_palette(6, name="Darjeeling2", type="continuous"), limits = colnames(res_CARseq$p)) +
+    theme_minimal()
+}
+```
+
+
+
+## Use DESeq2 shrunken log fold change
+
+
+```{r scz_volcano_plot_DESeq2_shrunken_lfc}
+volcano_plot_data = data.frame()
+log10qvalue = -log10(CARseq:::get_qvalues_one_inflated(res_DESeq2$p[, "pvalue"]))
+res_DESeq2$p$shrunken_LFC = res_DESeq2$p$log2FoldChange * log(2)  # transform log2 to natural log
+# only showing gene-cell type pairs with q value < 0.1 & shrunken lfc > 0.1 in abs value
+log10qvalue_significant = which(log10qvalue > -log10(0.1)) # & abs(res_DESeq2$p$shrunken_LFC) > 0.1)
+if (length(log10qvalue_significant) > 0) {
+  volcano_plot_data = rbind(volcano_plot_data,
+                       data.frame(cell_type = "DESeq2 bulk",
+             gene_name = rowData(rse_filtered)$gene_name[log10qvalue_significant],
+             log10qvalue = log10qvalue[log10qvalue_significant],
+             shrunken_LFC = res_DESeq2$p$shrunken_LFC[log10qvalue_significant]
+             ))
+}
+dim(volcano_plot_data)
+# remove the LFCs that are not finite
+volcano_plot_data = volcano_plot_data[is.finite(volcano_plot_data$shrunken_LFC), ]
+dim(volcano_plot_data)
+# show gene names on the plot when q value < 0.01
+volcano_plot_data$gene_name_subset = as.character(volcano_plot_data$gene_name)
+
+volcano_plot_data$gene_name_subset[rank(-volcano_plot_data$log10qvalue) > 10] = ""
+ggplot(volcano_plot_data, aes(x=shrunken_LFC, y=log10qvalue, label=gene_name_subset, color=cell_type)) +
+  # geom_point(alpha = volcano_plot_data$log10qvalue * 0.1) +
+  geom_point(alpha = 0.5) +
+  geom_text_repel(hjust="outward", vjust="outward", position=position_jitter(width=0, height=0)) +
+  geom_hline(yintercept=1, linetype="dashed") +
+  xlim(-max(abs(volcano_plot_data$shrunken_LFC)), max(abs(volcano_plot_data$shrunken_LFC))) + ylim(1, max(volcano_plot_data$log10qvalue)) +
+  geom_vline(xintercept=0) +
+  theme_minimal()
+```
+
+# Schizophrenia Venn plot
+
+```{r scz_venn_plot}
+library(gplots)
+scz_pvalues = data.frame(CARseq=res_CARseq$p, DESeq2.bulk=res_DESeq2$p$pvalue)
+scz_qvalues = apply(scz_pvalues, 2, CARseq:::get_qvalues_one_inflated)
+scz_significant = (scz_qvalues < 0.1)
+scz_significant[is.na(scz_significant)] = FALSE
+opar = par(cex = 0.7)
+venn(as.data.frame(scz_significant[,
+    c("CARseq.Micro", "CARseq.Oligo", "DESeq2.bulk")]))
+par(opar)
+```
+
+# Arrange multiple subfigures
+
+```{r arrange_multiple_subfigures_scz}
+# if (!file.exists("figures/Figure_scz_unedited.pdf")) {
+  pdf("figures/Figure_scz_unedited.pdf", height=9, width=10)
+  g_scz_1 = ggarrange(g_scz_1_SCZ,
+                      g_scz_1_Control + ylab(""),
+                      ncol = 2, widths = c(3.9, 6.1), nrow = 1)
+  g_scz_123 = ggarrange(g_scz_1,
+                        g_scz_2 + coord_flip() +
+                          theme(legend.position="bottom",
+  ),
+                        g_scz_3 +
+                          theme(legend.position = "none",
+                                plot.margin = margin(t = .0, r = .2, b = .2, l = .6, unit = "in")),
+                        nrow = 1, ncol = 3, widths = c(4, 2.5, 4.5))
+  ggarrange(g_scz_123,
+            g_scz_4[[4]],
+            nrow = 2, ncol = 1)
+  dev.off()
+# }
+```
+
+```{r arrange_multiple_subfigures_asd}
+# if (!file.exists("figures/Figure_asd_unedited.pdf")) {
+  pdf("figures/Figure_asd_unedited.pdf", height=9, width=10)
+  g_asd_1 = ggarrange(g_asd_1_ASD,
+                      g_asd_1_Control + ylab(""),
+                      ncol = 2, widths = c(3.9, 6.1), nrow = 1)
+  g_asd_123 = ggarrange(g_asd_1,
+                        g_asd_2 + coord_flip() +
+                          theme(legend.position="bottom",
+  ),
+                        g_asd_3 +
+                          theme(legend.position = "none",
+                                plot.margin = margin(t = .0, r = .2, b = .2, l = .6, unit = "in")),
+                        nrow = 1, ncol = 3, widths = c(4, 2.5, 4.5))
+  ggarrange(g_asd_123,
+            g_asd_4[[4]],
+            nrow = 2, ncol = 1)
+  dev.off()
+# }
+```
+
+
+# For SCZ and ASD, compare our DE results from DESeq2 vs. the results from Table S1 of [gandal_transcriptome-wide_2018] (aat8127_Table_S1.xlsx in GitHub folder "data").
+```{r DESeq2_compare_vs_gandal}
+library(ggpointdensity)
+
+# ASD
+library(readxl)
+table_from_Gandal = suppressWarnings(read_excel("data/aat8127_Table_S1.xlsx", sheet = "DGE"))
+res_DESeq2_unshrunken = list()
+res_DESeq2_unshrunken$p = read.table(file.path(autism_working_dir, "results/ASD_step1_DESeq2_bulk_adj_covariates_seqSV4.txt"))
+# ENSG00000000003.10 |-> ENSG00000000003
+rownames(res_DESeq2_unshrunken$p) = sub("\\..*", "", rownames(res_DESeq2_unshrunken$p))
+gene_ids = intersect(rownames(res_DESeq2_unshrunken$p), table_from_Gandal$ensembl_gene_id)
+ASD_DESeq2_log2FC_from_Gandal = table_from_Gandal$ASD.log2FC[match(gene_ids, table_from_Gandal$ensembl_gene_id)]
+ASD_DESeq2_log2FC_reproduced = res_DESeq2_unshrunken$p[gene_ids, "log2FoldChange"]
+
+# plot(ASD_DESeq2_log2FC_from_Gandal,
+#      ASD_DESeq2_log2FC_reproduced,
+#      cex = 0.5, col=rgb(0,0,0,alpha=0.5), pch=19, xlim=c(-1.5, 3.5), ylim=c(-1.5, 3.5))
+# abline(a = 0, b = 1, col="red")
+
+# SCZ
+library(readxl)
+table_from_Gandal = suppressWarnings(read_excel("data/aat8127_Table_S1.xlsx", sheet = "DGE"))
+res_DESeq2_unshrunken = list()
+res_DESeq2_unshrunken$p = read.table(file.path(autism_working_dir, "results/SCZ_step1_DESeq2_bulk_adj_covariates_SV2.txt"))
+# ENSG00000000003.10 |-> ENSG00000000003
+rownames(res_DESeq2_unshrunken$p) = sub("\\..*", "", rownames(res_DESeq2_unshrunken$p))
+gene_ids = intersect(rownames(res_DESeq2_unshrunken$p), table_from_Gandal$ensembl_gene_id)
+SCZ_DESeq2_log2FC_from_Gandal = table_from_Gandal$SCZ.log2FC[match(gene_ids, table_from_Gandal$ensembl_gene_id)]
+SCZ_DESeq2_log2FC_reproduced = res_DESeq2_unshrunken$p[gene_ids, "log2FoldChange"]
+
+# plot(SCZ_DESeq2_log2FC_from_Gandal,
+#      SCZ_DESeq2_log2FC_reproduced,
+#      cex = 0.5, col=rgb(0,0,0,alpha=0.5), pch=19, xlim=c(-1, 1), ylim=c(-1, 1))
+# abline(a = 0, b = 1, col="red")
+
+SCZ_DESeq2_log2FC = data.frame(DESeq2 = SCZ_DESeq2_log2FC_reproduced, Gandal_et_al = SCZ_DESeq2_log2FC_from_Gandal)
+ASD_DESeq2_log2FC = data.frame(DESeq2 = ASD_DESeq2_log2FC_reproduced, Gandal_et_al = ASD_DESeq2_log2FC_from_Gandal)
+
+gs1 = ggplot(SCZ_DESeq2_log2FC,aes(x=DESeq2,y=Gandal_et_al)) +
+  geom_abline(intercept = 0, slope =1) + 
+  geom_pointdensity(size = 0.6) + scale_color_viridis_c() +
+  ggtitle("SCZ")
+
+gs2 = ggplot(ASD_DESeq2_log2FC,aes(x=DESeq2,y=Gandal_et_al)) +
+  geom_abline(intercept = 0, slope =1) + 
+  geom_pointdensity(size = 0.6) + scale_color_viridis_c() + 
+  ggtitle("ASD")
+
+ggarrange(gs1, gs2, ncol = 2, nrow = 1, common.legend = TRUE)
+
+```
+
+
+
+
+# For SCZ, compare our cell type proportion estimates vs. those from [wang2018comprehensive] (file DER-24_Cell_fractions_Normalized.xlsx in GitHub folder "data")
+
+Note that there is a considerable proportion of Adult-OtherNeuron in Wang et al.
+
+```{r SCZ_cell_type_fractions_vs_wang_preparation}
+library(readxl)
+table_from_Wang = read_excel("data/DER-24_Cell_fractions_Normalized.xlsx")
+table_from_Wang$CellType
+matrix_Wang = as.data.frame(t(as.matrix(table_from_Wang[, -1])))
+colnames(matrix_Wang) = table_from_Wang$CellType
+
+matrix_Wang$Astro = rowSums(matrix_Wang[, "Adult-Astrocytes", drop=FALSE])
+matrix_Wang$Exc = rowSums(matrix_Wang[, grep("Ex", table_from_Wang$CellType)])
+matrix_Wang$Inh = rowSums(matrix_Wang[, grep("In", table_from_Wang$CellType)])
+matrix_Wang$Micro = rowSums(matrix_Wang[, "Adult-Microglia", drop=FALSE])
+matrix_Wang$Oligo = rowSums(matrix_Wang[, "Adult-Oligo", drop=FALSE])
+matrix_Wang$OPC = rowSums(matrix_Wang[, "Adult-OPC", drop=FALSE])
+
+# read CMC SCZ cellular proportions that we have inferred using ICeDT and CIBERSORT
+cellular_proportions = readRDS(file.path(scz_working_dir, "data/SCZ_prop.rds"))
+rse_filtered = readRDS(file.path(scz_working_dir, "data/rse_filtered_SV.rds"))
+cellular_proportions$ICeDT = cellular_proportions$ICeDT[colnames(rse_filtered), ]
+cellular_proportions$CIBERSORT = cellular_proportions$CIBERSORT[colnames(rse_filtered), ]
+
+clinical_data = read.csv("data/Release3_SampleID_key.csv", as.is = TRUE)
+matched_RNAseq_ID = clinical_data$RNAseq.Sample_RNA_ID[match(rownames(matrix_Wang), clinical_data$Individual_ID)]
+matrix_Wang = matrix_Wang[!is.na(matched_RNAseq_ID), ]
+rownames(matrix_Wang) = matched_RNAseq_ID[!is.na(matched_RNAseq_ID)]
+
+matrix_Wang_subset = matrix_Wang[colnames(rse_filtered), colnames(cellular_proportions$ICeDT)]
+dim(matrix_Wang_subset)
+dim(na.omit(matrix_Wang_subset))
+
+matrix_Wang_subset$diagnosis = colData(rse_filtered)$Project.ID
+
+# opar = par(mfrow=c(2,3), cex.main = 0.75)
+# for (cell_type in colnames(cellular_proportions$ICeDT)) {
+#   plot(matrix_Wang_subset[, cell_type],
+#        cellular_proportions$ICeDT[, cell_type],
+#        main = paste0(cell_type, " - ICeDT est. vs Wang Suppl. Table"),
+#        xlab = "Wang Suppl. Table", ylab = "ICeDT")
+#   abline(a = 0, b = 1)
+# }
+# 
+# for (cell_type in colnames(cellular_proportions$ICeDT)) {
+#   plot(matrix_Wang_subset[, cell_type],
+#        cellular_proportions$CIBERSORT[, cell_type],
+#        main = paste0(cell_type, " - CIBERSORT est. vs. Wang Suppl. Table"),
+#       xlab = "Wang Suppl. Table", ylab = "CIBERSORT")
+#   abline(a = 0, b = 1)
+# }
+# par(opar)
+```
+
+## Schizophrenia, Wang et al. vs. ICeDT
+
+```{r SCZ_cell_type_fractions_vs_wang_ICeDT}
+# ICeDT
+rho_df = merge(matrix_Wang_subset, cellular_proportions$ICeDT, by="row.names", 
+               suffixes=c(".Wang_et_al", ".ICeDT"))
+dim(rho_df)
+rho_df[1:2,]
+
+summary(rho_df[,-1])
+
+g2 = list()
+g2[[1]] = ggplot(rho_df, aes(x=Astro.ICeDT, y=Astro.Wang_et_al, col=diagnosis)) + 
+  geom_point(alpha=0.5) + geom_abline(intercept = 0, slope =1) + 
+  labs(x = "ICeDT", y="Wang_et_al", title="Astro")
+
+g2[[2]] = ggplot(rho_df, aes(x=Exc.ICeDT, y=Exc.Wang_et_al, col=diagnosis)) + 
+  geom_point(alpha=0.5) + geom_abline(intercept = 0, slope =1) + 
+  labs(x = "ICeDT", y="Wang_et_al", title="Exc")
+
+g2[[3]] = ggplot(rho_df, aes(x=Inh.ICeDT, y=Inh.Wang_et_al, col=diagnosis)) + 
+  geom_point(alpha=0.5) + geom_abline(intercept = 0, slope =1) + 
+  labs(x = "ICeDT", y="Wang_et_al", title="Inh")
+
+g2[[4]] = ggplot(rho_df, aes(x=Micro.ICeDT, y=Micro.Wang_et_al, col=diagnosis)) + 
+  geom_point(alpha=0.5) + geom_abline(intercept = 0, slope =1) + 
+  labs(x = "ICeDT", y="Wang_et_al", title="Micro")
+
+g2[[5]] = ggplot(rho_df, aes(x=Oligo.ICeDT, y=Oligo.Wang_et_al, col=diagnosis)) + 
+  geom_point(alpha=0.5) + geom_abline(intercept = 0, slope =1) + 
+  labs(x = "ICeDT", y="Wang_et_al", title="Oligo")
+
+g2[[6]] = ggplot(rho_df, aes(x=OPC.ICeDT, y=OPC.Wang_et_al, col=diagnosis)) + 
+  geom_point(alpha=0.5) + geom_abline(intercept = 0, slope =1) + 
+  labs(x = "ICeDT", y="Wang_et_al", title="OPC")
+
+ggarrange(g2[[1]], g2[[2]], g2[[3]], g2[[4]], g2[[5]], g2[[6]],
+          ncol = 3, nrow = 2, common.legend = TRUE)
+```
+
+## Schizophrenia, Wang et al. vs. CIBERSORT
+
+
+```{r SCZ_cell_type_fractions_vs_wang_CIBERSORT}
+# CIBERSORT
+rho_df = merge(matrix_Wang_subset, cellular_proportions$CIBERSORT, by="row.names", 
+               suffixes=c(".Wang_et_al", ".CIBERSORT"))
+dim(rho_df)
+rho_df[1:2,]
+
+summary(rho_df[,-1])
+
+g2 = list()
+g2[[1]] = ggplot(rho_df, aes(x=Astro.CIBERSORT, y=Astro.Wang_et_al, col=diagnosis)) + 
+  geom_point(alpha=0.5) + geom_abline(intercept = 0, slope =1) + 
+  labs(x = "CIBERSORT", y="Wang_et_al", title="Astro")
+
+g2[[2]] = ggplot(rho_df, aes(x=Exc.CIBERSORT, y=Exc.Wang_et_al, col=diagnosis)) + 
+  geom_point(alpha=0.5) + geom_abline(intercept = 0, slope =1) + 
+  labs(x = "CIBERSORT", y="Wang_et_al", title="Exc")
+
+g2[[3]] = ggplot(rho_df, aes(x=Inh.CIBERSORT, y=Inh.Wang_et_al, col=diagnosis)) + 
+  geom_point(alpha=0.5) + geom_abline(intercept = 0, slope =1) + 
+  labs(x = "CIBERSORT", y="Wang_et_al", title="Inh")
+
+g2[[4]] = ggplot(rho_df, aes(x=Micro.CIBERSORT, y=Micro.Wang_et_al, col=diagnosis)) + 
+  geom_point(alpha=0.5) + geom_abline(intercept = 0, slope =1) + 
+  labs(x = "CIBERSORT", y="Wang_et_al", title="Micro")
+
+g2[[5]] = ggplot(rho_df, aes(x=Oligo.CIBERSORT, y=Oligo.Wang_et_al, col=diagnosis)) + 
+  geom_point(alpha=0.5) + geom_abline(intercept = 0, slope =1) + 
+  labs(x = "CIBERSORT", y="Wang_et_al", title="Oligo")
+
+g2[[6]] = ggplot(rho_df, aes(x=OPC.CIBERSORT, y=OPC.Wang_et_al, col=diagnosis)) + 
+  geom_point(alpha=0.5) + geom_abline(intercept = 0, slope =1) + 
+  labs(x = "CIBERSORT", y="Wang_et_al", title="OPC")
+
+ggarrange(g2[[1]], g2[[2]], g2[[3]], g2[[4]], g2[[5]], g2[[6]],
+          ncol = 3, nrow = 2, common.legend = TRUE)
+```
+
+## Schizophrenia cellular proportions in Wang et al.
+
+```{r scz_cellular_proportions_Wang}
+# library(wesanderson)
+
+cellular_proportions_longtable =
+    matrix_Wang_subset[, 1:6] %>% as.data.frame() %>%
+    rownames_to_column(var = "samples") %>%
+    add_column(group = colData(rse_filtered)$Project.ID) %>%
+    add_column(Exc_prop = cellular_proportions$ICeDT[,"Exc"]) %>%
+    pivot_longer(cols = Astro:OPC, names_to = "cell type", values_to = "cellular proportions")
+
+# There are three centers: MSSM, Penn, and Pitt.
+colData(rse_filtered)$Institution = "MSSM"
+colData(rse_filtered)$Institution[colData(rse_filtered)$InstitutionPenn == 1] = "Penn"
+colData(rse_filtered)$Institution[colData(rse_filtered)$InstitutionPitt == 1] = "Pitt"
+opar = par(cex.axis = 0.7)
+boxplot(log_depth~Institution+Project.ID, colData(rse_filtered))
+par(opar)
+
+g_scz_1_SCZ = ggplot(data=cellular_proportions_longtable %>% subset(group %in% "SCZ"), aes(x=reorder(samples, Exc_prop), y=`cellular proportions`, fill=`cell type`)) +
+    geom_bar(stat = "identity", width=1) +
+    ggtitle("SCZ samples") +
+    xlab("sample") +
+    scale_fill_manual(values = wes_palette(6, name="Darjeeling2", type="continuous")) +
+    theme_minimal() +
+    theme(panel.grid.major = element_blank(),  axis.text.x = element_blank(), legend.position = "none")
+
+g_scz_1_Control = ggplot(data=cellular_proportions_longtable %>% subset(group %in% "Control"), aes(x=reorder(samples, Exc_prop), y=`cellular proportions`, fill=`cell type`)) +
+    geom_bar(stat = "identity", width=1) +
+    ggtitle("Control samples") +
+    xlab("sample") +
+    scale_fill_manual(values = wes_palette(6, name="Darjeeling2", type="continuous")) + 
+    theme_minimal() +
+    theme(panel.grid.major = element_blank(),  axis.text.x = element_blank())
+
+g_scz_1 = ggarrange(g_scz_1_SCZ, g_scz_1_Control, ncol = 2, widths = c(4,5), nrow = 1)
+g_scz_1
+```
+
+## Cellular frequencies vs. case-control and institutions, Wang et al.
+
+```{r scz_cellular_frequencies_on_case_control_Wang}
+# log ratio against Exc
+summary_Wang_et_al = list()
+summary_Wang_et_al[["Astro"]]=summary(lm(log((1e-2 + matrix_Wang_subset[,"Astro"] / (1e-2 + matrix_Wang_subset[,"Exc"])))~ Project.ID + log_depth + Institution +
+                                   genderMale + scaled_age_death + scaled_PMI + scaled_RIN + scaled_RIN2 +
+                                   genoPC1 + genoPC2 +
+                                   sv1 + sv2 +
+                                   libclustB + libclustbase + libclustC + libclustD + libclustE + libclustF + libclustG, data=colData(rse_filtered)))
+summary_Wang_et_al[["Astro"]]
+summary_Wang_et_al[["Inh"]]=summary(lm(log((1e-2 + matrix_Wang_subset[,"Inh"] / (1e-2 + matrix_Wang_subset[,"Exc"])))~ Project.ID + log_depth + Institution+
+                                   genderMale + scaled_age_death + scaled_PMI + scaled_RIN + scaled_RIN2 +
+                                   genoPC1 + genoPC2 +
+                                   sv1 + sv2 +
+                                   libclustB + libclustbase + libclustC + libclustD + libclustE + libclustF + libclustG, data=colData(rse_filtered)))
+summary_Wang_et_al[["Inh"]]
+summary_Wang_et_al[["Micro"]]=summary(lm(log((1e-2 + matrix_Wang_subset[,"Micro"] / (1e-2 + matrix_Wang_subset[,"Exc"])))~ Project.ID + log_depth + Institution+
+                                   genderMale + scaled_age_death + scaled_PMI + scaled_RIN + scaled_RIN2 +
+                                   genoPC1 + genoPC2 +
+                                   sv1 + sv2 +
+                                   libclustB + libclustbase + libclustC + libclustD + libclustE + libclustF + libclustG, data=colData(rse_filtered)))
+
+summary_Wang_et_al[["Micro"]]
+summary_Wang_et_al[["Oligo"]]=summary(lm(log((1e-2 + matrix_Wang_subset[,"Oligo"] / (1e-2 + matrix_Wang_subset[,"Exc"])))~ Project.ID + log_depth + Institution+
+                                   genderMale + scaled_age_death + scaled_PMI + scaled_RIN + scaled_RIN2 +
+                                   genoPC1 + genoPC2 +
+                                   sv1 + sv2 +
+                                   libclustB + libclustbase + libclustC + libclustD + libclustE + libclustF + libclustG, data=colData(rse_filtered)))
+summary_Wang_et_al[["Oligo"]]
+summary_Wang_et_al[["OPC"]]=summary(lm(log((1e-2 + matrix_Wang_subset[,"OPC"] / (1e-2 + matrix_Wang_subset[,"Exc"])))~ Project.ID + log_depth + Institution+
+                                   genderMale + scaled_age_death + scaled_PMI + scaled_RIN + scaled_RIN2 +
+                                   genoPC1 + genoPC2 +
+                                   sv1 + sv2 +
+                                   libclustB + libclustbase + libclustC + libclustD + libclustE + libclustF + libclustG, data=colData(rse_filtered)))
+summary_Wang_et_al[["OPC"]]
+```
+
+## Schizophrenia cellular frequencies vs. case-control figures using Wang et al. cellular proportions
+
+```{r scz_cellular_frequencies_figures_Wang}
+# See http://www.cookbook-r.com/Graphs/Plotting_means_and_error_bars_(ggplot2)/
+# collect summary of cellular fraction linear models
+summary_table = NULL
+for (cell_type in names(summary_Wang_et_al)) {
+  summary_table = rbind(summary_table,
+                        data.frame(method="Wang_et_al",
+                                   cell_type=cell_type,
+                                   diagnosis_effect=summary_Wang_et_al[[cell_type]]$coefficients[2, "Estimate"],
+                                   se=summary_Wang_et_al[[cell_type]]$coefficients[2, "Std. Error"],
+                                   pval=summary_Wang_et_al[[cell_type]]$coefficients[2, "Pr(>|t|)"])
+                        )
+}
+summary_table$method = factor(summary_table$method, levels=c("Wang_et_al"))
+summary_table
+
+# The errorbars overlapped, so use position_dodge to move them horizontally
+pd = position_dodge(0.3) # move them to the left and right
+
+summary_table$cell_type = factor(summary_table$cell_type, levels = rev(levels(summary_table$cell_type)))
+g_asd_2 = ggplot(summary_table, aes(x=cell_type, y=diagnosis_effect, colour=method, group=method)) + 
+    geom_errorbar(aes(ymin=diagnosis_effect-se, ymax=diagnosis_effect+se), colour="black", width=.1, position=pd) +
+    # geom_line(position=pd) +
+    geom_point(position=pd, size=3, shape=21, fill="white") + # 21 is filled circle
+    xlab("Cell types") +
+    ylab("Difference of log ratio between case and control") +
+    scale_colour_hue(name="Deconvolution method",    # Legend label, use darker colors
+                     breaks=c("Wang_et_al"),
+                     labels=c("Wang_et_al"),
+                     l=40) +                    # Use darker colors, lightness=40
+    ggtitle(" Cellular fraction estimates in Wang et al.\n on SCZ vs. Control\n adjusted for covariates") +
+    expand_limits(y=0) +                        # Expand y range
+    theme_bw() +
+    geom_hline(yintercept=0, linetype="dashed")
+g_asd_2
+```
+
+
+# Check the gene list of DEG in both SCZ and ASD by GO enrichment analysis
+
+## REACTOME, Oligo
+
+```{r GO_intersection_of_DEG_in_both_SCZ_and_ASD_REACTOME_Oligo}
+# goseq analysis
+DE_genes_Oligo_table = read.csv("results/DEG_Oligo_in_both_SCZ_ASD.csv", as.is=TRUE)
+dim(DE_genes_Oligo_table)
+head(DE_genes_Oligo_table)
+names_DE_genes = unique(rowData(rse_filtered)$gene_name)
+DE_genes = rep(0, length(names_DE_genes))
+names(DE_genes) = names_DE_genes
+DE_genes[DE_genes_Oligo_table$gene_name] = 1
+
+cat(sprintf("# of DE genes = %d\n", sum(DE_genes)))
+
+pathways_reactome_filtered = pathways_reactome[sapply(pathways_reactome, length) %in% 10:1000]
+
+if (sum(DE_genes) > 0) {
+  # # alternatively, use gene_length data we have obtained from GTF file:
+  # pwf = nullp(DE_genes, "dummy", "dummy", bias.data=rowData(rse_filtered)$gene_length)
+  pwf = nullp(DE_genes, "hg19", "geneSymbol")
+  pvals = goseq(pwf, "hg19","geneSymbol", gene2cat = goseq:::reversemapping(pathways_reactome_filtered))
+  pvals$qval_over_represented = CARseq:::get_qvalues_one_inflated(pvals$over_represented_pvalue)
+  pvals$qval_under_represented = CARseq:::get_qvalues_one_inflated(pvals$under_represented_pvalue)
+  # empty set -- no significant pathways were found
+  print(pvals[pvals$qval_over_represented < 0.1 | pvals$qval_under_represented < 0.1, ])
+} else {
+  cat("No DE genes have been found under the current cutoffs!\n")
+}
+```
+
+## GO_BP, Oligo
+
+```{r GO_intersection_of_DEG_in_both_SCZ_and_ASD_GO_BP_Oligo}
+# goseq analysis
+DE_genes_Oligo_table = read.csv("results/DEG_Oligo_in_both_SCZ_ASD.csv", as.is=TRUE)
+dim(DE_genes_Oligo_table)
+head(DE_genes_Oligo_table)
+names_DE_genes = unique(rowData(rse_filtered)$gene_name)
+DE_genes = rep(0, length(names_DE_genes))
+names(DE_genes) = names_DE_genes
+DE_genes[DE_genes_Oligo_table$gene_name] = 1
+
+cat(sprintf("# of DE genes = %d\n", sum(DE_genes)))
+
+pathways_go_bp_filtered = pathways_go_bp[sapply(pathways_go_bp, length) %in% 10:1000]
+
+if (sum(DE_genes) > 0) {
+  # # alternatively, use gene_length data we have obtained from GTF file:
+  # pwf = nullp(DE_genes, "dummy", "dummy", bias.data=rowData(rse_filtered)$gene_length)
+  pwf = nullp(DE_genes, "hg19", "geneSymbol")
+  pvals = goseq(pwf, "hg19","geneSymbol", gene2cat = goseq:::reversemapping(pathways_go_bp_filtered))
+  pvals$qval_over_represented = CARseq:::get_qvalues_one_inflated(pvals$over_represented_pvalue)
+  pvals$qval_under_represented = CARseq:::get_qvalues_one_inflated(pvals$under_represented_pvalue)
+  # empty set -- no significant pathways were found
+  print(pvals[pvals$qval_over_represented < 0.1 | pvals$qval_under_represented < 0.1, ])
+} else {
+  cat("No DE genes have been found under the current cutoffs!\n")
+}
+```
+
+
+
+## REACTOME, Micro
+
+```{r GO_intersection_of_DEG_in_both_SCZ_and_ASD_REACTOME_Micro}
+# goseq analysis
+DE_genes_Micro_table = read.csv("results/DEG_Micro_in_both_SCZ_ASD.csv", as.is=TRUE)
+dim(DE_genes_Micro_table)
+head(DE_genes_Micro_table)
+names_DE_genes = unique(rowData(rse_filtered)$gene_name)
+DE_genes = rep(0, length(names_DE_genes))
+names(DE_genes) = names_DE_genes
+DE_genes[DE_genes_Micro_table$gene_name] = 1
+
+cat(sprintf("# of DE genes = %d\n", sum(DE_genes)))
+
+pathways_reactome_filtered = pathways_reactome[sapply(pathways_reactome, length) %in% 10:1000]
+
+if (sum(DE_genes) > 0) {
+  # # alternatively, use gene_length data we have obtained from GTF file:
+  # pwf = nullp(DE_genes, "dummy", "dummy", bias.data=rowData(rse_filtered)$gene_length)
+  pwf = nullp(DE_genes, "hg19", "geneSymbol")
+  pvals = goseq(pwf, "hg19","geneSymbol", gene2cat = goseq:::reversemapping(pathways_reactome_filtered))
+  pvals$qval_over_represented = CARseq:::get_qvalues_one_inflated(pvals$over_represented_pvalue)
+  pvals$qval_under_represented = CARseq:::get_qvalues_one_inflated(pvals$under_represented_pvalue)
+  significant_goseq_results = pvals[pvals$qval_over_represented < 0.1 | pvals$qval_under_represented < 0.1, ]
+  print(significant_goseq_results)
+  write.csv(significant_goseq_results, "results/DEG_Micro_in_both_SCZ_ASD_goseq_REACTOME.csv", quote = FALSE)
+} else {
+  cat("No DE genes have been found under the current cutoffs!\n")
+}
+```
+
+## GO_BP, Micro
+
+```{r GO_intersection_of_DEG_in_both_SCZ_and_ASD_GO_BP_Micro}
+# goseq analysis
+DE_genes_Micro_table = read.csv("results/DEG_Micro_in_both_SCZ_ASD.csv", as.is=TRUE)
+dim(DE_genes_Micro_table)
+head(DE_genes_Micro_table)
+names_DE_genes = unique(rowData(rse_filtered)$gene_name)
+DE_genes = rep(0, length(names_DE_genes))
+names(DE_genes) = names_DE_genes
+DE_genes[DE_genes_Micro_table$gene_name] = 1
+
+cat(sprintf("# of DE genes = %d\n", sum(DE_genes)))
+
+pathways_go_bp_filtered = pathways_go_bp[sapply(pathways_go_bp, length) %in% 10:1000]
+
+if (sum(DE_genes) > 0) {
+  # # alternatively, use gene_length data we have obtained from GTF file:
+  # pwf = nullp(DE_genes, "dummy", "dummy", bias.data=rowData(rse_filtered)$gene_length)
+  pwf = nullp(DE_genes, "hg19", "geneSymbol")
+  pvals = goseq(pwf, "hg19","geneSymbol", gene2cat = goseq:::reversemapping(pathways_go_bp_filtered))
+  pvals$qval_over_represented = CARseq:::get_qvalues_one_inflated(pvals$over_represented_pvalue)
+  pvals$qval_under_represented = CARseq:::get_qvalues_one_inflated(pvals$under_represented_pvalue)
+  significant_goseq_results = pvals[pvals$qval_over_represented < 0.1 | pvals$qval_under_represented < 0.1, ]
+  print(significant_goseq_results)
+  write.csv(significant_goseq_results, "results/DEG_Micro_in_both_SCZ_ASD_goseq_GO_BP.csv", quote = FALSE)
+} else {
+  cat("No DE genes have been found under the current cutoffs!\n")
+}
+```

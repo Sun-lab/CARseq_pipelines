@@ -1,0 +1,404 @@
+data_folder = "../data"
+
+# GRCh37
+cDat = readRDS(file.path(data_folder, "ucla_cDat.rds"))
+# BrainBank, Sequencing.Batch, RIN, Sex, PMI
+eDat = readRDS(file.path(data_folder, "ucla_eDat.rds"))
+
+library(SummarizedExperiment)
+rse = SummarizedExperiment(assays=SimpleList(counts=eDat[, cDat[, "Sample_ID"]]),
+                     colData=DataFrame(cDat))
+rse
+
+# obtain gene length from gtf (used in bulk expression quantification):
+gencode_file = file.path(data_folder, "gencode.v19.annotation.gtf.gz")
+genelength_file = file.path(data_folder, "ExonicGeneLengths_GRCh37_GENCODE19.RData")
+gtf_link = "ftp://ftp.ebi.ac.uk/pub/databases/gencode/Gencode_human/release_19/gencode.v19.annotation.gtf.gz"
+library(GenomicFeatures)
+if( !file.exists(genelength_file) ){
+  # prepare txdb
+  exdb = GenomicFeatures::makeTxDbFromGFF(file = gencode_file,
+                                          format="gtf", dataSource = gtf_link)
+  exons.list.per.gene = GenomicFeatures::exonsBy(exdb,by="gene")
+  exonic_gene_sizes = lapply(exons.list.per.gene, function(x){sum(width(reduce(x)))})
+  
+  # We also need to extract other information from gtf files since they are not included in txdb:
+  gencode_gtf = rtracklayer::import(gencode_file)
+  gencode_gtf = gencode_gtf[gencode_gtf$type == "gene", ]
+  gencode_gtf = gencode_gtf[match(rownames(rse), gencode_gtf$gene_id),
+                            c("gene_id", "gene_type", "gene_status", "gene_name")]
+  gencode_gtf$gene_length = as.numeric(exonic_gene_sizes)
+  
+  save(file = genelength_file, exonic_gene_sizes, gencode_gtf)
+} else {
+  load(genelength_file)
+}
+
+rse_file = file.path(data_folder, "rse.rds")
+if ( !file.exists(rse_file) ) {
+  # Calculate TPM and save to file
+  stopifnot(identical(gencode_gtf$gene_id, row.names(rse)))
+  rowData(rse) = gencode_gtf
+  saveRDS(rse, rse_file)
+} else {
+  rse = readRDS(rse_file)
+}
+
+# Calculate TPM
+# indices: gene indices (or names matching rownames(count)) to use to scale 
+#          so that the sum of TPM among them is 1 million.
+calculate_TPM = function(count, gene_length, indices) {
+  if (nrow(count) != length(gene_length)) stop("Number of rows of the count matrix does not match gene lengths!")
+  TPM = count / gene_length
+  t(t(TPM)*1e6/colSums(TPM[indices, ]))
+}
+
+cell_sizes = readRDS("../MTG/cell_sizes_MTG.rds")
+
+rse_filtered_file = file.path(data_folder, "ASD_rse_filtered.rds")
+is_rse_filtered_file_exist = file.exists(rse_filtered_file)
+if ( !is_rse_filtered_file_exist ) {
+  # 1. Calculate read depth by 75% percentile read count of about 20k highly expressed genes.
+  rse_filtered = rse
+
+  # remove genes with low read counts: 
+  # genes with 75% percentile of read counts rd75 < 20 are removed
+  rd75 = apply(assays(rse_filtered)$counts, 1, function(x) quantile(x, 0.75))
+  rse_filtered = rse_filtered[rd75 >= 20, ]
+  # calculate log_depth, sample level read depth
+  # defined as natural logarithm of 75% percentile 
+  # of read counts across each sample
+  colData(rse_filtered)$log_depth = log(
+      apply(assays(rse_filtered)$counts, 2, function(x) quantile(x, 0.75)))
+  assays(rse_filtered)$log10counts = log10(t(t(1 + assays(rse_filtered)$counts) / exp(colData(rse_filtered)$log_depth)))
+  
+  # 2. Calculate TPM using gene lengths extracted from GENCODE v22 GTF.
+  
+  # re-calculate TPM only using the highly expressed genes
+  
+  # 3. Prepare the reference matrix.
+  # 4. Do the deconvolution.
+  # 5. Add the trec PCs, both unadjusted and adjusted.
+  
+  # recalculate TPM
+  assays(rse_filtered)$TPM = calculate_TPM(count=assays(rse_filtered)$counts,
+                                           gene_length=rowData(rse_filtered)$gene_length, 
+                                           match(cell_sizes$gene_names, rowData(rse_filtered)$gene_name))
+  rse_filtered = as(rse_filtered, "RangedSummarizedExperiment")
+  saveRDS(rse_filtered, rse_filtered_file)
+} else {
+  rse_filtered = readRDS(rse_filtered_file)
+}
+
+# read the signature matrix and prepare the CIBERSORT input
+signature_matrix_file = "../MTG/signature_MTG.rds"
+signature_matrix = readRDS(signature_matrix_file)$SIG
+signature_gene_file = file.path(data_folder, "CIBERSORT_input_signature_gene_autism.txt")
+mixture_file = file.path(data_folder, "CIBERSORT_input_observed_TPM_autism.txt")
+# prepare CIBERSORT input
+gene_name_match = pmatch(row.names(signature_matrix), rowData(rse_filtered)$gene_name)
+stopifnot(length(unique(na.omit(gene_name_match))) == length(na.omit(gene_name_match)))
+# use the subset of matched genes
+signature_matrix = signature_matrix[!is.na(gene_name_match), ]
+
+# requires some rescaling to work properly
+# To get proper scaling, we need to obtain a matrix of reference expression
+# across all the genes, normalize to TPM for the 15k genes, and then
+# take a subset restricted to the signature genes.
+# The mixture expression in TPM also needs to be prepared in the same fashion.
+signature_gene_names = rownames(signature_matrix)
+length(signature_gene_names)
+reference_expression = readRDS("../MTG/all_genes_MTG.rds")
+reference_TPM = calculate_TPM(reference_expression$SIG, reference_expression$anno$gene_length, cell_sizes$gene_names)
+signature_matrix_scaled = reference_TPM[signature_gene_names, ]
+mixture_TPM_scaled = assays(rse_filtered)$TPM[match(signature_gene_names, rowData(rse_filtered)$gene_name), ]
+rownames(mixture_TPM_scaled) = signature_gene_names
+geneSymbol_and_observed_TPM = cbind(rownames(signature_matrix), mixture_TPM_scaled)
+colnames(geneSymbol_and_observed_TPM)[1] = "geneSymbol"
+geneSymbol_and_signature_gene_TPM = cbind(rownames(signature_matrix), signature_matrix_scaled)
+colnames(geneSymbol_and_signature_gene_TPM)[1] = "geneSymbol"
+# generate matrices as input for CIBERSORT online
+write.table(geneSymbol_and_observed_TPM,
+            file = mixture_file,
+            quote = FALSE,
+            row.names = FALSE,
+            sep="\t")
+write.table(geneSymbol_and_signature_gene_TPM,
+            file = signature_gene_file,
+            quote = FALSE,
+            row.names = FALSE,
+            sep="\t")
+
+# run CIBERSORT
+# https://cibersort.stanford.edu/runcibersort.php
+cibersort_output_file = file.path(data_folder, "ASD_CIBERSORT.Output_autism.csv")
+cibersort_output = read.csv(cibersort_output_file)
+
+# run ICeDT
+signature_matrix = as.matrix(signature_matrix)
+icedt_output_file =  file.path(data_folder, "ASD_ICeDT_output.rds")
+if (!file.exists(icedt_output_file)) {
+  set.seed(1234)
+  icedt_output = ICeDT::ICeDT(
+        Y = mixture_TPM_scaled,
+        Z = as.matrix(signature_matrix_scaled),
+        tumorPurity = rep(0, ncol(mixture_TPM_scaled)),
+        refVar = NULL)
+  # save to ICeDT cellular frequency RDS file
+  saveRDS(icedt_output, icedt_output_file)
+} else {
+  icedt_output = readRDS(icedt_output_file)
+}
+
+cell_sizes = readRDS("../MTG/cell_sizes_MTG.rds")
+cell_sizes = cell_sizes$cell_sizes[c("Astro", "Exc", "Inh", "Micro", "Oligo", "OPC")]
+icedt_rho = t(apply(t(icedt_output$rho)[,c("Astro", "Exc", "Inh", "Micro", "Oligo", "OPC")],1,function(xx){yy = xx / cell_sizes; yy / sum(yy)}))
+cibersort_rho = t(apply(cibersort_output[,c("Astro", "Exc", "Inh", "Micro", "Oligo", "OPC")],1,function(xx){yy = xx / cell_sizes; yy / sum(yy)}))
+rownames(icedt_rho) = rownames(cibersort_rho) = rownames(cibersort_output) = rownames(t(icedt_output$rho))
+prop_output_file = file.path(data_folder, "ASD_prop.rds")
+prop_list = list(ICeDT=icedt_rho, CIBERSORT=cibersort_rho)
+saveRDS(prop_list, file=prop_output_file)
+prop_from_TPM_output_file = file.path(data_folder, "ASD_prop_from_TPM.rds")
+prop_from_TPM_list = list(ICeDT=t(icedt_output$rho)[,c("Astro", "Exc", "Inh", "Micro", "Oligo", "OPC")],
+                          CIBERSORT=cibersort_output[,c("Astro", "Exc", "Inh", "Micro", "Oligo", "OPC")])
+saveRDS(prop_from_TPM_list, file=prop_from_TPM_output_file)
+#write.table(prop_list$ICeDT, file=file.path(data_folder, "prop_ICeDT.txt"), sep="\t", quote=FALSE)
+#write.table(prop_list$CIBERSORT, file=file.path(data_folder, "prop_CIBERSORT.txt"), sep="\t", quote=FALSE)
+#write.table(prop_from_TPM_list$ICeDT, file=file.path(data_folder, "prop_ICeDT_from_TPM.txt"), sep="\t", quote=FALSE)
+#write.table(prop_from_TPM_list$CIBERSORT, file=file.path(data_folder, "prop_CIBERSORT_from_TPM.txt"), sep="\t", quote=FALSE)
+
+
+# plot CIBERSORT vs. ICeDT cellular frequency estimates
+
+opar = par(mfrow=c(2, 3))
+plot(icedt_rho[,"Astro"], cibersort_rho[, "Astro"])
+plot(icedt_rho[,"Exc"], cibersort_rho[, "Exc"])
+plot(icedt_rho[,"Inh"], cibersort_rho[, "Inh"])
+plot(icedt_rho[,"Oligo"], cibersort_rho[, "Oligo"])
+plot(icedt_rho[,"Micro"], cibersort_rho[, "Micro"])
+plot(icedt_rho[,"OPC"], cibersort_rho[, "OPC"])
+par(opar)
+
+
+############################################################
+# Further filtering of samples
+############################################################
+library(CARseq)
+library(SummarizedExperiment)
+library(matrixStats)
+rse_filtered = readRDS("../data/ASD_rse_filtered.rds")
+cellular_proportions = readRDS("../data/ASD_prop.rds")
+set.seed(1234)
+# resampled_labels = sample(colData(rse_filtered)$Diagnosis)
+sampled_genes = sample(nrow(rse_filtered), 1000)
+assay(rse_filtered, "counts") = round(assay(rse_filtered, "counts"))
+
+trec = assays(rse_filtered)$counts
+col_data = colData(rse_filtered)
+
+trec0 = trec
+col_data0 = col_data
+cellular_proportions0 = cellular_proportions
+rse_filtered0 = rse_filtered
+
+# PMI has 3 out of 85 NAs, and we remove 3 NAs:
+PMI_not_NAs = !is.na(col_data[, "PMI"])
+col_data = col_data[PMI_not_NAs, ]
+trec = trec[, PMI_not_NAs]
+rse_filtered = rse_filtered[, PMI_not_NAs]
+cellular_proportions$ICeDT = cellular_proportions$ICeDT[PMI_not_NAs, ]
+cellular_proportions$CIBERSORT = cellular_proportions$CIBERSORT[PMI_not_NAs, ]
+col_data$scaled_PMI = scale(col_data$PMI)
+col_data$scaled_AgeDeath = scale(col_data$AgeDeath)
+col_data$scaled_log_depth = scale(col_data$log_depth)
+
+# permuted disease label
+set.seed(1234)
+col_data$DiagnosisP = CARseq:::permute_case_and_controls(col_data$Diagnosis)
+table(col_data$Diagnosis, col_data$DiagnosisP)
+
+# Surrogate Variable Analysis (SVA)
+
+# Out of 85 samples, 3 samples has missing PMI values. The exploratory analysis shows that PMI is not associated with gene expression, as evidenced by a p-value uniform distribution when checking association between PMI and expression across the genes. Similarly, we conclude that Sex is not significantly associated with gene expression. We decide to exclude PMI and Sex from the regression model, and use all the 85 samples.
+
+source("base_functions_plittle.R")
+
+# check CARseq_pipelines for code
+autism_dir = ".."
+dir.create("figures", showWarnings=FALSE)
+
+# ----------------------------------------------------------------------
+# first run PCA on residuals to help determine the number of PCs to use
+# ----------------------------------------------------------------------
+prop = cellular_proportions$ICeDT
+ctypes2use = which(colnames(prop) != "Exc")
+plog = log(prop[,ctypes2use] + 1e-5)
+plog = plog - log(prop[,which(colnames(prop) == "Exc")])
+colnames(plog) = paste("log", colnames(plog), sep="_")
+dat = cbind(col_data, plog)
+dim(dat)
+dat[1:2,]
+log_trec = t(log10(t(trec + 1)/exp(dat$log_depth))) 
+
+# table(dat$gender, dat$Sex)
+# 
+# mod0.terms = c("gender","Institution","libclust","age_death","PMI",
+#                "RIN","RIN2", paste0("genoPC",1:5),"log_depth", 
+#                colnames(plog))
+
+# mod0.terms = c("genderMale","InstitutionPenn", "InstitutionPitt",
+#                paste0("libclust", c("B", "base", "C", "D", "E", "F", "G")),
+#                "age_death","PMI",
+#                "RIN","RIN2", paste0("genoPC",1:5),"log_depth", 
+#                colnames(plog))
+
+mod0.terms = c("BrainBank", "Sequencing.Batch", "Sex", "AgeDeath","PMI",
+               "RIN","log_depth",
+               colnames(plog))
+length(mod0.terms)
+
+mod0.str = paste(mod0.terms, collapse = " + ")
+
+# Looping over genes for lm() and residuals
+GG = nrow(log_trec); NN = ncol(log_trec)
+rr = matrix(NA,GG,NN) # residual matrix
+
+for(gg in seq(GG)){
+  # gg = 1
+  if(gg %% 1e2 == 0) cat(".")
+  if(gg %% 2e3 == 0 || gg == GG) cat(sprintf("%s out of %s\n",gg,GG))
+
+  log_trec.gg = log_trec[gg,]
+  
+  lm_out = lm(formula(sprintf("log_trec.gg ~ %s", mod0.str)), data = dat)
+  rr[gg,] = as.numeric(lm_out$residuals)
+  aa = drop1(lm_out,.~.,test="F")
+  
+  if(gg == 1){
+    pp = matrix(NA,GG,nrow(aa)-1)
+    colnames(pp) = rownames(aa)[-1]
+  }
+  
+  pp[gg,] = aa[-1,6]
+  rm(lm_out)
+}
+
+pdf(file.path(autism_dir,"figures/ASD_expression_PCA_all_log_Prop.pdf"),
+    height = 8,width = 8)
+
+show_pvalue_hist(mat_pvalues = pp, test_type0 = 3)
+
+rr2 = rr - rowMeans(rr,na.rm = TRUE)
+cov_rr2 = t(rr2) %*% rr2 / nrow(rr2); pca_rr2 = eigen(cov_rr2)
+
+show_screeplot(pca_rr2,main = "")
+par(mfrow = c(2,1),mar = c(4,4,1,1),oma = c(0,0,2,0))
+barplot(pca_rr2$values[4:21], names.arg =4:21, main = "", 
+        xlab = "Index", ylab = "Eigen-value")
+barplot(diff(-pca_rr2$values[4:22]), names.arg =4:21, main = "", 
+        xlab = "Index", ylab = "Eigen-value[i] - Eigen-value[i+1]")
+
+num_pcs = 7; pcs = smart_df(pca_rr2$vectors[,1:num_pcs])
+names(pcs) = paste0("PC",seq(num_pcs))
+show_pc_color(pcs,submain = "")
+
+# final model, use all samples (trec0, col_data0, cellular_proportions0)
+prop = cellular_proportions0$ICeDT
+ctypes2use = which(colnames(prop) != "Exc")
+plog = log(prop[,ctypes2use] + 1e-5)
+plog = plog - log(prop[,which(colnames(prop) == "Exc")])
+colnames(plog) = paste("log", colnames(plog), sep="_")
+dat = cbind(col_data0, plog)
+dim(dat)
+dat[1:2,]
+log_trec = t(log10(t(trec0 + 1)/exp(dat$log_depth))) 
+final.mod0.terms = mod0.terms[!mod0.terms %in% c("PMI", "Sex")]
+final.mod0.str = paste(final.mod0.terms, collapse = " + ")
+GG = nrow(log_trec); NN = ncol(log_trec)
+rr = matrix(NA,GG,NN) # residual matrix
+for(gg in seq(GG)){
+  # gg = 1
+  if(gg %% 1e2 == 0) cat(".")
+  if(gg %% 2e3 == 0 || gg == GG) cat(sprintf("%s out of %s\n",gg,GG))
+
+  log_trec.gg = log_trec[gg,]
+  
+  lm_out = lm(formula(sprintf("log_trec.gg ~ %s", final.mod0.str)), data = dat)
+  rr[gg,] = as.numeric(lm_out$residuals)
+  # aa = drop1(lm_out,.~.,test="F")
+  # 
+  # if(gg == 1){
+  #   pp = matrix(NA,GG,nrow(aa)-1)
+  #   colnames(pp) = rownames(aa)[-1]
+  # }
+  # 
+  # pp[gg,] = aa[-1,6]
+  rm(lm_out)
+}
+rr2 = rr - rowMeans(rr,na.rm = TRUE)
+cov_rr2 = t(rr2) %*% rr2 / nrow(rr2); pca_rr2 = eigen(cov_rr2)
+show_screeplot(pca_rr2,main = "")
+
+dev.off()
+
+# ----------------------------------------------------------------------
+# add SVs
+# ----------------------------------------------------------------------
+
+
+final.mod.terms = c("Diagnosis", final.mod0.terms)
+length(final.mod.terms)
+
+mod0 = model.matrix(as.formula(paste("~", paste(final.mod0.terms, collapse=" + "))), 
+                    data=dat)
+mod  = model.matrix(as.formula(paste("~", paste(final.mod.terms, collapse=" + "))), 
+                    data=dat)
+
+dim(mod0)
+mod0[1:2,]
+
+dim(mod)
+mod[1:2,]
+
+library(sva)
+n.sv = num.sv(log_trec,mod,method="leek")
+n.sv
+
+n.sv = num.sv(log_trec,mod,method="be")
+n.sv
+
+# sv3  = sva(log_trec, mod, mod0, n.sv=3)
+sv8 = sva(log_trec, mod, mod0, n.sv=8)
+
+# save
+colnames(sv8$sv) = paste0("sv", 1:8)
+colData(rse_filtered0) = cbind(colData(rse_filtered0), sv8$sv)
+
+pdf(file.path(autism_dir,"figures/ASD_sequencing_metrics_PCA.pdf"),
+    height = 8,width = 8)
+# Another way to adjust for batch effects is to calculate PCs from sequencing statistics (Parikshak 2016):
+# prcomp is needed since singular decomposition works better when condition number is large:
+col_data = dat
+names(col_data[, c(9, 15:16, 18:34)])
+seq_PCs = prcomp(as.matrix(col_data[, c(9, 15:16, 18:34)]), scale. = FALSE, center = TRUE)
+seq_PCs$values = seq_PCs$sdev
+show_screeplot(seq_PCs, main="sequencing statistics PCs")
+# The paper says that the first 2 PCs explain 99% of the variance.
+sum(seq_PCs$values[1:2]) / sum(seq_PCs$values)  # 0.90
+sum(seq_PCs$values[1:3]) / sum(seq_PCs$values)  # 0.95
+sum(seq_PCs$values[1:4]) / sum(seq_PCs$values)  # 0.99
+
+# PCs from log expression
+log_trec_PCs = prcomp(t(log_trec), scale. = FALSE, center = TRUE)
+log_trec_PCs$values = log_trec_PCs$sdev
+show_screeplot(log_trec_PCs, main="log expression PCs")
+dev.off()
+
+cor(data.frame(RIN=col_data$RIN, seq=seq_PCs$x[,1:4], trecPC1=log_trec_PCs$x[,1]))
+
+scaled_seq_PCs = scale(seq_PCs$x[,1:4])
+colnames(scaled_seq_PCs) = paste0("seqSV", 1:4)
+col_data = cbind(col_data, scaled_seq_PCs)
+colData(rse_filtered0) = cbind(colData(rse_filtered0), scaled_seq_PCs)
+
+saveRDS(rse_filtered0, "../data/ASD_rse_filtered_with_SVs.rds")

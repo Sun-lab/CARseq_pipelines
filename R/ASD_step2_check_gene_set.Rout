@@ -1,0 +1,777 @@
+
+R version 3.6.2 (2019-12-12) -- "Dark and Stormy Night"
+Copyright (C) 2019 The R Foundation for Statistical Computing
+Platform: x86_64-apple-darwin15.6.0 (64-bit)
+
+R is free software and comes with ABSOLUTELY NO WARRANTY.
+You are welcome to redistribute it under certain conditions.
+Type 'license()' or 'licence()' for distribution details.
+
+  Natural language support but running in an English locale
+
+R is a collaborative project with many contributors.
+Type 'contributors()' for more information and
+'citation()' on how to cite R or R packages in publications.
+
+Type 'demo()' for some demos, 'help()' for on-line help, or
+'help.start()' for an HTML browser interface to help.
+Type 'q()' to quit R.
+
+> 
+> library(ggplot2)
+> library(ggpubr)
+Loading required package: magrittr
+> library(tidyr)
+
+Attaching package: ‘tidyr’
+
+The following object is masked from ‘package:magrittr’:
+
+    extract
+
+> theme_set(theme_bw())
+> library(tidyverse)
+── Attaching packages ─────────────────────────────────────── tidyverse 1.3.0 ──
+✔ tibble  3.0.1     ✔ dplyr   0.8.4
+✔ readr   1.3.1     ✔ stringr 1.4.0
+✔ purrr   0.3.3     ✔ forcats 0.5.0
+── Conflicts ────────────────────────────────────────── tidyverse_conflicts() ──
+✖ tidyr::extract()   masks magrittr::extract()
+✖ dplyr::filter()    masks stats::filter()
+✖ dplyr::lag()       masks stats::lag()
+✖ purrr::set_names() masks magrittr::set_names()
+> library(SummarizedExperiment)
+Loading required package: GenomicRanges
+Loading required package: stats4
+Loading required package: BiocGenerics
+Loading required package: parallel
+
+Attaching package: ‘BiocGenerics’
+
+The following objects are masked from ‘package:parallel’:
+
+    clusterApply, clusterApplyLB, clusterCall, clusterEvalQ,
+    clusterExport, clusterMap, parApply, parCapply, parLapply,
+    parLapplyLB, parRapply, parSapply, parSapplyLB
+
+The following objects are masked from ‘package:dplyr’:
+
+    combine, intersect, setdiff, union
+
+The following objects are masked from ‘package:stats’:
+
+    IQR, mad, sd, var, xtabs
+
+The following objects are masked from ‘package:base’:
+
+    anyDuplicated, append, as.data.frame, basename, cbind, colnames,
+    dirname, do.call, duplicated, eval, evalq, Filter, Find, get, grep,
+    grepl, intersect, is.unsorted, lapply, Map, mapply, match, mget,
+    order, paste, pmax, pmax.int, pmin, pmin.int, Position, rank,
+    rbind, Reduce, rownames, sapply, setdiff, sort, table, tapply,
+    union, unique, unsplit, which, which.max, which.min
+
+Loading required package: S4Vectors
+
+Attaching package: ‘S4Vectors’
+
+The following objects are masked from ‘package:dplyr’:
+
+    first, rename
+
+The following object is masked from ‘package:tidyr’:
+
+    expand
+
+The following object is masked from ‘package:base’:
+
+    expand.grid
+
+Loading required package: IRanges
+
+Attaching package: ‘IRanges’
+
+The following objects are masked from ‘package:dplyr’:
+
+    collapse, desc, slice
+
+The following object is masked from ‘package:purrr’:
+
+    reduce
+
+Loading required package: GenomeInfoDb
+Loading required package: Biobase
+Welcome to Bioconductor
+
+    Vignettes contain introductory material; view with
+    'browseVignettes()'. To cite Bioconductor, see
+    'citation("Biobase")', and for packages 'citation("pkgname")'.
+
+Loading required package: DelayedArray
+Loading required package: matrixStats
+
+Attaching package: ‘matrixStats’
+
+The following objects are masked from ‘package:Biobase’:
+
+    anyMissing, rowMedians
+
+The following object is masked from ‘package:dplyr’:
+
+    count
+
+Loading required package: BiocParallel
+
+Attaching package: ‘DelayedArray’
+
+The following objects are masked from ‘package:matrixStats’:
+
+    colMaxs, colMins, colRanges, rowMaxs, rowMins, rowRanges
+
+The following object is masked from ‘package:purrr’:
+
+    simplify
+
+The following objects are masked from ‘package:base’:
+
+    aperm, apply, rowsum
+
+> library(qusage)
+Loading required package: limma
+
+Attaching package: ‘limma’
+
+The following object is masked from ‘package:BiocGenerics’:
+
+    plotMA
+
+> 
+> # ------------------------------------------------------------------------
+> # read in SummarizedExperiment object that contains gene name mapping
+> # ------------------------------------------------------------------------
+> 
+> rse_filtered = readRDS("../data/ASD_rse_filtered_with_SVs.rds")
+> dim(rse_filtered)
+[1] 19604    85
+> rse_filtered[1:2,1:5]
+class: RangedSummarizedExperiment 
+dim: 2 5 
+metadata(0):
+assays(3): counts TPM log10counts
+rownames(2): ENSG00000000003.10 ENSG00000000419.8
+rowData names(6): X gene_id ... gene_name gene_length
+colnames(5): AN00142_ba9_3rd AN00493_ba9_104 AN00544_ba9_16
+  AN00764_ba9_61 AN01125_ba9_22
+colData names(72): Individual_ID Assay ... seqSV3 seqSV4
+> 
+> # ------------------------------------------------------------------------
+> # read in CAREseq results
+> # ------------------------------------------------------------------------
+> 
+> res = readRDS("../results/ASD_CARseq_ICeDT_seqSV4.rds")
+> dim(res)
+NULL
+> 
+> names(res)
+ [1] "p"                       "padj"                   
+ [3] "shrunken_lfc"            "shrunken_lfcSE"         
+ [5] "shrunken_coefficients"   "shrunken_coefficientsSE"
+ [7] "lfc"                     "lfcSE"                  
+ [9] "coefficients"            "coefficientsSE"         
+[11] "overdispersion"          "lambda"                 
+[13] "elapsed_time"           
+> 
+> lfc = res$"shrunken_lfc"
+> dim(lfc)
+[1] 19604     6
+> lfc[1:2,]
+     ASD_vs_Control:Astro ASD_vs_Control:Exc ASD_vs_Control:Inh
+[1,]           -0.3270118         0.02305324           1.325107
+[2,]           -0.5386447        -0.15301837           1.203269
+     ASD_vs_Control:Micro ASD_vs_Control:Oligo ASD_vs_Control:OPC
+[1,]          -0.05928163            0.5148784       0.0009376658
+[2,]           0.07411458            0.4043392      -0.0003816027
+> 
+> rowData(rse_filtered)[1:2,]
+DataFrame with 2 rows and 6 columns
+                                           X            gene_id      gene_type
+                                   <GRanges>        <character>    <character>
+ENSG00000000003.10  chrX:99883667-99894988:- ENSG00000000003.10 protein_coding
+ENSG00000000419.8  chr20:49551404-49575092:-  ENSG00000000419.8 protein_coding
+                   gene_status   gene_name gene_length
+                   <character> <character>   <numeric>
+ENSG00000000003.10       KNOWN      TSPAN6        2968
+ENSG00000000419.8        KNOWN        DPM1        1207
+> 
+> # ------------------------------------------------------------------------
+> # read in genes within gene set
+> # ------------------------------------------------------------------------
+> 
+> react = read.gmt("../data/c2.cp.reactome.v7.1.symbols.gmt")
+> length(react)
+[1] 1532
+> names(react)[1:3]
+[1] "REACTOME_GLYCOGEN_BREAKDOWN_GLYCOGENOLYSIS"
+[2] "REACTOME_TRANSLATION"                      
+[3] "REACTOME_PYRIMIDINE_CATABOLISM"            
+> summary(sapply(react, length))
+   Min. 1st Qu.  Median    Mean 3rd Qu.    Max. 
+   5.00   11.00   23.00   57.02   57.00 1470.00 
+> # 
+> # # ------------------------------------------------------------------------
+> # # illustrate all gene sets realted with NMDA
+> # # ------------------------------------------------------------------------
+> # 
+> # g1 = grep("NMDA", names(react))
+> # g1
+> # names(react)[g1]
+> # 
+> # sapply(react[g1], length)
+> # 
+> # dfL = NULL
+> # 
+> # for(j in g1){
+> #   genes = react[[j]]
+> #   w2  = which(rowData(rse_filtered)$gene_name %in% genes)
+> #   dfj = cbind(rowData(rse_filtered)[w2,], lfc[w2,], res$p[w2,])
+> #   dfj$react_pathway = rep(names(react)[j], length(w2))
+> #   dfL = rbind(dfL, dfj)
+> # }
+> # 
+> # dim(dfL)
+> # dfL[1:2,]
+> # 
+> # table(dfL$react_pathway)
+> # dfL$react_pathway = gsub("^REACTOME_", "", dfL$react_pathway)
+> # dfL$react_pathway = gsub("_", " ", dfL$react_pathway)
+> # 
+> # path1 = "NMDA RECEPTOR MEDIATED ACTIVATION OF RAS SIGNALING"
+> # path2 = "NMDA RECEPTOR \nMEDIATED ACTIVATION OF RAS SIGNALING"
+> # path2 = paste0(path2, "                         ")
+> # dfL$react_pathway = gsub(path1, path2, dfL$react_pathway)
+> # 
+> # path1 = "NMDA RECEPTOR MEDIATED NEURONAL TRANSMISSION"
+> # path2 = "NMDA RECEPTOR \nMEDIATED NEURONAL TRANSMISSION             "
+> # dfL$react_pathway = gsub(path1, path2, dfL$react_pathway)
+> # 
+> # dfL$X = as.character(dfL$X)
+> # 
+> # dfL = as.data.frame(dfL)
+> # names(dfL) = gsub(":", "_", names(dfL), fixed=TRUE)
+> # dim(dfL)
+> # dfL[1:2,]
+> # 
+> # tapply(dfL$Inh, dfL$react_pathway, summary)
+> # 
+> # p0 = ggplot(dfL[which(dfL$Inh < 0.05),], 
+> #            aes(x=react_pathway, y=ASD_vs_Control.Inh)) + 
+> #   geom_boxplot(outlier.shape = NA) + coord_flip() + 
+> #   geom_jitter(shape=16, col="darkblue", alpha=0.7, 
+> #               position=position_jitter(0.15)) + 
+> #   ylab("log fold change, SCZ vs. control") + xlab("") + 
+> #   labs(title="Inhibitory neuron") + 
+> #   geom_hline(yintercept = 0, color = "red", size=1.0)
+> 
+> # ------------------------------------------------------------------------
+> # illustrate pathways for neuron cells
+> # ------------------------------------------------------------------------
+> 
+> g1 = grep("NEURONAL_SYSTEM", names(react))
+> g1
+[1] 173
+> names(react)[g1]
+[1] "REACTOME_NEURONAL_SYSTEM"
+> 
+> g2 = grep("SYNTHESIS_OF_PIPS_AT_THE_LATE_ENDOSOME_MEMBRANE", names(react))
+> g2
+[1] 105
+> names(react)[g2]
+[1] "REACTOME_SYNTHESIS_OF_PIPS_AT_THE_LATE_ENDOSOME_MEMBRANE"
+> 
+> g3 = grep("ANTIGEN_PROCESSING_UBIQUITINATION_PROTEASOME_DEGRADATION", names(react))
+> g3
+[1] 419
+> names(react)[g3]
+[1] "REACTOME_ANTIGEN_PROCESSING_UBIQUITINATION_PROTEASOME_DEGRADATION"
+> 
+> g4 = grep("RAB_REGULATION_OF_TRAFFICKING", names(react))
+> g4
+[1] 1370
+> names(react)[g4]
+[1] "REACTOME_RAB_REGULATION_OF_TRAFFICKING"
+> 
+> g5 = grep("HSF1_DEPENDENT_TRANSACTIVATION", names(react))
+> g5
+[1] 784
+> names(react)[g5]
+[1] "REACTOME_HSF1_DEPENDENT_TRANSACTIVATION"
+> 
+> g6 = grep("UNBLOCKING_OF_NMDA_RECEPTORS", names(react))
+> g6
+[1] 880
+> names(react)[g6]
+[1] "REACTOME_UNBLOCKING_OF_NMDA_RECEPTORS_GLUTAMATE_BINDING_AND_ACTIVATION"
+> 
+> g7 = grep("NMDA_RECEPTOR_MEDIATED_NEURONAL_TRANSMISSION", names(react))
+> g7
+[1] 1440
+> names(react)[g7]
+[1] "REACTOME_NEGATIVE_REGULATION_OF_NMDA_RECEPTOR_MEDIATED_NEURONAL_TRANSMISSION"
+> 
+> g1 = c(g1, g2, g3, g4, g5, g6, g7)
+> 
+> dfL = NULL
+> 
+> for(j in g1){
++   genes = react[[j]]
++   w2  = which(rowData(rse_filtered)$gene_name %in% genes)
++   dfj = cbind(rowData(rse_filtered)[w2,], lfc[w2,], res$p[w2,])
++   dfj$react_pathway = rep(names(react)[j], length(w2))
++   dfL = rbind(dfL, dfj)
++ }
+> 
+> dim(dfL)
+[1] 858  19
+> dfL[1:2,]
+DataFrame with 2 rows and 19 columns
+                                            X            gene_id      gene_type
+                                    <GRanges>        <character>    <character>
+ENSG00000004660.10    chr17:3763609-3798185:- ENSG00000004660.10 protein_coding
+ENSG00000005249.8  chr7:106685094-106802256:+  ENSG00000005249.8 protein_coding
+                   gene_status   gene_name gene_length  ASD_vs_Control:Astro
+                   <character> <character>   <numeric>             <numeric>
+ENSG00000004660.10       KNOWN      CAMKK1        7424   0.00013816433119951
+ENSG00000005249.8        KNOWN     PRKAR2B        4318 -0.000272018774764484
+                    ASD_vs_Control:Exc    ASD_vs_Control:Inh
+                             <numeric>             <numeric>
+ENSG00000004660.10 -0.0907313675835628 -0.000122294347842997
+ENSG00000005249.8   -0.349566962100503     0.958894952700987
+                    ASD_vs_Control:Micro  ASD_vs_Control:Oligo
+                               <numeric>             <numeric>
+ENSG00000004660.10     0.314796407447951 -0.000375338822628131
+ENSG00000005249.8  -9.71207155066196e-05 -0.000204266436666052
+                      ASD_vs_Control:OPC     Astro                 Exc
+                               <numeric> <numeric>           <numeric>
+ENSG00000004660.10   0.00012979595268798         1   0.809039181998739
+ENSG00000005249.8  -7.77402862795167e-05         1 0.00843363107375118
+                                  Inh             Micro             Oligo
+                            <numeric>         <numeric>         <numeric>
+ENSG00000004660.10                  1 0.489588565479396 0.721908363494217
+ENSG00000005249.8  0.0235471157784629                 1                 1
+                         OPC            react_pathway
+                   <numeric>              <character>
+ENSG00000004660.10         1 REACTOME_NEURONAL_SYSTEM
+ENSG00000005249.8          1 REACTOME_NEURONAL_SYSTEM
+> 
+> dfL$react_pathway = gsub("^REACTOME_", "", dfL$react_pathway)
+> dfL$react_pathway = gsub("_", " ", dfL$react_pathway)
+> table(dfL$react_pathway)
+
+           ANTIGEN PROCESSING UBIQUITINATION PROTEASOME DEGRADATION 
+                                                                288 
+                                     HSF1 DEPENDENT TRANSACTIVATION 
+                                                                 35 
+NEGATIVE REGULATION OF NMDA RECEPTOR MEDIATED NEURONAL TRANSMISSION 
+                                                                 21 
+                                                    NEURONAL SYSTEM 
+                                                                365 
+                                      RAB REGULATION OF TRAFFICKING 
+                                                                117 
+                    SYNTHESIS OF PIPS AT THE LATE ENDOSOME MEMBRANE 
+                                                                 11 
+      UNBLOCKING OF NMDA RECEPTORS GLUTAMATE BINDING AND ACTIVATION 
+                                                                 21 
+> 
+> path1 = "NMDA RECEPTOR MEDIATED NEURONAL TRANSMISSION"
+> path2 = "NMDA RECEPTOR \nMEDIATED NEURONAL TRANSMISSION             "
+> dfL$react_pathway = gsub(path1, path2, dfL$react_pathway)
+> 
+> dfL$X = as.character(dfL$X)
+> 
+> dfL = as.data.frame(dfL)
+> names(dfL) = gsub(":", "_", names(dfL), fixed=TRUE)
+> dim(dfL)
+[1] 858  19
+> dfL[1:2,]
+                                            X            gene_id      gene_type
+ENSG00000004660.10    chr17:3763609-3798185:- ENSG00000004660.10 protein_coding
+ENSG00000005249.8  chr7:106685094-106802256:+  ENSG00000005249.8 protein_coding
+                   gene_status gene_name gene_length ASD_vs_Control.Astro
+ENSG00000004660.10       KNOWN    CAMKK1        7424         0.0001381643
+ENSG00000005249.8        KNOWN   PRKAR2B        4318        -0.0002720188
+                   ASD_vs_Control.Exc ASD_vs_Control.Inh ASD_vs_Control.Micro
+ENSG00000004660.10        -0.09073137      -0.0001222943         3.147964e-01
+ENSG00000005249.8         -0.34956696       0.9588949527        -9.712072e-05
+                   ASD_vs_Control.Oligo ASD_vs_Control.OPC Astro         Exc
+ENSG00000004660.10        -0.0003753388       1.297960e-04     1 0.809039182
+ENSG00000005249.8         -0.0002042664      -7.774029e-05     1 0.008433631
+                          Inh     Micro     Oligo OPC   react_pathway
+ENSG00000004660.10 1.00000000 0.4895886 0.7219084   1 NEURONAL SYSTEM
+ENSG00000005249.8  0.02354712 1.0000000 1.0000000   1 NEURONAL SYSTEM
+> 
+> tapply(dfL$Exc, dfL$react_pathway, summary)
+$`ANTIGEN PROCESSING UBIQUITINATION PROTEASOME DEGRADATION`
+     Min.   1st Qu.    Median      Mean   3rd Qu.      Max.      NA's 
+0.0001407 0.0629514 0.2502972 0.3750569 0.6145909 1.0000000         1 
+
+$`HSF1 DEPENDENT TRANSACTIVATION`
+   Min. 1st Qu.  Median    Mean 3rd Qu.    Max.    NA's 
+0.03283 0.08503 0.23589 0.40430 0.73187 1.00000       2 
+
+$`NEGATIVE REGULATION OF NMDA RECEPTOR \nMEDIATED NEURONAL TRANSMISSION             `
+    Min.  1st Qu.   Median     Mean  3rd Qu.     Max. 
+0.001579 0.102735 0.235895 0.372085 0.706299 1.000000 
+
+$`NEURONAL SYSTEM`
+     Min.   1st Qu.    Median      Mean   3rd Qu.      Max.      NA's 
+0.0000287 0.0674543 0.2714044 0.3692550 0.6624597 1.0000000         2 
+
+$`RAB REGULATION OF TRAFFICKING`
+     Min.   1st Qu.    Median      Mean   3rd Qu.      Max. 
+0.0002767 0.0437631 0.1728703 0.3277515 0.5381517 1.0000000 
+
+$`SYNTHESIS OF PIPS AT THE LATE ENDOSOME MEMBRANE`
+    Min.  1st Qu.   Median     Mean  3rd Qu.     Max. 
+0.001965 0.006851 0.020839 0.095508 0.025265 0.856795 
+
+$`UNBLOCKING OF NMDA RECEPTORS GLUTAMATE BINDING AND ACTIVATION`
+     Min.   1st Qu.    Median      Mean   3rd Qu.      Max. 
+0.0001398 0.0515706 0.2358949 0.3335537 0.5054384 1.0000000 
+
+> tapply(dfL$Inh, dfL$react_pathway, summary)
+$`ANTIGEN PROCESSING UBIQUITINATION PROTEASOME DEGRADATION`
+     Min.   1st Qu.    Median      Mean   3rd Qu.      Max.      NA's 
+0.0000131 0.0445003 0.2590693 0.3978695 0.7503968 1.0000000         1 
+
+$`HSF1 DEPENDENT TRANSACTIVATION`
+    Min.  1st Qu.   Median     Mean  3rd Qu.     Max.     NA's 
+0.003111 0.230842 0.656406 0.595771 1.000000 1.000000        2 
+
+$`NEGATIVE REGULATION OF NMDA RECEPTOR \nMEDIATED NEURONAL TRANSMISSION             `
+    Min.  1st Qu.   Median     Mean  3rd Qu.     Max. 
+0.003483 0.042266 0.240503 0.358117 0.738468 1.000000 
+
+$`NEURONAL SYSTEM`
+     Min.   1st Qu.    Median      Mean   3rd Qu.      Max.      NA's 
+0.0001051 0.0603479 0.2993123 0.4009392 0.7009824 1.0000000         2 
+
+$`RAB REGULATION OF TRAFFICKING`
+     Min.   1st Qu.    Median      Mean   3rd Qu.      Max. 
+0.0007815 0.0240580 0.1286151 0.2863193 0.4697465 1.0000000 
+
+$`SYNTHESIS OF PIPS AT THE LATE ENDOSOME MEMBRANE`
+     Min.   1st Qu.    Median      Mean   3rd Qu.      Max. 
+0.0004175 0.0056610 0.0083426 0.0659296 0.0271362 0.5852302 
+
+$`UNBLOCKING OF NMDA RECEPTORS GLUTAMATE BINDING AND ACTIVATION`
+     Min.   1st Qu.    Median      Mean   3rd Qu.      Max. 
+0.0001178 0.0233326 0.0728116 0.2953335 0.3692907 1.0000000 
+
+> 
+> p1 = ggplot(dfL[which(dfL$Exc < 0.05),], 
++             aes(x=react_pathway, y=ASD_vs_Control.Exc)) + 
++   geom_boxplot(outlier.shape = NA) + coord_flip() + 
++   geom_jitter(shape=16, col="darkblue", alpha=0.7, 
++               position=position_jitter(0.15)) + 
++   ylab("log fold change, ASD vs. control") + xlab("") + 
++   labs(title="Excitatory neuron") + 
++   geom_hline(yintercept = 0, color = "red", size=1.0)
+> 
+> p2 = ggplot(dfL[which(dfL$Inh < 0.05),], 
++             aes(x=react_pathway, y=ASD_vs_Control.Inh)) + 
++   geom_boxplot(outlier.shape = NA) + coord_flip() + 
++   geom_jitter(shape=16, col="darkblue", alpha=0.7, 
++               position=position_jitter(0.15)) + 
++   ylab("log fold change, ASD vs. control") + xlab("") + 
++   labs(title="Inhibitory neuron") + 
++   geom_hline(yintercept = 0, color = "red", size=1.0)
+> 
+> pdf("../figures/ASD_log_fc_neurons.pdf", width=8, height=6)
+> ggarrange(p1, p2, ncol = 1, nrow = 2, labels="AUTO")
+> dev.off()
+null device 
+          1 
+> 
+> # ------------------------------------------------------------------------
+> # illustrate pathways for glial cells
+> # ------------------------------------------------------------------------
+> 
+> g1 = grep("ROBOS", names(react))
+> g1
+[1] 1374
+> names(react)[g1]
+[1] "REACTOME_REGULATION_OF_EXPRESSION_OF_SLITS_AND_ROBOS"
+> 
+> g2 = grep("INNATE_IMMUNE_SYSTEM", names(react))
+> g2
+[1] 397
+> names(react)[g2]
+[1] "REACTOME_INNATE_IMMUNE_SYSTEM"
+> 
+> g3 = grep("INFLUENZA", names(react))
+> g3
+[1] 558
+> names(react)[g3]
+[1] "REACTOME_INFLUENZA_INFECTION"
+> 
+> g4 = which("REACTOME_CELL_CYCLE" == names(react))
+> g4
+[1] 43
+> names(react)[g4]
+[1] "REACTOME_CELL_CYCLE"
+> 
+> g5 = grep("EUKARYOTIC_TRANSLATION_ELONGATION", names(react))
+> g5
+[1] 1459
+> names(react)[g5]
+[1] "REACTOME_EUKARYOTIC_TRANSLATION_ELONGATION"
+> 
+> g6 = grep("METABOLISM_OF_RNA", names(react))
+> g6
+[1] 296
+> names(react)[g6]
+[1] "REACTOME_METABOLISM_OF_RNA"
+> 
+> g7 = grep("RESPONSE_OF_EIF2AK4_GCN2", names(react))
+> g7
+[1] 1502
+> names(react)[g7]
+[1] "REACTOME_RESPONSE_OF_EIF2AK4_GCN2_TO_AMINO_ACID_DEFICIENCY"
+> 
+> g1 = c(g1, g2, g3, g4, g5, g6, g7)
+> 
+> dfL = NULL
+> 
+> for(j in g1){
++   genes = react[[j]]
++   w2  = which(rowData(rse_filtered)$gene_name %in% genes)
++   dfj = cbind(rowData(rse_filtered)[w2,], lfc[w2,], res$p[w2,])
++   dfj$react_pathway = rep(names(react)[j], length(w2))
++   dfL = rbind(dfL, dfj)
++ }
+> 
+> dim(dfL)
+[1] 2481   19
+> dfL[1:2,]
+DataFrame with 2 rows and 19 columns
+                                           X           gene_id      gene_type
+                                   <GRanges>       <character>    <character>
+ENSG00000008018.8 chr6:170844205-170862429:- ENSG00000008018.8 protein_coding
+ENSG00000008988.5   chr8:56979854-56987069:- ENSG00000008988.5 protein_coding
+                  gene_status   gene_name gene_length ASD_vs_Control:Astro
+                  <character> <character>   <numeric>            <numeric>
+ENSG00000008018.8       KNOWN       PSMB1        2256   -0.451712196902671
+ENSG00000008988.5       KNOWN       RPS20        2931   0.0543808985460756
+                   ASD_vs_Control:Exc ASD_vs_Control:Inh ASD_vs_Control:Micro
+                            <numeric>          <numeric>            <numeric>
+ENSG00000008018.8 -0.0675299560961281    1.3804714003949     0.13561671253905
+ENSG00000008988.5  0.0616711276909075  0.232945780293732    -1.16399926715395
+                  ASD_vs_Control:Oligo    ASD_vs_Control:OPC              Astro
+                             <numeric>             <numeric>          <numeric>
+ENSG00000008018.8    0.481082861170383 -3.80154334777382e-05 0.0986761857796447
+ENSG00000008988.5    0.684201581532537 -0.000230421843249059   0.61803561699322
+                                Exc                Inh             Micro
+                          <numeric>          <numeric>         <numeric>
+ENSG00000008018.8 0.275691032315506 0.0699566894188629 0.879321457790532
+ENSG00000008988.5                 1  0.513914239739096 0.170724974785489
+                               Oligo               OPC
+                           <numeric>         <numeric>
+ENSG00000008018.8  0.161011476079336                 1
+ENSG00000008988.5 0.0733083261442996 0.651812151005197
+                                                         react_pathway
+                                                           <character>
+ENSG00000008018.8 REACTOME_REGULATION_OF_EXPRESSION_OF_SLITS_AND_ROBOS
+ENSG00000008988.5 REACTOME_REGULATION_OF_EXPRESSION_OF_SLITS_AND_ROBOS
+> 
+> dfL$react_pathway = gsub("^REACTOME_", "", dfL$react_pathway)
+> dfL$react_pathway = gsub("_", " ", dfL$react_pathway)
+> table(dfL$react_pathway)
+
+                                       CELL CYCLE 
+                                              543 
+                EUKARYOTIC TRANSLATION ELONGATION 
+                                               91 
+                              INFLUENZA INFECTION 
+                                              151 
+                             INNATE IMMUNE SYSTEM 
+                                              799 
+                                METABOLISM OF RNA 
+                                              638 
+      REGULATION OF EXPRESSION OF SLITS AND ROBOS 
+                                              161 
+RESPONSE OF EIF2AK4 GCN2 TO AMINO ACID DEFICIENCY 
+                                               98 
+> 
+> dfL$X = as.character(dfL$X)
+> 
+> dfL = as.data.frame(dfL)
+> names(dfL) = gsub(":", "_", names(dfL), fixed=TRUE)
+> dim(dfL)
+[1] 2481   19
+> dfL[1:2,]
+                                           X           gene_id      gene_type
+ENSG00000008018.8 chr6:170844205-170862429:- ENSG00000008018.8 protein_coding
+ENSG00000008988.5   chr8:56979854-56987069:- ENSG00000008988.5 protein_coding
+                  gene_status gene_name gene_length ASD_vs_Control.Astro
+ENSG00000008018.8       KNOWN     PSMB1        2256           -0.4517122
+ENSG00000008988.5       KNOWN     RPS20        2931            0.0543809
+                  ASD_vs_Control.Exc ASD_vs_Control.Inh ASD_vs_Control.Micro
+ENSG00000008018.8        -0.06752996          1.3804714            0.1356167
+ENSG00000008988.5         0.06167113          0.2329458           -1.1639993
+                  ASD_vs_Control.Oligo ASD_vs_Control.OPC      Astro      Exc
+ENSG00000008018.8            0.4810829      -3.801543e-05 0.09867619 0.275691
+ENSG00000008988.5            0.6842016      -2.304218e-04 0.61803562 1.000000
+                         Inh     Micro      Oligo       OPC
+ENSG00000008018.8 0.06995669 0.8793215 0.16101148 1.0000000
+ENSG00000008988.5 0.51391424 0.1707250 0.07330833 0.6518122
+                                                react_pathway
+ENSG00000008018.8 REGULATION OF EXPRESSION OF SLITS AND ROBOS
+ENSG00000008988.5 REGULATION OF EXPRESSION OF SLITS AND ROBOS
+> 
+> tapply(dfL$Micro, dfL$react_pathway, summary)
+$`CELL CYCLE`
+    Min.  1st Qu.   Median     Mean  3rd Qu.     Max. 
+0.000741 0.437458 0.772906 0.695473 1.000000 1.000000 
+
+$`EUKARYOTIC TRANSLATION ELONGATION`
+     Min.   1st Qu.    Median      Mean   3rd Qu.      Max.      NA's 
+0.0007901 0.0885789 0.1730576 0.2821035 0.3662830 1.0000000         1 
+
+$`INFLUENZA INFECTION`
+     Min.   1st Qu.    Median      Mean   3rd Qu.      Max.      NA's 
+0.0007901 0.1233686 0.3439020 0.4337825 0.6872057 1.0000000         1 
+
+$`INNATE IMMUNE SYSTEM`
+     Min.   1st Qu.    Median      Mean   3rd Qu.      Max.      NA's 
+0.0004065 0.3706900 0.6813940 0.6515120 1.0000000 1.0000000         3 
+
+$`METABOLISM OF RNA`
+     Min.   1st Qu.    Median      Mean   3rd Qu.      Max.      NA's 
+0.0007901 0.3313603 0.6630103 0.6347697 1.0000000 1.0000000         1 
+
+$`REGULATION OF EXPRESSION OF SLITS AND ROBOS`
+     Min.   1st Qu.    Median      Mean   3rd Qu.      Max.      NA's 
+0.0007901 0.1363698 0.3689900 0.4637678 0.7575892 1.0000000         1 
+
+$`RESPONSE OF EIF2AK4 GCN2 TO AMINO ACID DEFICIENCY`
+     Min.   1st Qu.    Median      Mean   3rd Qu.      Max.      NA's 
+0.0007901 0.0893603 0.1998228 0.3189794 0.4190969 1.0000000         1 
+
+> tapply(dfL$Oligo, dfL$react_pathway, summary)
+$`CELL CYCLE`
+    Min.  1st Qu.   Median     Mean  3rd Qu.     Max. 
+0.004169 0.262960 0.561932 0.577765 1.000000 1.000000 
+
+$`EUKARYOTIC TRANSLATION ELONGATION`
+   Min. 1st Qu.  Median    Mean 3rd Qu.    Max.    NA's 
+0.02832 0.22962 0.42949 0.48831 0.76888 1.00000       1 
+
+$`INFLUENZA INFECTION`
+   Min. 1st Qu.  Median    Mean 3rd Qu.    Max.    NA's 
+0.02832 0.19794 0.42529 0.48831 0.78966 1.00000       1 
+
+$`INNATE IMMUNE SYSTEM`
+    Min.  1st Qu.   Median     Mean  3rd Qu.     Max.     NA's 
+0.002688 0.341023 0.664772 0.637652 1.000000 1.000000        3 
+
+$`METABOLISM OF RNA`
+    Min.  1st Qu.   Median     Mean  3rd Qu.     Max.     NA's 
+0.007528 0.238792 0.508396 0.540735 0.862430 1.000000        1 
+
+$`REGULATION OF EXPRESSION OF SLITS AND ROBOS`
+   Min. 1st Qu.  Median    Mean 3rd Qu.    Max.    NA's 
+0.02036 0.26902 0.48961 0.54981 0.88273 1.00000       1 
+
+$`RESPONSE OF EIF2AK4 GCN2 TO AMINO ACID DEFICIENCY`
+   Min. 1st Qu.  Median    Mean 3rd Qu.    Max.    NA's 
+0.02832 0.24421 0.46928 0.50010 0.77273 1.00000       1 
+
+> 
+> p1 = ggplot(dfL[which(dfL$Micro < 0.05),], 
++             aes(x=react_pathway, y=ASD_vs_Control.Micro)) + 
++   geom_boxplot(outlier.shape = NA) + coord_flip() + 
++   geom_jitter(shape=16, col="darkblue", alpha=0.7, 
++               position=position_jitter(0.15)) + 
++   ylab("log fold change, SCZ vs. control") + xlab("") + 
++   labs(title="Microglia") + 
++   geom_hline(yintercept = 0, color = "red", size=1.0)
+> 
+> p2 = ggplot(dfL[which(dfL$Oligo < 0.05),], 
++             aes(x=react_pathway, y=ASD_vs_Control.Oligo)) + 
++   geom_boxplot(outlier.shape = NA) + coord_flip() + 
++   geom_jitter(shape=16, col="darkblue", alpha=0.7, 
++               position=position_jitter(0.15)) + 
++   ylab("log fold change, SCZ vs. control") + xlab("") + 
++   labs(title="Oligodendrocyte") + 
++   geom_hline(yintercept = 0, color = "red", size=1.0)
+> 
+> pdf("../figures/ASD_log_fc_glials.pdf", width=7, height=6)
+> ggarrange(p1, p2, ncol = 1, nrow = 2, labels="AUTO")
+> dev.off()
+null device 
+          1 
+> 
+> 
+> gc()
+           used  (Mb) gc trigger  (Mb) limit (Mb) max used  (Mb)
+Ncells  5291288 282.6   10002810 534.3         NA  7520411 401.7
+Vcells 17288814 132.0   26749646 204.1      32768 19403451 148.1
+> 
+> sessionInfo()
+R version 3.6.2 (2019-12-12)
+Platform: x86_64-apple-darwin15.6.0 (64-bit)
+Running under: macOS Catalina 10.15.5
+
+Matrix products: default
+BLAS:   /Library/Frameworks/R.framework/Versions/3.6/Resources/lib/libRblas.0.dylib
+LAPACK: /Library/Frameworks/R.framework/Versions/3.6/Resources/lib/libRlapack.dylib
+
+locale:
+[1] en_US.UTF-8/en_US.UTF-8/en_US.UTF-8/C/en_US.UTF-8/en_US.UTF-8
+
+attached base packages:
+[1] parallel  stats4    stats     graphics  grDevices utils     datasets 
+[8] methods   base     
+
+other attached packages:
+ [1] qusage_2.18.0               limma_3.40.6               
+ [3] SummarizedExperiment_1.14.1 DelayedArray_0.10.0        
+ [5] BiocParallel_1.18.1         matrixStats_0.55.0         
+ [7] Biobase_2.44.0              GenomicRanges_1.36.1       
+ [9] GenomeInfoDb_1.20.0         IRanges_2.18.3             
+[11] S4Vectors_0.22.1            BiocGenerics_0.30.0        
+[13] forcats_0.5.0               stringr_1.4.0              
+[15] dplyr_0.8.4                 purrr_0.3.3                
+[17] readr_1.3.1                 tibble_3.0.1               
+[19] tidyverse_1.3.0             tidyr_1.0.2                
+[21] ggpubr_0.2.5                magrittr_1.5               
+[23] ggplot2_3.3.1              
+
+loaded via a namespace (and not attached):
+ [1] httr_1.4.1             jsonlite_1.6.1         splines_3.6.2         
+ [4] modelr_0.1.8           assertthat_0.2.1       GenomeInfoDbData_1.2.1
+ [7] cellranger_1.1.0       pillar_1.4.3           backports_1.1.5       
+[10] lattice_0.20-38        glue_1.3.1             digest_0.6.23         
+[13] ggsignif_0.6.0         XVector_0.24.0         rvest_0.3.5           
+[16] colorspace_1.4-1       sandwich_2.5-1         cowplot_1.0.0         
+[19] Matrix_1.2-18          pkgconfig_2.0.3        broom_0.5.6           
+[22] haven_2.3.0            zlibbioc_1.30.0        xtable_1.8-4          
+[25] mvtnorm_1.0-12         scales_1.1.0           emmeans_1.4.8         
+[28] farver_2.0.3           generics_0.0.2         ellipsis_0.3.0        
+[31] TH.data_1.0-10         withr_2.1.2            cli_2.0.1             
+[34] survival_3.1-8         crayon_1.3.4           readxl_1.3.1          
+[37] estimability_1.3       fs_1.3.1               fansi_0.4.1           
+[40] MASS_7.3-51.5          nlme_3.1-144           xml2_1.2.2            
+[43] tools_3.6.2            hms_0.5.3              lifecycle_0.2.0       
+[46] multcomp_1.4-13        munsell_0.5.0          reprex_0.3.0          
+[49] compiler_3.6.2         rlang_0.4.6            grid_3.6.2            
+[52] RCurl_1.98-1.1         rstudioapi_0.11        labeling_0.3          
+[55] bitops_1.0-6           codetools_0.2-16       gtable_0.3.0          
+[58] DBI_1.1.0              R6_2.4.1               zoo_1.8-7             
+[61] lubridate_1.7.8        stringi_1.4.5          Rcpp_1.0.3            
+[64] vctrs_0.3.0            dbplyr_1.4.3           tidyselect_1.0.0      
+[67] coda_0.19-3           
+> q(save="no")
+> proc.time()
+   user  system elapsed 
+  7.822   0.317   8.144 

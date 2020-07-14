@@ -1,0 +1,444 @@
+
+R version 3.6.0 (2019-04-26) -- "Planting of a Tree"
+Copyright (C) 2019 The R Foundation for Statistical Computing
+Platform: x86_64-pc-linux-gnu (64-bit)
+
+R is free software and comes with ABSOLUTELY NO WARRANTY.
+You are welcome to redistribute it under certain conditions.
+Type 'license()' or 'licence()' for distribution details.
+
+  Natural language support but running in an English locale
+
+R is a collaborative project with many contributors.
+Type 'contributors()' for more information and
+'citation()' on how to cite R or R packages in publications.
+
+Type 'demo()' for some demos, 'help()' for on-line help, or
+'help.start()' for an HTML browser interface to help.
+Type 'q()' to quit R.
+
+> library(CARseq)
+> library(SummarizedExperiment)
+Loading required package: GenomicRanges
+Loading required package: stats4
+Loading required package: BiocGenerics
+Loading required package: parallel
+
+Attaching package: ‘BiocGenerics’
+
+The following objects are masked from ‘package:parallel’:
+
+    clusterApply, clusterApplyLB, clusterCall, clusterEvalQ,
+    clusterExport, clusterMap, parApply, parCapply, parLapply,
+    parLapplyLB, parRapply, parSapply, parSapplyLB
+
+The following objects are masked from ‘package:stats’:
+
+    IQR, mad, sd, var, xtabs
+
+The following objects are masked from ‘package:base’:
+
+    anyDuplicated, append, as.data.frame, cbind, colnames, do.call,
+    duplicated, eval, evalq, Filter, Find, get, grep, grepl, intersect,
+    is.unsorted, lapply, Map, mapply, match, mget, order, paste, pmax,
+    pmax.int, pmin, pmin.int, Position, rank, rbind, Reduce, rownames,
+    sapply, setdiff, sort, table, tapply, union, unique, unsplit,
+    which, which.max, which.min
+
+Loading required package: S4Vectors
+
+Attaching package: ‘S4Vectors’
+
+The following object is masked from ‘package:base’:
+
+    expand.grid
+
+Loading required package: IRanges
+Loading required package: GenomeInfoDb
+Loading required package: Biobase
+Welcome to Bioconductor
+
+    Vignettes contain introductory material; view with
+    'browseVignettes()'. To cite Bioconductor, see
+    'citation("Biobase")', and for packages 'citation("pkgname")'.
+
+Loading required package: DelayedArray
+Loading required package: matrixStats
+
+Attaching package: ‘matrixStats’
+
+The following objects are masked from ‘package:Biobase’:
+
+    anyMissing, rowMedians
+
+
+Attaching package: ‘DelayedArray’
+
+The following objects are masked from ‘package:matrixStats’:
+
+    colMaxs, colMins, colRanges, rowMaxs, rowMins, rowRanges
+
+The following object is masked from ‘package:base’:
+
+    apply
+
+> rse_filtered = readRDS("../data/ASD_rse_filtered_with_SVs.rds")
+> cellular_proportions = readRDS("../data/ASD_prop.rds")
+> set.seed(1234)
+> assay(rse_filtered, "counts") = round(assay(rse_filtered, "counts"))
+> 
+> trec = assays(rse_filtered)$counts
+> col_data = colData(rse_filtered)
+> 
+> col_data$scaled_AgeDeath = scale(col_data$AgeDeath)
+> col_data$scaled_log_depth = scale(col_data$log_depth)
+> col_data$scaled_RIN = scale(col_data$RIN)
+> for (i in 1:8) {
++   col_data[[paste0("scaled_sv", i)]] = scale(col_data[[paste0("sv", i)]])
++ }
+> 
+> cor(model.matrix(~ BrainBank + Sequencing.Batch + scaled_AgeDeath + scaled_log_depth + scaled_RIN + seqSV1 + seqSV2 + seqSV3 + seqSV4 + Diagnosis, col_data)[,-1])
+                       BrainBankNICHD Sequencing.Batchbatch2
+BrainBankNICHD             1.00000000            -0.13299879
+Sequencing.Batchbatch2    -0.13299879             1.00000000
+Sequencing.Batchbatch3     0.46835207            -0.16903085
+scaled_AgeDeath           -0.23239247             0.09149497
+scaled_log_depth          -0.02923196            -0.38779482
+scaled_RIN                 0.04379651            -0.17483533
+seqSV1                    -0.04848913            -0.27754004
+seqSV2                    -0.28879573            -0.05196168
+seqSV3                    -0.30836871             0.16115642
+seqSV4                    -0.16675511             0.17322174
+DiagnosisControl           0.13656082             0.14177330
+                       Sequencing.Batchbatch3 scaled_AgeDeath scaled_log_depth
+BrainBankNICHD                     0.46835207     -0.23239247     -0.029231956
+Sequencing.Batchbatch2            -0.16903085      0.09149497     -0.387794824
+Sequencing.Batchbatch3             1.00000000     -0.26501616     -0.277844748
+scaled_AgeDeath                   -0.26501616      1.00000000     -0.034731407
+scaled_log_depth                  -0.27784475     -0.03473141      1.000000000
+scaled_RIN                        -0.29428707      0.18430983      0.314180218
+seqSV1                            -0.09169120     -0.06014495      0.742310631
+seqSV2                            -0.01643247      0.10157838     -0.257477657
+seqSV3                            -0.59599425      0.13875874      0.218872407
+seqSV4                             0.03518875      0.09928809      0.057812850
+DiagnosisControl                   0.08714204      0.06573242     -0.008244726
+                        scaled_RIN        seqSV1        seqSV2        seqSV3
+BrainBankNICHD          0.04379651 -4.848913e-02 -2.887957e-01 -3.083687e-01
+Sequencing.Batchbatch2 -0.17483533 -2.775400e-01 -5.196168e-02  1.611564e-01
+Sequencing.Batchbatch3 -0.29428707 -9.169120e-02 -1.643247e-02 -5.959942e-01
+scaled_AgeDeath         0.18430983 -6.014495e-02  1.015784e-01  1.387587e-01
+scaled_log_depth        0.31418022  7.423106e-01 -2.574777e-01  2.188724e-01
+scaled_RIN              1.00000000  2.386696e-01 -1.467814e-01 -1.118405e-01
+seqSV1                  0.23866963  1.000000e+00 -4.254332e-16 -1.494702e-16
+seqSV2                 -0.14678140 -4.254332e-16  1.000000e+00 -5.396797e-16
+seqSV3                 -0.11184049 -1.494702e-16 -5.396797e-16  1.000000e+00
+seqSV4                  0.03625199 -2.061146e-16 -2.017545e-16 -1.238933e-16
+DiagnosisControl       -0.05179144  8.558386e-03 -8.373062e-02 -4.864022e-02
+                              seqSV4 DiagnosisControl
+BrainBankNICHD         -1.667551e-01      0.136560816
+Sequencing.Batchbatch2  1.732217e-01      0.141773297
+Sequencing.Batchbatch3  3.518875e-02      0.087142040
+scaled_AgeDeath         9.928809e-02      0.065732421
+scaled_log_depth        5.781285e-02     -0.008244726
+scaled_RIN              3.625199e-02     -0.051791437
+seqSV1                 -2.061146e-16      0.008558386
+seqSV2                 -2.017545e-16     -0.083730617
+seqSV3                 -1.238933e-16     -0.048640222
+seqSV4                  1.000000e+00      0.001335407
+DiagnosisControl        1.335407e-03      1.000000000
+> 
+> # permuted disease label
+> set.seed(1234)
+> # col_data$DiagnosisP = rep("Control", nrow(col_data))
+> # wControl = which(col_data$Diagnosis == "Control")
+> # wCase    = which(col_data$Diagnosis == "ASD")
+> # 
+> # ww1 = sample(wControl, size=round(length(wControl)/2))
+> # ww2 = sample(wCase, size=round(length(wCase)/2))
+> # 
+> # col_data$DiagnosisP[c(ww1, ww2)] = "ASD"
+> col_data$DiagnosisP = CARseq:::permute_case_and_controls(col_data$Diagnosis)
+> col_data$Diagnosis = factor(col_data$Diagnosis)
+> col_data$Diagnosis = relevel(col_data$Diagnosis, ref="Control")
+> col_data$DiagnosisP = relevel(col_data$DiagnosisP, ref="Control")
+> table(col_data$Diagnosis, col_data$DiagnosisP)
+         
+          Control ASD
+  Control      22  21
+  ASD          21  21
+> 
+> ############################################################
+> # 4 SVs
+> ############################################################
+> # CARseq, CIBERSORT
+> # not permuted
+> # There are too few samples with nonzero estimates for OPC (3 / 85), so OPC is collapsed to Oligo:
+> table(cellular_proportions$CIBERSORT[, "OPC"] == 0)
+
+FALSE  TRUE 
+    3    82 
+> cellular_proportions_CIBERSORT_collapsed = cellular_proportions$CIBERSORT
+> cellular_proportions_CIBERSORT_collapsed[, "Oligo"] = 
++     cellular_proportions$CIBERSORT[, "Oligo"] + cellular_proportions$CIBERSORT[, "OPC"]
+> cellular_proportions_CIBERSORT_collapsed = cellular_proportions_CIBERSORT_collapsed[, -6]  # remove OPC
+> res_CARseq = run_CARseq(count_matrix = assay(rse_filtered, "counts"),
++                  cellular_proportions = cellular_proportions_CIBERSORT_collapsed,
++                  groups = col_data$Diagnosis,
++                  formula = ~ BrainBank + Sequencing.Batch + scaled_AgeDeath + scaled_log_depth + scaled_RIN + seqSV1 + seqSV2 + seqSV3 + seqSV4,
++                  data = col_data,
++                  read_depth = 1,
++                  shrunken_lfc = TRUE,
++                  cores = 16,
++                  fix_overdispersion = FALSE
++ )
+starting worker pid=76661 on localhost:11007 at 01:16:16.106
+starting worker pid=76674 on localhost:11007 at 01:16:16.370
+starting worker pid=76687 on localhost:11007 at 01:16:16.635
+starting worker pid=76700 on localhost:11007 at 01:16:16.876
+starting worker pid=76713 on localhost:11007 at 01:16:17.113
+starting worker pid=76726 on localhost:11007 at 01:16:17.350
+starting worker pid=76739 on localhost:11007 at 01:16:17.591
+starting worker pid=76752 on localhost:11007 at 01:16:17.828
+starting worker pid=76765 on localhost:11007 at 01:16:18.068
+starting worker pid=76778 on localhost:11007 at 01:16:18.307
+starting worker pid=76791 on localhost:11007 at 01:16:18.542
+starting worker pid=76804 on localhost:11007 at 01:16:18.779
+starting worker pid=76817 on localhost:11007 at 01:16:19.021
+starting worker pid=76830 on localhost:11007 at 01:16:19.254
+starting worker pid=76843 on localhost:11007 at 01:16:19.490
+starting worker pid=76856 on localhost:11007 at 01:16:19.751
+Loading required package: CARseq
+Loading required package: CARseq
+Loading required package: CARseq
+Loading required package: CARseq
+Loading required package: CARseq
+Loading required package: CARseq
+Loading required package: CARseq
+Loading required package: CARseq
+Loading required package: CARseq
+Loading required package: CARseq
+Loading required package: CARseq
+Loading required package: CARseq
+Loading required package: CARseq
+Loading required package: CARseq
+Loading required package: CARseq
+Loading required package: CARseq
+loaded CARseq and set parent environment
+loaded CARseq and set parent environment
+loaded CARseq and set parent environment
+loaded CARseq and set parent environment
+loaded CARseq and set parent environment
+loaded CARseq and set parent environment
+loaded CARseq and set parent environment
+loaded CARseq and set parent environment
+loaded CARseq and set parent environment
+loaded CARseq and set parent environment
+loaded CARseq and set parent environment
+loaded CARseq and set parent environment
+loaded CARseq and set parent environment
+loaded CARseq and set parent environment
+loaded CARseq and set parent environment
+loaded CARseq and set parent environment
+Gene 1000 of 19604 has been processed at 2020-07-02 01:16:51 [1st pass]
+Gene 2000 of 19604 has been processed at 2020-07-02 01:17:16 [1st pass]
+Gene 3000 of 19604 has been processed at 2020-07-02 01:17:20 [1st pass]
+Gene 4000 of 19604 has been processed at 2020-07-02 01:17:45 [1st pass]
+Gene 5000 of 19604 has been processed at 2020-07-02 01:18:09 [1st pass]
+Gene 6000 of 19604 has been processed at 2020-07-02 01:18:15 [1st pass]
+Gene 7000 of 19604 has been processed at 2020-07-02 01:18:38 [1st pass]
+Gene 8000 of 19604 has been processed at 2020-07-02 01:18:58 [1st pass]
+Gene 9000 of 19604 has been processed at 2020-07-02 01:19:06 [1st pass]
+Gene 10000 of 19604 has been processed at 2020-07-02 01:19:30 [1st pass]
+Gene 11000 of 19604 has been processed at 2020-07-02 01:19:38 [1st pass]
+Gene 12000 of 19604 has been processed at 2020-07-02 01:20:01 [1st pass]
+Gene 13000 of 19604 has been processed at 2020-07-02 01:20:23 [1st pass]
+Gene 14000 of 19604 has been processed at 2020-07-02 01:20:30 [1st pass]
+Gene 15000 of 19604 has been processed at 2020-07-02 01:20:52 [1st pass]
+Gene 16000 of 19604 has been processed at 2020-07-02 01:21:17 [1st pass]
+Gene 17000 of 19604 has been processed at 2020-07-02 01:21:27 [1st pass]
+Gene 18000 of 19604 has been processed at 2020-07-02 01:21:49 [1st pass]
+Gene 19604 of 19604 has been processed at 2020-07-02 01:21:51 [1st pass]
+Gene 19000 of 19604 has been processed at 2020-07-02 01:21:59 [1st pass]
+loaded CARseq and set parent environment
+loaded CARseq and set parent environment
+loaded CARseq and set parent environment
+loaded CARseq and set parent environment
+loaded CARseq and set parent environment
+loaded CARseq and set parent environment
+loaded CARseq and set parent environment
+loaded CARseq and set parent environment
+loaded CARseq and set parent environment
+loaded CARseq and set parent environment
+loaded CARseq and set parent environment
+loaded CARseq and set parent environment
+loaded CARseq and set parent environment
+loaded CARseq and set parent environment
+loaded CARseq and set parent environment
+loaded CARseq and set parent environment
+Gene 1000 of 19604 has been processed at 2020-07-02 01:22:26 [2nd pass for shrunken LFC]
+Gene 2000 of 19604 has been processed at 2020-07-02 01:22:33 [2nd pass for shrunken LFC]
+Gene 3000 of 19604 has been processed at 2020-07-02 01:22:33 [2nd pass for shrunken LFC]
+Gene 4000 of 19604 has been processed at 2020-07-02 01:22:40 [2nd pass for shrunken LFC]
+Gene 5000 of 19604 has been processed at 2020-07-02 01:22:46 [2nd pass for shrunken LFC]
+Gene 6000 of 19604 has been processed at 2020-07-02 01:22:48 [2nd pass for shrunken LFC]
+Gene 7000 of 19604 has been processed at 2020-07-02 01:22:54 [2nd pass for shrunken LFC]
+Gene 8000 of 19604 has been processed at 2020-07-02 01:22:56 [2nd pass for shrunken LFC]
+Gene 9000 of 19604 has been processed at 2020-07-02 01:23:01 [2nd pass for shrunken LFC]
+Gene 10000 of 19604 has been processed at 2020-07-02 01:23:07 [2nd pass for shrunken LFC]
+Gene 11000 of 19604 has been processed at 2020-07-02 01:23:10 [2nd pass for shrunken LFC]
+Gene 12000 of 19604 has been processed at 2020-07-02 01:23:15 [2nd pass for shrunken LFC]
+Gene 13000 of 19604 has been processed at 2020-07-02 01:23:21 [2nd pass for shrunken LFC]
+Gene 14000 of 19604 has been processed at 2020-07-02 01:23:23 [2nd pass for shrunken LFC]
+Gene 15000 of 19604 has been processed at 2020-07-02 01:23:29 [2nd pass for shrunken LFC]
+Gene 16000 of 19604 has been processed at 2020-07-02 01:23:34 [2nd pass for shrunken LFC]
+Gene 17000 of 19604 has been processed at 2020-07-02 01:23:38 [2nd pass for shrunken LFC]
+Gene 18000 of 19604 has been processed at 2020-07-02 01:23:45 [2nd pass for shrunken LFC]
+Gene 19604 of 19604 has been processed at 2020-07-02 01:23:45 [2nd pass for shrunken LFC]
+Gene 19000 of 19604 has been processed at 2020-07-02 01:23:48 [2nd pass for shrunken LFC]
+> 
+> pdf("../figures/ASD_CARseq_CIBERSORT_seqSV4.pdf",
++     width=6, height=6)
+> par(mfrow=c(2,3), bty="n", mar=c(5,4,2,1))
+> for(k in seq_len(ncol(res_CARseq$p))) {
++   hist(res_CARseq$p[,k], main=colnames(res_CARseq$p)[k], breaks=20,
++        xlab = paste0("p-value (", sum(CARseq:::get_qvalues_one_inflated(res_CARseq$p[, k]) < 0.1, na.rm=TRUE), " genes q value < 0.1)"))
++ }
+> dev.off()
+null device 
+          1 
+> saveRDS(res_CARseq, "../results/ASD_CARseq_CIBERSORT_seqSV4.rds")
+> 
+> 
+> # CARseq, ICeDT
+> # not permuted
+> res_CARseq = run_CARseq(count_matrix = assay(rse_filtered, "counts"),
++                  cellular_proportions = cellular_proportions$ICeDT,
++                  groups = col_data$Diagnosis,
++                  formula = ~ BrainBank + Sequencing.Batch + scaled_AgeDeath + scaled_log_depth + scaled_RIN + seqSV1 + seqSV2 + seqSV3 + seqSV4,
++                  data = col_data,
++                  read_depth = 1,
++                  shrunken_lfc = TRUE,
++                  cores = 16,
++                  fix_overdispersion = FALSE
++ )
+starting worker pid=77137 on localhost:11007 at 01:23:55.624
+starting worker pid=77150 on localhost:11007 at 01:23:55.878
+starting worker pid=77163 on localhost:11007 at 01:23:56.141
+starting worker pid=77177 on localhost:11007 at 01:23:56.414
+starting worker pid=77190 on localhost:11007 at 01:23:56.683
+starting worker pid=77203 on localhost:11007 at 01:23:56.970
+starting worker pid=77216 on localhost:11007 at 01:23:57.224
+starting worker pid=77229 on localhost:11007 at 01:23:57.481
+starting worker pid=77242 on localhost:11007 at 01:23:57.729
+starting worker pid=77255 on localhost:11007 at 01:23:57.983
+starting worker pid=77268 on localhost:11007 at 01:23:58.248
+starting worker pid=77281 on localhost:11007 at 01:23:58.512
+starting worker pid=77294 on localhost:11007 at 01:23:58.777
+starting worker pid=77307 on localhost:11007 at 01:23:59.042
+starting worker pid=77320 on localhost:11007 at 01:23:59.302
+starting worker pid=77333 on localhost:11007 at 01:23:59.558
+Loading required package: CARseq
+Loading required package: CARseq
+Loading required package: CARseq
+Loading required package: CARseq
+Loading required package: CARseq
+Loading required package: CARseq
+Loading required package: CARseq
+Loading required package: CARseq
+Loading required package: CARseq
+Loading required package: CARseq
+Loading required package: CARseq
+Loading required package: CARseq
+Loading required package: CARseq
+Loading required package: CARseq
+Loading required package: CARseq
+Loading required package: CARseq
+loaded CARseq and set parent environment
+loaded CARseq and set parent environment
+loaded CARseq and set parent environment
+loaded CARseq and set parent environment
+loaded CARseq and set parent environment
+loaded CARseq and set parent environment
+loaded CARseq and set parent environment
+loaded CARseq and set parent environment
+loaded CARseq and set parent environment
+loaded CARseq and set parent environment
+loaded CARseq and set parent environment
+loaded CARseq and set parent environment
+loaded CARseq and set parent environment
+loaded CARseq and set parent environment
+loaded CARseq and set parent environment
+loaded CARseq and set parent environment
+Gene 1000 of 19604 has been processed at 2020-07-02 01:24:39 [1st pass]
+Gene 2000 of 19604 has been processed at 2020-07-02 01:25:09 [1st pass]
+Gene 3000 of 19604 has been processed at 2020-07-02 01:25:13 [1st pass]
+Gene 4000 of 19604 has been processed at 2020-07-02 01:25:43 [1st pass]
+Gene 5000 of 19604 has been processed at 2020-07-02 01:26:14 [1st pass]
+Gene 6000 of 19604 has been processed at 2020-07-02 01:26:19 [1st pass]
+Gene 7000 of 19604 has been processed at 2020-07-02 01:26:50 [1st pass]
+Gene 8000 of 19604 has been processed at 2020-07-02 01:26:57 [1st pass]
+Gene 9000 of 19604 has been processed at 2020-07-02 01:27:23 [1st pass]
+Gene 10000 of 19604 has been processed at 2020-07-02 01:27:54 [1st pass]
+Gene 11000 of 19604 has been processed at 2020-07-02 01:28:03 [1st pass]
+Gene 12000 of 19604 has been processed at 2020-07-02 01:28:33 [1st pass]
+Gene 13000 of 19604 has been processed at 2020-07-02 01:29:00 [1st pass]
+Gene 14000 of 19604 has been processed at 2020-07-02 01:29:04 [1st pass]
+Gene 15000 of 19604 has been processed at 2020-07-02 01:29:34 [1st pass]
+Gene 16000 of 19604 has been processed at 2020-07-02 01:29:50 [1st pass]
+Gene 17000 of 19604 has been processed at 2020-07-02 01:30:13 [1st pass]
+Gene 18000 of 19604 has been processed at 2020-07-02 01:30:41 [1st pass]
+Gene 19604 of 19604 has been processed at 2020-07-02 01:30:44 [1st pass]
+Gene 19000 of 19604 has been processed at 2020-07-02 01:30:55 [1st pass]
+loaded CARseq and set parent environment
+loaded CARseq and set parent environment
+loaded CARseq and set parent environment
+loaded CARseq and set parent environment
+loaded CARseq and set parent environment
+loaded CARseq and set parent environment
+loaded CARseq and set parent environment
+loaded CARseq and set parent environment
+loaded CARseq and set parent environment
+loaded CARseq and set parent environment
+loaded CARseq and set parent environment
+loaded CARseq and set parent environment
+loaded CARseq and set parent environment
+loaded CARseq and set parent environment
+loaded CARseq and set parent environment
+loaded CARseq and set parent environment
+Gene 1000 of 19604 has been processed at 2020-07-02 01:31:26 [2nd pass for shrunken LFC]
+Gene 3000 of 19604 has been processed at 2020-07-02 01:31:34 [2nd pass for shrunken LFC]
+Gene 2000 of 19604 has been processed at 2020-07-02 01:31:34 [2nd pass for shrunken LFC]
+Gene 4000 of 19604 has been processed at 2020-07-02 01:31:41 [2nd pass for shrunken LFC]
+Gene 5000 of 19604 has been processed at 2020-07-02 01:31:48 [2nd pass for shrunken LFC]
+Gene 6000 of 19604 has been processed at 2020-07-02 01:31:51 [2nd pass for shrunken LFC]
+Gene 7000 of 19604 has been processed at 2020-07-02 01:31:57 [2nd pass for shrunken LFC]
+Gene 8000 of 19604 has been processed at 2020-07-02 01:32:00 [2nd pass for shrunken LFC]
+Gene 9000 of 19604 has been processed at 2020-07-02 01:32:05 [2nd pass for shrunken LFC]
+Gene 10000 of 19604 has been processed at 2020-07-02 01:32:12 [2nd pass for shrunken LFC]
+Gene 11000 of 19604 has been processed at 2020-07-02 01:32:16 [2nd pass for shrunken LFC]
+Gene 12000 of 19604 has been processed at 2020-07-02 01:32:21 [2nd pass for shrunken LFC]
+Gene 13000 of 19604 has been processed at 2020-07-02 01:32:27 [2nd pass for shrunken LFC]
+Gene 14000 of 19604 has been processed at 2020-07-02 01:32:30 [2nd pass for shrunken LFC]
+Gene 15000 of 19604 has been processed at 2020-07-02 01:32:36 [2nd pass for shrunken LFC]
+Gene 16000 of 19604 has been processed at 2020-07-02 01:32:43 [2nd pass for shrunken LFC]
+Gene 17000 of 19604 has been processed at 2020-07-02 01:32:47 [2nd pass for shrunken LFC]
+Gene 18000 of 19604 has been processed at 2020-07-02 01:32:54 [2nd pass for shrunken LFC]
+Gene 19604 of 19604 has been processed at 2020-07-02 01:32:54 [2nd pass for shrunken LFC]
+Gene 19000 of 19604 has been processed at 2020-07-02 01:33:00 [2nd pass for shrunken LFC]
+> 
+> pdf("../figures/ASD_CARseq_ICeDT_seqSV4.pdf",
++     width=6, height=6)
+> par(mfrow=c(2,3), bty="n", mar=c(5,4,2,1))
+> for(k in seq_len(ncol(res_CARseq$p))) {
++   hist(res_CARseq$p[,k], main=colnames(res_CARseq$p)[k], breaks=20,
++        xlab = paste0("p-value (", sum(CARseq:::get_qvalues_one_inflated(res_CARseq$p[, k]) < 0.1, na.rm=TRUE), " genes q value < 0.1)"))
++ }
+> dev.off()
+null device 
+          1 
+> saveRDS(res_CARseq, "../results/ASD_CARseq_ICeDT_seqSV4.rds")
+> 
+> 
+> proc.time()
+    user   system  elapsed 
+  13.453    2.099 1014.492 

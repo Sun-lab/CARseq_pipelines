@@ -1,0 +1,526 @@
+
+R version 3.6.0 (2019-04-26) -- "Planting of a Tree"
+Copyright (C) 2019 The R Foundation for Statistical Computing
+Platform: x86_64-pc-linux-gnu (64-bit)
+
+R is free software and comes with ABSOLUTELY NO WARRANTY.
+You are welcome to redistribute it under certain conditions.
+Type 'license()' or 'licence()' for distribution details.
+
+  Natural language support but running in an English locale
+
+R is a collaborative project with many contributors.
+Type 'contributors()' for more information and
+'citation()' on how to cite R or R packages in publications.
+
+Type 'demo()' for some demos, 'help()' for on-line help, or
+'help.start()' for an HTML browser interface to help.
+Type 'q()' to quit R.
+
+> library(CARseq)
+> library(SummarizedExperiment)
+Loading required package: GenomicRanges
+Loading required package: stats4
+Loading required package: BiocGenerics
+Loading required package: parallel
+
+Attaching package: ‘BiocGenerics’
+
+The following objects are masked from ‘package:parallel’:
+
+    clusterApply, clusterApplyLB, clusterCall, clusterEvalQ,
+    clusterExport, clusterMap, parApply, parCapply, parLapply,
+    parLapplyLB, parRapply, parSapply, parSapplyLB
+
+The following objects are masked from ‘package:stats’:
+
+    IQR, mad, sd, var, xtabs
+
+The following objects are masked from ‘package:base’:
+
+    anyDuplicated, append, as.data.frame, cbind, colnames, do.call,
+    duplicated, eval, evalq, Filter, Find, get, grep, grepl, intersect,
+    is.unsorted, lapply, Map, mapply, match, mget, order, paste, pmax,
+    pmax.int, pmin, pmin.int, Position, rank, rbind, Reduce, rownames,
+    sapply, setdiff, sort, table, tapply, union, unique, unsplit,
+    which, which.max, which.min
+
+Loading required package: S4Vectors
+
+Attaching package: ‘S4Vectors’
+
+The following object is masked from ‘package:base’:
+
+    expand.grid
+
+Loading required package: IRanges
+Loading required package: GenomeInfoDb
+Loading required package: Biobase
+Welcome to Bioconductor
+
+    Vignettes contain introductory material; view with
+    'browseVignettes()'. To cite Bioconductor, see
+    'citation("Biobase")', and for packages 'citation("pkgname")'.
+
+Loading required package: DelayedArray
+Loading required package: matrixStats
+
+Attaching package: ‘matrixStats’
+
+The following objects are masked from ‘package:Biobase’:
+
+    anyMissing, rowMedians
+
+
+Attaching package: ‘DelayedArray’
+
+The following objects are masked from ‘package:matrixStats’:
+
+    colMaxs, colMins, colRanges, rowMaxs, rowMins, rowRanges
+
+The following object is masked from ‘package:base’:
+
+    apply
+
+> 
+> # read files from "CARseq_pipelines" repository)
+> trec = readRDS("../data/trec_filtered_scz_control.rds")  # 20788x527 matrix
+> clinical_variables_raw = readRDS("../data/dat_cavariates_scz_control_with_svs.rds")    # 527x33 matrix; there are 527 instead of 537 samples
+> # for code compatibility:
+> col_data = as.data.frame(clinical_variables_raw)
+> col_data$Dx = ifelse(col_data$DxSCZ == 1, "SCZ", "Control")
+> col_data$RNAseq.Sample_RNA_ID = colnames(trec)
+> # rescale age_death, PMI, RIN, RIN^2, log_depth
+> col_data$scaled_age_death = scale(col_data$age_death)
+> col_data$scaled_log_depth = scale(col_data$log_depth)
+> col_data$scaled_PMI = scale(col_data$PMI)
+> col_data$scaled_RIN = scale(col_data$RIN)
+> col_data$scaled_RIN2 = scale(col_data$RIN2)
+> # rescale PCs and SVs -- the names are still sv1, sv2, etc, but they have been scaled:
+> covariates_to_scale = grep("sv|PC", colnames(col_data))
+> for (m in covariates_to_scale) {
++   col_data[, m] = scale(col_data[, m])
++ }
+> 
+> # permuted disease label
+> set.seed(1234)
+> col_data$Diagnosis = col_data$Dx
+> col_data$DiagnosisP = CARseq:::permute_case_and_controls(col_data$Diagnosis)
+> table(col_data$Diagnosis, col_data$DiagnosisP)
+         
+          Control SCZ
+  Control     146 131
+  SCZ         131 119
+> 
+> cellular_proportions = readRDS("../data/SCZ_prop.rds")
+> 
+> cellular_proportions$ICeDT = cellular_proportions$ICeDT[
++     match(col_data$RNAseq.Sample_RNA_ID, rownames(cellular_proportions$ICeDT)), ]
+> cellular_proportions$CIBERSORT = cellular_proportions$CIBERSORT[
++     match(col_data$RNAseq.Sample_RNA_ID, rownames(cellular_proportions$CIBERSORT)), ]
+> 
+> 
+> 
+> 
+> 
+> # permuted
+> res_CARseq_permuted = run_CARseq(count_matrix = trec,
++                                  cellular_proportions = cellular_proportions$ICeDT,
++                                  groups = col_data$DiagnosisP,
++                                  formula = ~ scaled_log_depth + InstitutionPenn + InstitutionPitt +
++                                    genderMale + scaled_age_death + scaled_PMI + scaled_RIN + scaled_RIN2 +
++                                    genoPC1 + genoPC2 +
++                                    libclustB + libclustbase + libclustC + libclustD + libclustE + libclustF + libclustG +
++                                    sv1 + sv2,
++                                  data = col_data,
++                                  read_depth = 1,
++                                  shrunken_lfc = TRUE,
++                                  cores = 32,
++                                  fix_overdispersion = FALSE
++ )
+starting worker pid=3803 on localhost:11287 at 02:57:51.141
+starting worker pid=3816 on localhost:11287 at 02:57:51.393
+starting worker pid=3829 on localhost:11287 at 02:57:51.645
+starting worker pid=3842 on localhost:11287 at 02:57:51.887
+starting worker pid=3855 on localhost:11287 at 02:57:52.130
+starting worker pid=3868 on localhost:11287 at 02:57:52.369
+starting worker pid=3881 on localhost:11287 at 02:57:52.611
+starting worker pid=3894 on localhost:11287 at 02:57:52.858
+starting worker pid=3907 on localhost:11287 at 02:57:53.112
+starting worker pid=3920 on localhost:11287 at 02:57:53.362
+starting worker pid=3933 on localhost:11287 at 02:57:53.614
+starting worker pid=3946 on localhost:11287 at 02:57:53.866
+starting worker pid=3959 on localhost:11287 at 02:57:54.119
+starting worker pid=3972 on localhost:11287 at 02:57:54.366
+starting worker pid=3985 on localhost:11287 at 02:57:54.618
+starting worker pid=3998 on localhost:11287 at 02:57:54.871
+starting worker pid=4011 on localhost:11287 at 02:57:55.123
+starting worker pid=4024 on localhost:11287 at 02:57:55.378
+starting worker pid=4037 on localhost:11287 at 02:57:55.628
+starting worker pid=4050 on localhost:11287 at 02:57:55.874
+starting worker pid=4063 on localhost:11287 at 02:57:56.127
+starting worker pid=4076 on localhost:11287 at 02:57:56.374
+starting worker pid=4089 on localhost:11287 at 02:57:56.624
+starting worker pid=4102 on localhost:11287 at 02:57:56.874
+starting worker pid=4115 on localhost:11287 at 02:57:57.120
+starting worker pid=4128 on localhost:11287 at 02:57:57.376
+starting worker pid=4141 on localhost:11287 at 02:57:57.627
+starting worker pid=4154 on localhost:11287 at 02:57:57.876
+starting worker pid=4167 on localhost:11287 at 02:57:58.127
+starting worker pid=4180 on localhost:11287 at 02:57:58.381
+starting worker pid=4193 on localhost:11287 at 02:57:58.635
+starting worker pid=4206 on localhost:11287 at 02:57:58.879
+Loading required package: CARseq
+Loading required package: CARseq
+Loading required package: CARseq
+Loading required package: CARseq
+Loading required package: CARseq
+Loading required package: CARseq
+Loading required package: CARseq
+Loading required package: CARseq
+Loading required package: CARseq
+Loading required package: CARseq
+loaded CARseq and set parent environment
+Loading required package: CARseq
+Loading required package: CARseq
+loaded CARseq and set parent environment
+loaded CARseq and set parent environment
+Loading required package: CARseq
+Loading required package: CARseq
+loaded CARseq and set parent environment
+Loading required package: CARseq
+loaded CARseq and set parent environment
+Loading required package: CARseq
+loaded CARseq and set parent environment
+Loading required package: CARseq
+Loading required package: CARseq
+loaded CARseq and set parent environment
+loaded CARseq and set parent environment
+loaded CARseq and set parent environment
+Loading required package: CARseq
+Loading required package: CARseq
+Loading required package: CARseq
+loaded CARseq and set parent environment
+loaded CARseq and set parent environment
+Loading required package: CARseq
+loaded CARseq and set parent environment
+Loading required package: CARseq
+Loading required package: CARseq
+loaded CARseq and set parent environment
+Loading required package: CARseq
+loaded CARseq and set parent environment
+loaded CARseq and set parent environment
+Loading required package: CARseq
+Loading required package: CARseq
+loaded CARseq and set parent environment
+Loading required package: CARseq
+loaded CARseq and set parent environment
+loaded CARseq and set parent environment
+Loading required package: CARseq
+loaded CARseq and set parent environment
+Loading required package: CARseq
+loaded CARseq and set parent environment
+Loading required package: CARseq
+loaded CARseq and set parent environment
+loaded CARseq and set parent environment
+Loading required package: CARseq
+loaded CARseq and set parent environment
+loaded CARseq and set parent environment
+loaded CARseq and set parent environment
+loaded CARseq and set parent environment
+loaded CARseq and set parent environment
+loaded CARseq and set parent environment
+loaded CARseq and set parent environment
+loaded CARseq and set parent environment
+loaded CARseq and set parent environment
+loaded CARseq and set parent environment
+Gene 1000 of 20788 has been processed at 2020-07-02 03:00:00 [1st pass]
+Gene 2000 of 20788 has been processed at 2020-07-02 03:00:45 [1st pass]
+Gene 3000 of 20788 has been processed at 2020-07-02 03:00:47 [1st pass]
+Gene 4000 of 20788 has been processed at 2020-07-02 03:02:25 [1st pass]
+Gene 5000 of 20788 has been processed at 2020-07-02 03:03:34 [1st pass]
+Gene 6000 of 20788 has been processed at 2020-07-02 03:03:50 [1st pass]
+Gene 7000 of 20788 has been processed at 2020-07-02 03:04:47 [1st pass]
+Gene 9000 of 20788 has been processed at 2020-07-02 03:06:17 [1st pass]
+Gene 8000 of 20788 has been processed at 2020-07-02 03:06:17 [1st pass]
+Gene 10000 of 20788 has been processed at 2020-07-02 03:07:32 [1st pass]
+Gene 11000 of 20788 has been processed at 2020-07-02 03:08:36 [1st pass]
+Gene 12000 of 20788 has been processed at 2020-07-02 03:09:16 [1st pass]
+Gene 13000 of 20788 has been processed at 2020-07-02 03:09:25 [1st pass]
+Gene 14000 of 20788 has been processed at 2020-07-02 03:10:04 [1st pass]
+Gene 15000 of 20788 has been processed at 2020-07-02 03:11:39 [1st pass]
+Gene 16000 of 20788 has been processed at 2020-07-02 03:11:59 [1st pass]
+Gene 17000 of 20788 has been processed at 2020-07-02 03:12:43 [1st pass]
+Gene 18000 of 20788 has been processed at 2020-07-02 03:14:08 [1st pass]
+Gene 19000 of 20788 has been processed at 2020-07-02 03:14:20 [1st pass]
+Gene 20000 of 20788 has been processed at 2020-07-02 03:14:31 [1st pass]
+Gene 20788 of 20788 has been processed at 2020-07-02 03:14:53 [1st pass]
+loaded CARseq and set parent environment
+loaded CARseq and set parent environment
+loaded CARseq and set parent environment
+loaded CARseq and set parent environment
+loaded CARseq and set parent environment
+loaded CARseq and set parent environment
+loaded CARseq and set parent environment
+loaded CARseq and set parent environment
+loaded CARseq and set parent environment
+loaded CARseq and set parent environment
+loaded CARseq and set parent environment
+loaded CARseq and set parent environment
+loaded CARseq and set parent environment
+loaded CARseq and set parent environment
+loaded CARseq and set parent environment
+loaded CARseq and set parent environment
+loaded CARseq and set parent environment
+loaded CARseq and set parent environment
+loaded CARseq and set parent environment
+loaded CARseq and set parent environment
+loaded CARseq and set parent environment
+loaded CARseq and set parent environment
+loaded CARseq and set parent environment
+loaded CARseq and set parent environment
+loaded CARseq and set parent environment
+loaded CARseq and set parent environment
+loaded CARseq and set parent environment
+loaded CARseq and set parent environment
+loaded CARseq and set parent environment
+loaded CARseq and set parent environment
+loaded CARseq and set parent environment
+loaded CARseq and set parent environment
+Gene 3000 of 20788 has been processed at 2020-07-02 03:15:36 [2nd pass for shrunken LFC]
+Gene 2000 of 20788 has been processed at 2020-07-02 03:15:39 [2nd pass for shrunken LFC]
+Gene 1000 of 20788 has been processed at 2020-07-02 03:15:42 [2nd pass for shrunken LFC]
+Gene 4000 of 20788 has been processed at 2020-07-02 03:16:08 [2nd pass for shrunken LFC]
+Gene 5000 of 20788 has been processed at 2020-07-02 03:16:11 [2nd pass for shrunken LFC]
+Gene 6000 of 20788 has been processed at 2020-07-02 03:16:22 [2nd pass for shrunken LFC]
+Gene 7000 of 20788 has been processed at 2020-07-02 03:16:33 [2nd pass for shrunken LFC]
+Gene 8000 of 20788 has been processed at 2020-07-02 03:16:46 [2nd pass for shrunken LFC]
+Gene 9000 of 20788 has been processed at 2020-07-02 03:16:54 [2nd pass for shrunken LFC]
+Gene 10000 of 20788 has been processed at 2020-07-02 03:16:55 [2nd pass for shrunken LFC]
+Gene 11000 of 20788 has been processed at 2020-07-02 03:17:17 [2nd pass for shrunken LFC]
+Gene 12000 of 20788 has been processed at 2020-07-02 03:17:21 [2nd pass for shrunken LFC]
+Gene 13000 of 20788 has been processed at 2020-07-02 03:17:25 [2nd pass for shrunken LFC]
+Gene 14000 of 20788 has been processed at 2020-07-02 03:17:47 [2nd pass for shrunken LFC]
+Gene 15000 of 20788 has been processed at 2020-07-02 03:17:55 [2nd pass for shrunken LFC]
+Gene 17000 of 20788 has been processed at 2020-07-02 03:18:03 [2nd pass for shrunken LFC]
+Gene 16000 of 20788 has been processed at 2020-07-02 03:18:08 [2nd pass for shrunken LFC]
+Gene 18000 of 20788 has been processed at 2020-07-02 03:18:29 [2nd pass for shrunken LFC]
+Gene 19000 of 20788 has been processed at 2020-07-02 03:18:36 [2nd pass for shrunken LFC]
+Gene 20000 of 20788 has been processed at 2020-07-02 03:18:43 [2nd pass for shrunken LFC]
+Gene 20788 of 20788 has been processed at 2020-07-02 03:18:45 [2nd pass for shrunken LFC]
+> 
+> pdf("../figures/SCZ_CARseq_ICeDT_permuted_SV2.pdf",
++     width=6, height=6)
+> par(mfrow=c(2,3), bty="n", mar=c(5,4,2,1))
+> for(k in seq_len(ncol(res_CARseq_permuted$p))) {
++   hist(res_CARseq_permuted$p[,k], main=colnames(res_CARseq_permuted$p)[k], breaks=20,
++        xlab = paste0("p-value (", sum(CARseq:::get_qvalues_one_inflated(res_CARseq_permuted$p[, k]) < 0.1, na.rm=TRUE), " genes q value < 0.1)"))
++ }
+> dev.off()
+null device 
+          1 
+> saveRDS(res_CARseq_permuted, "../results/SCZ_CARseq_ICeDT_permuted_SV2.rds")
+> 
+> 
+> 
+> # permuted
+> res_CARseq_permuted = run_CARseq(count_matrix = trec,
++                                  cellular_proportions = cellular_proportions$CIBERSORT,
++                                  groups = col_data$DiagnosisP,
++                                  formula = ~ scaled_log_depth + InstitutionPenn + InstitutionPitt +
++                                    genderMale + scaled_age_death + scaled_PMI + scaled_RIN + scaled_RIN2 +
++                                    genoPC1 + genoPC2 +
++                                    libclustB + libclustbase + libclustC + libclustD + libclustE + libclustF + libclustG +
++                                    sv1 + sv2,
++                                  data = col_data,
++                                  read_depth = 1,
++                                  shrunken_lfc = TRUE,
++                                  cores = 32,
++                                  fix_overdispersion = FALSE
++ )
+starting worker pid=4943 on localhost:11287 at 03:18:50.268
+starting worker pid=4956 on localhost:11287 at 03:18:50.542
+starting worker pid=4969 on localhost:11287 at 03:18:50.801
+starting worker pid=4982 on localhost:11287 at 03:18:51.055
+starting worker pid=4995 on localhost:11287 at 03:18:51.308
+starting worker pid=5008 on localhost:11287 at 03:18:51.567
+starting worker pid=5021 on localhost:11287 at 03:18:51.828
+starting worker pid=5034 on localhost:11287 at 03:18:52.086
+starting worker pid=5047 on localhost:11287 at 03:18:52.339
+starting worker pid=5060 on localhost:11287 at 03:18:52.595
+starting worker pid=5073 on localhost:11287 at 03:18:52.857
+starting worker pid=5086 on localhost:11287 at 03:18:53.139
+starting worker pid=5099 on localhost:11287 at 03:18:53.421
+starting worker pid=5112 on localhost:11287 at 03:18:53.699
+starting worker pid=5126 on localhost:11287 at 03:18:53.986
+starting worker pid=5139 on localhost:11287 at 03:18:54.271
+starting worker pid=5152 on localhost:11287 at 03:18:54.549
+starting worker pid=5165 on localhost:11287 at 03:18:54.838
+starting worker pid=5178 on localhost:11287 at 03:18:55.122
+starting worker pid=5191 on localhost:11287 at 03:18:55.408
+starting worker pid=5204 on localhost:11287 at 03:18:55.690
+starting worker pid=5217 on localhost:11287 at 03:18:55.969
+starting worker pid=5230 on localhost:11287 at 03:18:56.253
+starting worker pid=5243 on localhost:11287 at 03:18:56.536
+starting worker pid=5256 on localhost:11287 at 03:18:56.818
+starting worker pid=5269 on localhost:11287 at 03:18:57.105
+starting worker pid=5282 on localhost:11287 at 03:18:57.387
+starting worker pid=5295 on localhost:11287 at 03:18:57.672
+starting worker pid=5308 on localhost:11287 at 03:18:57.948
+starting worker pid=5321 on localhost:11287 at 03:18:58.221
+starting worker pid=5334 on localhost:11287 at 03:18:58.518
+starting worker pid=5347 on localhost:11287 at 03:18:58.791
+Loading required package: CARseq
+Loading required package: CARseq
+Loading required package: CARseq
+Loading required package: CARseq
+Loading required package: CARseq
+Loading required package: CARseq
+Loading required package: CARseq
+Loading required package: CARseq
+Loading required package: CARseq
+Loading required package: CARseq
+Loading required package: CARseq
+Loading required package: CARseq
+Loading required package: CARseq
+loaded CARseq and set parent environment
+loaded CARseq and set parent environment
+Loading required package: CARseq
+loaded CARseq and set parent environment
+Loading required package: CARseq
+loaded CARseq and set parent environment
+loaded CARseq and set parent environment
+Loading required package: CARseq
+Loading required package: CARseq
+loaded CARseq and set parent environment
+loaded CARseq and set parent environment
+Loading required package: CARseq
+loaded CARseq and set parent environment
+loaded CARseq and set parent environment
+loaded CARseq and set parent environment
+Loading required package: CARseq
+loaded CARseq and set parent environment
+Loading required package: CARseq
+loaded CARseq and set parent environment
+Loading required package: CARseq
+loaded CARseq and set parent environment
+Loading required package: CARseq
+loaded CARseq and set parent environment
+Loading required package: CARseq
+loaded CARseq and set parent environment
+Loading required package: CARseq
+Loading required package: CARseq
+loaded CARseq and set parent environment
+Loading required package: CARseq
+Loading required package: CARseq
+loaded CARseq and set parent environment
+Loading required package: CARseq
+loaded CARseq and set parent environment
+loaded CARseq and set parent environment
+Loading required package: CARseq
+loaded CARseq and set parent environment
+Loading required package: CARseq
+loaded CARseq and set parent environment
+Loading required package: CARseq
+Loading required package: CARseq
+loaded CARseq and set parent environment
+loaded CARseq and set parent environment
+loaded CARseq and set parent environment
+loaded CARseq and set parent environment
+loaded CARseq and set parent environment
+loaded CARseq and set parent environment
+loaded CARseq and set parent environment
+loaded CARseq and set parent environment
+loaded CARseq and set parent environment
+loaded CARseq and set parent environment
+loaded CARseq and set parent environment
+Gene 2000 of 20788 has been processed at 2020-07-02 03:21:42 [1st pass]
+Gene 3000 of 20788 has been processed at 2020-07-02 03:21:53 [1st pass]
+Gene 1000 of 20788 has been processed at 2020-07-02 03:22:01 [1st pass]
+Gene 4000 of 20788 has been processed at 2020-07-02 03:24:30 [1st pass]
+Gene 5000 of 20788 has been processed at 2020-07-02 03:24:39 [1st pass]
+Gene 6000 of 20788 has been processed at 2020-07-02 03:24:52 [1st pass]
+Gene 7000 of 20788 has been processed at 2020-07-02 03:26:49 [1st pass]
+Gene 8000 of 20788 has been processed at 2020-07-02 03:27:15 [1st pass]
+Gene 9000 of 20788 has been processed at 2020-07-02 03:27:18 [1st pass]
+Gene 10000 of 20788 has been processed at 2020-07-02 03:27:26 [1st pass]
+Gene 11000 of 20788 has been processed at 2020-07-02 03:29:54 [1st pass]
+Gene 12000 of 20788 has been processed at 2020-07-02 03:30:06 [1st pass]
+Gene 13000 of 20788 has been processed at 2020-07-02 03:30:07 [1st pass]
+Gene 14000 of 20788 has been processed at 2020-07-02 03:32:07 [1st pass]
+Gene 15000 of 20788 has been processed at 2020-07-02 03:32:36 [1st pass]
+Gene 16000 of 20788 has been processed at 2020-07-02 03:32:48 [1st pass]
+Gene 17000 of 20788 has been processed at 2020-07-02 03:34:22 [1st pass]
+Gene 18000 of 20788 has been processed at 2020-07-02 03:35:05 [1st pass]
+Gene 19000 of 20788 has been processed at 2020-07-02 03:35:15 [1st pass]
+Gene 20000 of 20788 has been processed at 2020-07-02 03:35:47 [1st pass]
+Gene 20788 of 20788 has been processed at 2020-07-02 03:36:03 [1st pass]
+loaded CARseq and set parent environment
+loaded CARseq and set parent environment
+loaded CARseq and set parent environment
+loaded CARseq and set parent environment
+loaded CARseq and set parent environment
+loaded CARseq and set parent environment
+loaded CARseq and set parent environment
+loaded CARseq and set parent environment
+loaded CARseq and set parent environment
+loaded CARseq and set parent environment
+loaded CARseq and set parent environment
+loaded CARseq and set parent environment
+loaded CARseq and set parent environment
+loaded CARseq and set parent environment
+loaded CARseq and set parent environment
+loaded CARseq and set parent environment
+loaded CARseq and set parent environment
+loaded CARseq and set parent environment
+loaded CARseq and set parent environment
+loaded CARseq and set parent environment
+loaded CARseq and set parent environment
+loaded CARseq and set parent environment
+loaded CARseq and set parent environment
+loaded CARseq and set parent environment
+loaded CARseq and set parent environment
+loaded CARseq and set parent environment
+loaded CARseq and set parent environment
+loaded CARseq and set parent environment
+loaded CARseq and set parent environment
+loaded CARseq and set parent environment
+loaded CARseq and set parent environment
+loaded CARseq and set parent environment
+Gene 1000 of 20788 has been processed at 2020-07-02 03:36:38 [2nd pass for shrunken LFC]
+Gene 2000 of 20788 has been processed at 2020-07-02 03:36:38 [2nd pass for shrunken LFC]
+Gene 3000 of 20788 has been processed at 2020-07-02 03:36:48 [2nd pass for shrunken LFC]
+Gene 6000 of 20788 has been processed at 2020-07-02 03:37:12 [2nd pass for shrunken LFC]
+Gene 5000 of 20788 has been processed at 2020-07-02 03:37:17 [2nd pass for shrunken LFC]
+Gene 4000 of 20788 has been processed at 2020-07-02 03:37:18 [2nd pass for shrunken LFC]
+Gene 7000 of 20788 has been processed at 2020-07-02 03:37:45 [2nd pass for shrunken LFC]
+Gene 9000 of 20788 has been processed at 2020-07-02 03:37:50 [2nd pass for shrunken LFC]
+Gene 8000 of 20788 has been processed at 2020-07-02 03:37:50 [2nd pass for shrunken LFC]
+Gene 10000 of 20788 has been processed at 2020-07-02 03:38:08 [2nd pass for shrunken LFC]
+Gene 11000 of 20788 has been processed at 2020-07-02 03:38:18 [2nd pass for shrunken LFC]
+Gene 12000 of 20788 has been processed at 2020-07-02 03:38:23 [2nd pass for shrunken LFC]
+Gene 13000 of 20788 has been processed at 2020-07-02 03:38:28 [2nd pass for shrunken LFC]
+Gene 14000 of 20788 has been processed at 2020-07-02 03:38:37 [2nd pass for shrunken LFC]
+Gene 15000 of 20788 has been processed at 2020-07-02 03:38:54 [2nd pass for shrunken LFC]
+Gene 16000 of 20788 has been processed at 2020-07-02 03:39:01 [2nd pass for shrunken LFC]
+Gene 17000 of 20788 has been processed at 2020-07-02 03:39:10 [2nd pass for shrunken LFC]
+Gene 18000 of 20788 has been processed at 2020-07-02 03:39:26 [2nd pass for shrunken LFC]
+Gene 19000 of 20788 has been processed at 2020-07-02 03:39:28 [2nd pass for shrunken LFC]
+Gene 20000 of 20788 has been processed at 2020-07-02 03:39:33 [2nd pass for shrunken LFC]
+Gene 20788 of 20788 has been processed at 2020-07-02 03:39:39 [2nd pass for shrunken LFC]
+> 
+> pdf("../figures/SCZ_CARseq_CIBERSORT_permuted_SV2.pdf",
++     width=6, height=6)
+> par(mfrow=c(2,3), bty="n", mar=c(5,4,2,1))
+> for(k in seq_len(ncol(res_CARseq_permuted$p))) {
++   hist(res_CARseq_permuted$p[,k], main=colnames(res_CARseq_permuted$p)[k], breaks=20,
++        xlab = paste0("p-value (", sum(CARseq:::get_qvalues_one_inflated(res_CARseq_permuted$p[, k]) < 0.1, na.rm=TRUE), " genes q value < 0.1)"))
++ }
+> dev.off()
+null device 
+          1 
+> saveRDS(res_CARseq_permuted, "../results/SCZ_CARseq_CIBERSORT_permuted_SV2.rds")
+> 
+> proc.time()
+    user   system  elapsed 
+  24.907    4.856 2516.923 

@@ -1,0 +1,337 @@
+> # Assuming we're on longleaf
+> rm(list=ls())
+> cs_dir 		= "/pine/scr/p/l/pllittle/CS_eQTL"
+> cmc_dir 	= file.path(cs_dir,"s3_Real/CMC")
+> repo_dir 	= "~/github/CARseq_pipelines"
+> 
+> if(FALSE){ # Assuming mycompH
++ rm(list=ls()); desk_dir = "C:/Users/plittle/Desktop"
++ cmc_dir = file.path(desk_dir,"CS_eQTL/s3_Real/CMC")
++ repo_dir = file.path(desk_dir,"github","CARseq_pipelines")
++ }
+> 
+> # Source functions
+> source(file.path(repo_dir,"R","base_functions_plittle.R"))
+> run_hapQC = function(hap1,hap2,hapN){
++ 	if(FALSE){
++ 		hap1 = rds$hap1; hap2 = rds$hap2; hapN = rds$hapN
++ 	}
++ 	
++ 	# Double check rownames and column names are matched
++ 	check1 = any(colnames(hap1) != colnames(hap2))
++ 	check2 = any(colnames(hap2) != colnames(hapN))
++ 	check3 = any(rownames(hap1) != rownames(hap2))
++ 	check4 = any(rownames(hap2) != rownames(hapN))
++ 	if( check1 || check2 || check3 || check4 ){
++ 		stop("Row or column names aren't matching up!")
++ 	}
++ 	
++ 	tmp_df = smart_df(RNAseq_ID = colnames(hap1),
++ 		subj_hapN = colSums(hapN),
++ 		subj_hapTot = colSums(hap1 + hap2 + hapN))
++ 	tmp_df$prop_hapN = tmp_df$subj_hapN / tmp_df$subj_hapTot
++ 	rownames(tmp_df) = NULL
++ 	# head(tmp_df)
++ 	
++ 	par(mfrow=c(1,2),mar=c(5,4,1,0.5))
++ 	smart_hist(tmp_df$prop_hapN,breaks = 40,main = "",
++ 		xlab = "Proportion of unassigned haplotype counts \n(hapN / (hap1 + hap2 + hapN))")
++ 	plot(tmp_df$subj_hapN/1e3,tmp_df$subj_hapTot/1e6,bty = "n",
++ 		xlab = "# hapN Counts (thousand)",
++ 		ylab = "# hapTotal Counts (millon)",
++ 		col = rgb(0,0,0,0.5),pch = 16)
++ 	par(mfrow=c(1,1),mar=c(5,4,4,2)+0.1)
++ 	
++ 	tmp_df
++ 	
++ }
+> run_TReC_ASReC = function(hap1,hap2,trec){
++ 	if(FALSE){
++ 		hap1 = rds$hap1; hap2 = rds$hap2; trec = rds$trec
++ 	}
++ 	
++ 	tmp_df = smart_df(subj_asrec = colSums(hap1 + hap2),
++ 		subj_trec = colSums(trec))
++ 	tmp_df$prop_asrec = tmp_df$subj_asrec / tmp_df$subj_trec
++ 	tmp_df[1:5,]
++ 	par(mfrow=c(1,2),mar=c(4,4,1,0.5))
++ 	smart_hist(tmp_df$prop_asrec,breaks = 50,main = "",
++ 		xlab = "# ASReC / # TReC")
++ 	plot(tmp_df$subj_trec/1e6,tmp_df$subj_asrec/1e6,
++ 		bty = "n",xlab = "# TReC (million)",
++ 		ylab = "# ASReC (million)",pch = 16,col = rgb(0,0,0,0.5))
++ 	lm_out = lm(subj_asrec ~ -1 + subj_trec,data = tmp_df); lm_out
++ 	tmp_slope = as.numeric(lm_out$coefficients)
++ 	abline(a=0,b=tmp_slope,lwd=2,lty=2,col="red")
++ 	text(min(tmp_df$subj_trec/1e6),
++ 		max(tmp_df$subj_asrec/1e6),adj = 0,
++ 		labels = sprintf("y = %s x",round(tmp_slope,3)))
++ 	par(mfrow=c(1,1),mar=c(5,4,4,2)+0.1)
++ 	
++ }
+> 
+> ## Write functions modeled off Vasyl's code
+> ## Want to filter out subjects, then filter out genes, then filter out subject/gene pairs (aka set ASREC set to 0)
+> 
+> 
+> # ----------
+> # CMC-related analyses
+> # ----------
+> 
+> # Import list of 10 outliers
+> outlier_fn = file.path(cmc_dir,"CMC_MSSM-Penn-Pitt_DLPFC_mRNA_outlierSamples.txt")
+> outlier = smart_RT(outlier_fn,header = TRUE,sep = "\t")
+> outlier
+   Individual.ID
+1   CMC_MSSM_301
+2   CMC_MSSM_381
+3   CMC_PENN_052
+4   CMC_MSSM_316
+5   CMC_MSSM_069
+6   CMC_MSSM_149
+7   CMC_MSSM_063
+8   CMC_MSSM_223
+9   CMC_MSSM_246
+10  CMC_MSSM_214
+> 
+> # Import Release3 sampleID key
+> key_fn = file.path(cmc_dir,"Release3_SampleID_key.csv")
+> key = smart_RT(key_fn,sep = ",",header = TRUE)
+> outliers = key[which(key$Individual_ID %in% outlier$Individual.ID),]
+> outliers
+    Individual_ID ATACSeq.Assay_Sample_ID RNAseq.Sample_RNA_ID
+197  CMC_MSSM_214                  B298T1     MSSM_RNA_PFC_260
+283  CMC_MSSM_381                    <NA>      MSSM_RNA_PFC_60
+296  CMC_MSSM_063                    <NA>     MSSM_RNA_PFC_133
+298  CMC_MSSM_069                    <NA>     MSSM_RNA_PFC_139
+311  CMC_MSSM_149                    <NA>     MSSM_RNA_PFC_210
+321  CMC_MSSM_223                    <NA>     MSSM_RNA_PFC_278
+323  CMC_MSSM_246                    <NA>     MSSM_RNA_PFC_299
+330  CMC_MSSM_301                    <NA>     MSSM_RNA_PFC_348
+332  CMC_MSSM_316                    <NA>     MSSM_RNA_PFC_361
+384  CMC_PENN_052                    <NA>      PENN_RNA_PFC_56
+    Genotypes.Genotyping_Sample_ID
+197                        MSSM_27
+283                        MSSM_60
+296                       MSSM_133
+298                       MSSM_139
+311                       MSSM_210
+321                       MSSM_278
+323                       MSSM_299
+330                       MSSM_348
+332                       MSSM_361
+384                        PENN_56
+> 
+> # Import total and haploytype counts
+> rds_fn = file.path(cmc_dir,"trec_hap1_hap2_hapN.rds")
+> if( !file.exists(rds_fn) ){
++ 	all_bam_fns = list.files(file.path(cmc_dir,"BAM"))
++ 	length(all_bam_fns)
++ 	bad_samps = c()
++ 	for(ii in seq(length(all_bam_fns))){
++ 		# ii = 1
++ 		if(ii %% 5 == 0) cat(".")
++ 		if(ii %% 1e2 == 0 || ii == length(all_bam_fns)) cat(sprintf("%s\n",ii))
++ 		
++ 		samp = all_bam_fns[ii]
++ 		samp_dir = file.path(cmc_dir,"BAM",samp)
++ 		
++ 		trec_fn = file.path(samp_dir,"gene_level_counts_filterIt_total.txt")
++ 		hap1_fn = file.path(samp_dir,"gene_level_counts_filterIt_hap1.txt")
++ 		hap2_fn = file.path(samp_dir,"gene_level_counts_filterIt_hap2.txt")
++ 		hapN_fn = file.path(samp_dir,"gene_level_counts_filterIt_hapN.txt")
++ 		
++ 		if( !file.exists(hap1_fn) ){
++ 			warning(sprintf("%s files have an issue!\n",samp))
++ 			bad_samps = c(bad_samps,samp)
++ 			next
++ 		}
++ 		
++ 		tmp_trec = smart_RT(trec_fn,sep = "\t",header = TRUE)
++ 		tmp_hap1 = smart_RT(hap1_fn,sep = "\t",header = TRUE)
++ 		tmp_hap2 = smart_RT(hap2_fn,sep = "\t",header = TRUE)
++ 		tmp_hapN = smart_RT(hapN_fn,sep = "\t",header = TRUE)
++ 		
++ 		if(ii == 1){
++ 			trec = matrix(NA,nrow(tmp_trec),length(all_bam_fns))
++ 			rownames(trec) = tmp_trec$genes
++ 			colnames(trec) = all_bam_fns
++ 			hap1 = trec; hap2 = trec; hapN = trec
++ 		}
++ 		
++ 		trec[,samp] = as.numeric(tmp_trec[,3]) # SO_1
++ 		hap1[,samp] = tmp_hap1$counts
++ 		hap2[,samp] = tmp_hap2$counts
++ 		hapN[,samp] = tmp_hapN$counts
++ 		
++ 		rm(tmp_trec,tmp_hap1,tmp_hap2,tmp_hapN)
++ 	}
++ 	if( length(bad_samps) > 0 ){
++ 		trec = trec[,!(colnames(trec) %in% bad_samps)]
++ 		hap1 = hap1[,!(colnames(hap1) %in% bad_samps)]
++ 		hap2 = hap2[,!(colnames(hap2) %in% bad_samps)]
++ 		hapN = hapN[,!(colnames(hapN) %in% bad_samps)]
++ 		print(bad_samps)
++ 	}
++ 	# MSSM_RNA_PFC_331 seems to be a bad quality sample b/c no heterozygous SNPs!
++ 	saveRDS(list(outliers = outliers,trec = trec,
++ 		hap1 = hap1,hap2 = hap2,hapN = hapN),rds_fn)
++ }
+> 
+> # Analysis/Plotting
+> rds = readRDS(rds_fn)
+> names(rds)
+[1] "outliers" "trec"     "hap1"     "hap2"     "hapN"    
+> str(rds)
+List of 5
+ $ outliers:'data.frame':	10 obs. of  4 variables:
+  ..$ Individual_ID                 : chr [1:10] "CMC_MSSM_214" "CMC_MSSM_381" "CMC_MSSM_063" "CMC_MSSM_069" ...
+  ..$ ATACSeq.Assay_Sample_ID       : chr [1:10] "B298T1" NA NA NA ...
+  ..$ RNAseq.Sample_RNA_ID          : chr [1:10] "MSSM_RNA_PFC_260" "MSSM_RNA_PFC_60" "MSSM_RNA_PFC_133" "MSSM_RNA_PFC_139" ...
+  ..$ Genotypes.Genotyping_Sample_ID: chr [1:10] "MSSM_27" "MSSM_60" "MSSM_133" "MSSM_139" ...
+ $ trec    : num [1:56632, 1:612] 103 2 372 211 141 22 295 149 709 495 ...
+  ..- attr(*, "dimnames")=List of 2
+  .. ..$ : chr [1:56632] "ENSG00000000003" "ENSG00000000005" "ENSG00000000419" "ENSG00000000457" ...
+  .. ..$ : chr [1:612] "MSSM_RNA_BP_PFC_10" "MSSM_RNA_BP_PFC_11" "MSSM_RNA_BP_PFC_12" "MSSM_RNA_BP_PFC_13" ...
+ $ hap1    : int [1:56632, 1:612] 0 0 0 24 9 0 11 27 1 23 ...
+  ..- attr(*, "dimnames")=List of 2
+  .. ..$ : chr [1:56632] "ENSG00000000003" "ENSG00000000005" "ENSG00000000419" "ENSG00000000457" ...
+  .. ..$ : chr [1:612] "MSSM_RNA_BP_PFC_10" "MSSM_RNA_BP_PFC_11" "MSSM_RNA_BP_PFC_12" "MSSM_RNA_BP_PFC_13" ...
+ $ hap2    : int [1:56632, 1:612] 0 0 0 29 13 0 18 26 1 0 ...
+  ..- attr(*, "dimnames")=List of 2
+  .. ..$ : chr [1:56632] "ENSG00000000003" "ENSG00000000005" "ENSG00000000419" "ENSG00000000457" ...
+  .. ..$ : chr [1:612] "MSSM_RNA_BP_PFC_10" "MSSM_RNA_BP_PFC_11" "MSSM_RNA_BP_PFC_12" "MSSM_RNA_BP_PFC_13" ...
+ $ hapN    : int [1:56632, 1:612] 0 0 0 0 1 0 0 0 1 1 ...
+  ..- attr(*, "dimnames")=List of 2
+  .. ..$ : chr [1:56632] "ENSG00000000003" "ENSG00000000005" "ENSG00000000419" "ENSG00000000457" ...
+  .. ..$ : chr [1:612] "MSSM_RNA_BP_PFC_10" "MSSM_RNA_BP_PFC_11" "MSSM_RNA_BP_PFC_12" "MSSM_RNA_BP_PFC_13" ...
+> rds$outliers
+    Individual_ID ATACSeq.Assay_Sample_ID RNAseq.Sample_RNA_ID
+197  CMC_MSSM_214                  B298T1     MSSM_RNA_PFC_260
+283  CMC_MSSM_381                    <NA>      MSSM_RNA_PFC_60
+296  CMC_MSSM_063                    <NA>     MSSM_RNA_PFC_133
+298  CMC_MSSM_069                    <NA>     MSSM_RNA_PFC_139
+311  CMC_MSSM_149                    <NA>     MSSM_RNA_PFC_210
+321  CMC_MSSM_223                    <NA>     MSSM_RNA_PFC_278
+323  CMC_MSSM_246                    <NA>     MSSM_RNA_PFC_299
+330  CMC_MSSM_301                    <NA>     MSSM_RNA_PFC_348
+332  CMC_MSSM_316                    <NA>     MSSM_RNA_PFC_361
+384  CMC_PENN_052                    <NA>      PENN_RNA_PFC_56
+    Genotypes.Genotyping_Sample_ID
+197                        MSSM_27
+283                        MSSM_60
+296                       MSSM_133
+298                       MSSM_139
+311                       MSSM_210
+321                       MSSM_278
+323                       MSSM_299
+330                       MSSM_348
+332                       MSSM_361
+384                        PENN_56
+> rds$trec[1:10,1:5]
+                MSSM_RNA_BP_PFC_10 MSSM_RNA_BP_PFC_11 MSSM_RNA_BP_PFC_12
+ENSG00000000003                103                258                148
+ENSG00000000005                  2                  5                  4
+ENSG00000000419                372                531                597
+ENSG00000000457                211                326                324
+ENSG00000000460                141                239                167
+ENSG00000000938                 22                 49                 29
+ENSG00000000971                295                244                182
+ENSG00000001036                149                256                156
+ENSG00000001084                709               1568                893
+ENSG00000001167                495                885                645
+                MSSM_RNA_BP_PFC_13 MSSM_RNA_BP_PFC_14
+ENSG00000000003                170                216
+ENSG00000000005                  4                  7
+ENSG00000000419                522                890
+ENSG00000000457                225                327
+ENSG00000000460                183                271
+ENSG00000000938                 33                 36
+ENSG00000000971                369                374
+ENSG00000001036                195                168
+ENSG00000001084                868               1425
+ENSG00000001167                795                727
+> 
+> ## The ten outliers labeled by CMC's analysis
+> rds$outliers[,c("Individual_ID","RNAseq.Sample_RNA_ID")]
+    Individual_ID RNAseq.Sample_RNA_ID
+197  CMC_MSSM_214     MSSM_RNA_PFC_260
+283  CMC_MSSM_381      MSSM_RNA_PFC_60
+296  CMC_MSSM_063     MSSM_RNA_PFC_133
+298  CMC_MSSM_069     MSSM_RNA_PFC_139
+311  CMC_MSSM_149     MSSM_RNA_PFC_210
+321  CMC_MSSM_223     MSSM_RNA_PFC_278
+323  CMC_MSSM_246     MSSM_RNA_PFC_299
+330  CMC_MSSM_301     MSSM_RNA_PFC_348
+332  CMC_MSSM_316     MSSM_RNA_PFC_361
+384  CMC_PENN_052      PENN_RNA_PFC_56
+> 
+> ## Remove ten outliers
+> int_subj = intersect(colnames(rds$trec),key$RNAseq.Sample_RNA_ID)
+> int_subj = int_subj[!(int_subj %in% rds$outliers$RNAseq.Sample_RNA_ID)]
+> length(int_subj)
+[1] 594
+> rds$trec = rds$trec[,int_subj]
+> rds$hap1 = rds$hap1[,int_subj]
+> rds$hap2 = rds$hap2[,int_subj]
+> rds$hapN = rds$hapN[,int_subj]
+> 
+> ## Isolating four potential additional CMC outliers
+> png(file.path(repo_dir,"results","hapQC_CMC.png"),
++ 	units = 'px',height = 1500,width = 3000,res = 250,
++ 	type = 'cairo',pointsize = 20)
+> out_hapQC = run_hapQC(hap1 = rds$hap1,hap2 = rds$hap2,hapN = rds$hapN)
+> dev.off()
+null device 
+          1 
+> smart_WT(out_hapQC,file.path(repo_dir,"results","hapQC_CMC.tsv"),sep = "\t")
+> 
+> outlier2 = out_hapQC[which(out_hapQC$subj_hapN/1e3 > 8
++ 	& out_hapQC$subj_hapTot/1e6 < 1.5),]; outlier2
+           RNAseq_ID subj_hapN subj_hapTot  prop_hapN
+99  MSSM_RNA_PFC_183     13206      741690 0.01780528
+100 MSSM_RNA_PFC_184      9852      736353 0.01337945
+192 MSSM_RNA_PFC_304     10070      586647 0.01716535
+> 
+> ## Collect outlier samples
+> outlie_df = smart_df(RNAseq_ID = rds$outliers$RNAseq.Sample_RNA_ID,
++ 	outlier_reason = "CMC")
+> outlie_df = rbind(outlie_df,smart_df(RNAseq_ID = rownames(outlier2),
++ 	outlier_reason = "hapQC"))
+> # outlie_df = rbind(outlie_df,smart_df(RNAseq_ID = "MSSM_RNA_PFC_331",outlier_reason = "no_hetSNPs"))
+> outlie_df = outlie_df[order(outlie_df$RNAseq_ID),]
+> rownames(outlie_df) = seq(nrow(outlie_df))
+> outlie_df
+          RNAseq_ID outlier_reason
+1               100          hapQC
+2               192          hapQC
+3                99          hapQC
+4  MSSM_RNA_PFC_133            CMC
+5  MSSM_RNA_PFC_139            CMC
+6  MSSM_RNA_PFC_210            CMC
+7  MSSM_RNA_PFC_260            CMC
+8  MSSM_RNA_PFC_278            CMC
+9  MSSM_RNA_PFC_299            CMC
+10 MSSM_RNA_PFC_348            CMC
+11 MSSM_RNA_PFC_361            CMC
+12  MSSM_RNA_PFC_60            CMC
+13  PENN_RNA_PFC_56            CMC
+> 
+> ## It seems MSSM_RNA_PFC_260 is an outlier from both CMC and our hapQC plot!
+> 
+> ## TReC and ASReC
+> png(file.path(repo_dir,"results","TReC_ASReC_CMC.png"),
++ 	units = 'px',height = 1500,width = 3000,res = 250,
++ 	type = 'cairo',pointsize = 20)
+> run_TReC_ASReC(hap1 = rds$hap1,hap2 = rds$hap2,trec = rds$trec)
+> dev.off()
+null device 
+          1 
+> 
+> ###
+> 
+> 
+> 
+> proc.time()
+   user  system elapsed 
+  7.682   1.499  10.834 
