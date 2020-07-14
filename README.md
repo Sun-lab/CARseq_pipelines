@@ -9,7 +9,7 @@ The following data files used in this analysis (in data folder) has restricted a
     * data/ASD_rse_filtered_with_SVs.rds
     * data/ASD_rse_filtered.rds
     
-    * produced using code in UCLA_ASD/step2_check_RSEM_ucla.R
+    * produced using code in data/UCLA_ASD/step2_check_RSEM_ucla.R
     
         * data/ucla_eDat.rds
         * data/ucla_cData.ds 
