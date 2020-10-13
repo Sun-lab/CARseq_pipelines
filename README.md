@@ -33,6 +33,10 @@ The following data files used in this analysis (in data folder) has restricted a
     * data/trec_filtered_log_rd_corrected_scz_control.rds
     * data/trec_filtered_log_rd_corrected.rds
 
+ * part of gene expression data used by CIBERSORT
+
+    * data/CIBERSORT_input_observed_TPM_autism.txt
+    * data/CIBERSORT_input_observed_TPM_SCZ.txt
 
 
 Here are the URLs to download the relevant data
