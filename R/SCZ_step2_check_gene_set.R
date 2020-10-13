@@ -6,6 +6,7 @@ theme_set(theme_bw())
 library(tidyverse)
 library(SummarizedExperiment)
 library(qusage)
+library(wesanderson)
 
 # ------------------------------------------------------------------------
 # read in SummarizedExperiment object that contains gene name mapping
@@ -16,7 +17,7 @@ dim(rse_filtered)
 rse_filtered[1:2,1:5]
 
 # ------------------------------------------------------------------------
-# read in CAREseq results
+# read in CARseq results
 # ------------------------------------------------------------------------
 
 res = readRDS("../results/SCZ_CARseq_ICeDT_SV2.rds")
@@ -125,6 +126,29 @@ p2 = ggplot(dfL[which(dfL$Inh < 0.05),],
 
 pdf("../figures/SCZ_log_fc_neurons.pdf", width=8, height=6)
 ggarrange(p1, p2, ncol = 1, nrow = 2, labels="AUTO")
+dev.off()
+
+# grouped boxplot
+dfL_neuron = rbind(dfL[which(dfL$Exc < 0.05), c("react_pathway","SCZ_vs_Control.Exc")] %>% 
+                     rename(SCZ_vs_Control = SCZ_vs_Control.Exc) %>%
+                     add_column(CellType = "Exc"),
+                   dfL[which(dfL$Inh < 0.05), c("react_pathway","SCZ_vs_Control.Inh")] %>%
+                     rename(SCZ_vs_Control = SCZ_vs_Control.Inh) %>%
+                     add_column(CellType = "Inh"))
+dfL_neuron$react_pathway = strwrap(dfL_neuron$react_pathway, 25, simplify=FALSE) %>%
+sapply(function(x) paste(x, collapse="\n"))
+
+pdf("../figures/SCZ_log_fc_neurons_grouped.pdf", width=5.5, height=5)
+ggplot(dfL_neuron, 
+       aes(x=react_pathway, y=SCZ_vs_Control, col=CellType)) +
+  geom_boxplot(outlier.shape = NA, aes(col = CellType), 
+               position = position_dodge(preserve="single")) +
+  geom_point(aes(col = CellType), position=position_jitterdodge()) +
+  coord_flip() + 
+  scale_color_manual(name = "CellType", values = as.character(wes_palette(name="Darjeeling2", 6, type="continuous"))[c(2,3)])+
+  ylab("log fold change, SCZ vs. control") + xlab("") +    
+  labs(title="Neurons") + 
+  geom_hline(yintercept = 0, color = "grey", size=1.0)
 dev.off()
 
 # ------------------------------------------------------------------------

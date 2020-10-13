@@ -184,7 +184,8 @@ for (n in n_list) {
     DE_pattern_list = list(c(fold_change, 1, 1),
                            c(fold_change, fold_change, 1),
                            c(fold_change, round(1000/fold_change)/1000, 1),
-                           c(1, fold_change, 1))
+                           c(1, fold_change, 1),
+                           c(1, 1, fold_change))
     for (DE_pattern_index in seq_along(DE_pattern_list)) {
       DE_pattern = DE_pattern_list[[DE_pattern_index]]
       for (replicate in replicates) {
@@ -315,3 +316,60 @@ ggarrange(
 )
 dev.off()
 
+################################################################################
+# show sensitivity of TOAST vs. CARseq with respect to sample size (figure 2)
+################################################################################
+
+# only show methods with covariates
+metrics_TOAST = metrics[grepl("TOAST_TPM", metrics$method), ]
+# metrics_TOAST_without_covariates = metrics[grepl("TOAST_TPM_w/o_covariates", metrics$method), ]
+metrics_CARseq = metrics[grepl("CARseq", metrics$method), ]
+# metrics_CARseq_without_covariates = metrics[grepl("CARseq_w/o_covariates", metrics$method), ]
+# check if these metric tables are already ranked and are directly comparable:
+stopifnot(metrics_TOAST$DE_pattern == metrics_CARseq$DE_pattern)
+stopifnot(metrics_TOAST$DE_pattern_index == metrics_CARseq$DE_pattern_index)
+stopifnot(metrics_TOAST$replicate == metrics_CARseq$replicate)
+metrics_ratio_of_sensitivity = metrics_CARseq
+metrics_ratio_of_sensitivity$ratio_of_sensitivity = metrics_TOAST$sensitivity / metrics_CARseq$sensitivity 
+
+metrics_ratio_of_sensitivity$method = factor(metrics_ratio_of_sensitivity$method)  # drop unused levels
+levels(metrics_ratio_of_sensitivity$method) = c("w/ covariates", "w/o covariates")
+# only w/ covariates
+metrics_ratio_of_sensitivity = metrics_ratio_of_sensitivity[metrics_ratio_of_sensitivity$method == "w/ covariates",]
+metrics_ratio_of_sensitivity$n = factor(metrics_ratio_of_sensitivity$n)
+library(ggpubr)
+library(wesanderson)
+g_ratio_of_sensitivity = ggplot(metrics_ratio_of_sensitivity, aes(x = n, y = ratio_of_sensitivity)) +
+  geom_boxplot(aes(shape = method)) + 
+  geom_jitter(size = 0.5, col = "red", position=position_jitter(0.2)) +
+  facet_grid(rows = vars(DE_pattern)) +
+  scale_y_continuous(limits = c(0, 1)) +
+  # scale_color_manual(values=wes_palette(name="Darjeeling1")) +
+  # geom_hline(yintercept=1, linetype="solid", color = "black", size = 0.2) +
+  theme_bw() +
+  ylab("ratio of TOAST's sensitivity to CARseq's") +
+  theme(axis.line = element_line(colour = "black"),
+        panel.grid.major = element_blank(),
+        panel.grid.minor = element_blank(),
+        panel.background = element_blank(),
+        plot.margin = margin(t = .35, r = .1, b = 0, l = .1, unit = "in"),
+        legend.position = "bottom",
+        axis.text.x = element_text(size=8, angle=90),
+        axis.text.y = element_text(size=8))
+
+pdf("../figures/ratio_of_sensitivity_TOAST_over_CARseq_p1.pdf", height=4, width=2)
+  g_ratio_of_sensitivity %+% subset(metrics_ratio_of_sensitivity, DE_pattern_index == 1)
+dev.off()
+
+pdf("../figures/ratio_of_sensitivity_TOAST_over_CARseq_p2.pdf", height=4, width=2)
+  g_ratio_of_sensitivity %+% subset(metrics_ratio_of_sensitivity, DE_pattern_index == 2)
+dev.off()
+
+pdf("../figures/ratio_of_sensitivity_TOAST_over_CARseq_p3.pdf", height=4, width=2)
+  g_ratio_of_sensitivity %+% subset(metrics_ratio_of_sensitivity, DE_pattern_index == 3)
+dev.off()
+
+pdf("../figures/ratio_of_sensitivity_TOAST_over_CARseq_p4.pdf", height=4, width=2)
+  g_ratio_of_sensitivity %+% subset(metrics_ratio_of_sensitivity, DE_pattern_index == 4)
+dev.off()
+  

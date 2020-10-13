@@ -133,7 +133,8 @@ the cell fractions are stored in `data/ASD_prop.rds`.
 
     - `R/simulation_step2_simulate_data.R`
 
-3. Conduct tests using CARseq, TOAST and csSAM
+3. Conduct tests using CARseq, TOAST and csSAM, as well as checking the validity of methods in
+   terms of replicability and when noise is present:
     
     - `R/simulation_submit_step3.sh`
     
@@ -148,16 +149,24 @@ the cell fractions are stored in `data/ASD_prop.rds`.
         + `R/simulation_test_csSAM.R`
 
         + `R/simulation_test_CIBERSORTx.R`
-
+      
+    - `R/simulation_step3_test_methods_reproducibility.R`
+    
+    - `R/simulation_step3_test_methods_with_noise.R`
+    
 4. Summarize the simulation results using tables and plots
     
     - `R/simulation_step4_compare_methods_multiple_replicates.R`
+    
+    - `R/simulation_step4_compare_methods_one_replicate.R`
+  
+    - `R/simulation_step4_compare_methods_with_noise.R`
 
-    - Simulationa differential expression (DE) testing results in tables:
+    - Simulationa differential expression (DE) testing results, in tables:
 
       + `results/compare_method_metrics_multiple_replicates.csv`
 
-    - Simulation DE test results in figures:
+    - Simulation DE test results, in figures:
 
       + `figures/compare_methods_fdr_multiple_replicates_draft_version_p1.pdf`
 
@@ -166,6 +175,32 @@ the cell fractions are stored in `data/ASD_prop.rds`.
       + `figures/compare_methods_fdr_multiple_replicates_draft_version_p3.pdf`
 
       + `figures/compare_methods_fdr_multiple_replicates_draft_version_p4.pdf`
+      
+    - Simulation DE test ratio of sensitivity between TOAST and CARseq, in figures:
+      
+      + `figures/ratio_of_sensitivity_TOAST_over_CARseq_p1.pdf`
+      
+      + `figures/ratio_of_sensitivity_TOAST_over_CARseq_p2.pdf`
+      
+      + `figures/ratio_of_sensitivity_TOAST_over_CARseq_p3.pdf`
+      
+      + `figures/ratio_of_sensitivity_TOAST_over_CARseq_p4.pdf`
 
-
+    - Simulation reproducibility measured by effect size estimation, in figures:
+      
+      + `figures/reproducibility_n_50_DE_pattern_2_1_1_replicate_1.pdf`
+      
+      + `figures/reproducibility_n_100_DE_pattern_2_1_1_replicate_1.pdf`
+      
+      + `figures/reproducibility_n_200_DE_pattern_2_1_1_replicate_1.pdf`
+      
+    - Simulation DE test results when size factor is misspecified, in figures:
+      
+      + `figures/compare_methods_fdr_size_factor_1.2_draft_version_p1.pdf`
+      
+      + `figures/compare_methods_fdr_size_factor_2_draft_version_p1.pdf`
+      
+    - Simulation DE test results when noise has been added to cell fractions, in figures:
+    
+      + `figures/compare_methods_fdr_with_noise_draft_version_p1.pdf`
 

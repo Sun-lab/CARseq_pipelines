@@ -27,7 +27,7 @@ test_TOAST = function(config) {
   }
   
   # With RIN
-  esign = data.frame(RIN=clinical_variables, group=gl(2, round(n/2)), depth=d)
+  design = data.frame(RIN=clinical_variables, group=gl(2, round(n/2)), depth=d)
   design_out = makeDesign(design, rho)
   fitted_model = fitModel(design_out, observed_read_count)
   
