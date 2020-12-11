@@ -174,21 +174,27 @@ names(pvals)
 
 cr1 = cor(-log10(pvals[,3:8]), -log10(pvals[,17:22]), 
           use="pairwise.complete.obs")
+
+cr1.sp = cor(-log10(pvals[,3:8]), -log10(pvals[,17:22]), 
+          use="pairwise.complete.obs", method="spearman")
+
 cr2 = cor(-log10(pvals[,10:15]), -log10(pvals[,24:29]), 
           use="pairwise.complete.obs")
+
+cr2.sp = cor(-log10(pvals[,10:15]), -log10(pvals[,24:29]), 
+          use="pairwise.complete.obs", method="spearman")
 
 rownames(cr1) = gsub("CARseq_", "", rownames(cr1))
 colnames(cr1) = gsub("CARseq_", "", colnames(cr1))
 
+rownames(cr1.sp) = gsub("CARseq_", "", rownames(cr1.sp))
+colnames(cr1.sp) = gsub("CARseq_", "", colnames(cr1.sp))
+
 rownames(cr2) = gsub("TOAST_", "", rownames(cr2))
 colnames(cr2) = gsub("TOAST_", "", colnames(cr2))
 
-cor.test(-log10(pvals[,CARseq_Astro.SCZ]), 
-         -log10(pvals[,CARseq_Astro.ASD]))
-
-cor.test(-log10(pvals[,TOAST_Astro.SCZ]), 
-         -log10(pvals[,TOAST_Astro.ASD]))
-
+rownames(cr2.sp) = gsub("TOAST_", "", rownames(cr2.sp))
+colnames(cr2.sp) = gsub("TOAST_", "", colnames(cr2.sp))
 
 cor.test(-log10(pvals[,CARseq_Micro.SCZ]), 
          -log10(pvals[,CARseq_Micro.ASD]))
@@ -196,11 +202,20 @@ cor.test(-log10(pvals[,CARseq_Micro.SCZ]),
 cor.test(-log10(pvals[,TOAST_Micro.SCZ]), 
          -log10(pvals[,TOAST_Micro.ASD]))
 
+
+cor.test(-log10(pvals[,CARseq_Micro.SCZ]), 
+         -log10(pvals[,CARseq_Micro.ASD]), method="spearman")
+
+cor.test(-log10(pvals[,TOAST_Micro.SCZ]), 
+         -log10(pvals[,TOAST_Micro.ASD]), method="spearman")
+
 summary(c(cr1))
 summary(c(cr2))
 
 
 round(cr1, 2)
+round(cr1.sp, 2)
+
 rownames(cr1) = gsub(".SCZ", "", rownames(cr1), fixed=TRUE)
 colnames(cr1) = gsub(".ASD", "", colnames(cr1), fixed=TRUE)
 
@@ -214,7 +229,24 @@ pdf("../figures/step_x_SCZ_vs_ASD_CARseq_cor.pdf", width=4.5, height=4)
 print(gc1)
 dev.off()
 
+
+rownames(cr1.sp) = gsub(".SCZ", "", rownames(cr1.sp), fixed=TRUE)
+colnames(cr1.sp) = gsub(".ASD", "", colnames(cr1.sp), fixed=TRUE)
+
+gc1 = ggcorrplot(cr1.sp, lab = TRUE) + 
+  scale_fill_gradient2(low="blue", mid="white", high="red", 
+                       limit=c(-0.25, 0.25))
+gc1 = annotate_figure(gc1, bottom = text_grob("Schizophrenia"), 
+                      left=text_grob("ASD", rot = 90))
+
+pdf("../figures/step_x_SCZ_vs_ASD_CARseq_cor_spearman.pdf", width=4.5, height=4)
+print(gc1)
+dev.off()
+
+
 round(cr2, 2)
+round(cr2.sp, 2)
+
 rownames(cr2) = gsub(".SCZ", "", rownames(cr2), fixed=TRUE)
 colnames(cr2) = gsub(".ASD", "", colnames(cr2), fixed=TRUE)
 

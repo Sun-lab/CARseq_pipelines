@@ -1,0 +1,417 @@
+
+R version 3.6.2 (2019-12-12) -- "Dark and Stormy Night"
+Copyright (C) 2019 The R Foundation for Statistical Computing
+Platform: x86_64-apple-darwin15.6.0 (64-bit)
+
+R is free software and comes with ABSOLUTELY NO WARRANTY.
+You are welcome to redistribute it under certain conditions.
+Type 'license()' or 'licence()' for distribution details.
+
+  Natural language support but running in an English locale
+
+R is a collaborative project with many contributors.
+Type 'contributors()' for more information and
+'citation()' on how to cite R or R packages in publications.
+
+Type 'demo()' for some demos, 'help()' for on-line help, or
+'help.start()' for an HTML browser interface to help.
+Type 'q()' to quit R.
+
+> 
+> # ========================================================================
+> # libraries and path
+> # ========================================================================
+> 
+> library(MASS)
+> library(data.table)
+> library(foreach)
+> library(doParallel)
+Loading required package: iterators
+Loading required package: parallel
+> library(qvalue)
+> library(ggplot2)
+> library(ggpubr)
+> library(ggpointdensity)
+> library(fgsea)
+> library(stringr)
+> library(ggcorrplot)
+> 
+> # ------------------------------------------------------------------------
+> # read in pathway information
+> # ------------------------------------------------------------------------
+> 
+> gmtfile_reactome  = "../data/c2.cp.reactome.v7.1.symbols.gmt"
+> pathways_reactome = gmtPathways(gmtfile_reactome)
+> 
+> reactome_genes = unique(unlist(pathways_reactome))
+> length(reactome_genes)
+[1] 10807
+> 
+> # ------------------------------------------------------------------------
+> # read in p-values
+> # ------------------------------------------------------------------------
+> 
+> pval_carseq = readRDS("../results/step_z_pval_carseq.rds")
+> pval_snseq  = readRDS("../results/step_z_pval_snseq.rds")
+> 
+> dim(pval_carseq)
+[1] 12527    15
+> dim(pval_snseq)
+[1] 12527    18
+> pval_carseq[1:2,]
+             gene_id gene_name CARseq_Astro CARseq_Exc CARseq_Inh CARseq_Micro
+1 ENSG00000000003.10    TSPAN6    0.1255027  0.6046280 0.02933506    0.7002754
+2  ENSG00000000419.8      DPM1    0.6632756  0.1739825 0.07872326    1.0000000
+  CARseq_Oligo CARseq_OPC  DESeq2_bulk TOAST_Astro TOAST_Exc TOAST_Inh
+1    0.3585876          1 0.0001603225   0.9589563 0.8811683 0.7498910
+2    0.4720418          1 0.6959505937   0.6538012 0.7786788 0.8705232
+  TOAST_Micro TOAST_Oligo TOAST_OPC
+1   0.1313709   0.3853622 0.9883231
+2   0.9372846   0.7714128 0.7818392
+> pval_snseq[1:2,]
+      gene_name PFC_AST-FB PFC_AST-PP PFC_Endothelial PFC_IN-PV PFC_IN-SST
+7741     TSPAN6  0.8947925  0.6802144       0.9197326 0.1512528  0.8875916
+15992      DPM1  0.6482658  0.1096199       0.5339589 0.4811941  0.2139307
+      PFC_IN-SV2C PFC_IN-VIP  PFC_L2_3    PFC_L4 PFC_L5_6-CC  PFC_L5_6
+7741    0.7261116  0.9029420 0.5053968 0.4322709   0.5459669 0.4873304
+15992   0.8286643  0.6770929 0.6198634 0.6566290   0.9340717 0.4827340
+      PFC_Microglia PFC_Neu-mat PFC_Neu-NRGN-I PFC_Neu-NRGN-II
+7741      0.5604572   0.8194594      0.8280195       0.8854074
+15992     0.8221065   0.8907421      0.7751579       0.6132683
+      PFC_Oligodendrocytes   PFC_OPC
+7741             0.9015658 0.1404762
+15992            0.2178388 0.4335813
+> 
+> table(pval_carseq$gene_name == pval_snseq$gene_name)
+
+ TRUE 
+12527 
+> genes = pval_carseq$gene_name
+> length(genes)
+[1] 12527
+> length(unique(genes))
+[1] 12527
+> 
+> # ------------------------------------------------------------------------
+> # filter genes in reactome annoations
+> # ------------------------------------------------------------------------
+> 
+> length(pathways_reactome)
+[1] 1532
+> summary(sapply(pathways_reactome, length))
+   Min. 1st Qu.  Median    Mean 3rd Qu.    Max. 
+   5.00   11.00   23.00   57.02   57.00 1470.00 
+> 
+> for(p1 in names(pathways_reactome)){
++   genes_p1 = intersect(pathways_reactome[[p1]], genes)
++   if(length(genes_p1) < 10 || length(genes_p1) > 1000){
++     pathways_reactome[[p1]] = NULL
++   }else{
++     pathways_reactome[[p1]] = genes_p1
++   }
++ }
+> 
+> length(pathways_reactome)
+[1] 1027
+> summary(sapply(pathways_reactome, length))
+   Min. 1st Qu.  Median    Mean 3rd Qu.    Max. 
+  10.00   16.00   27.00   53.56   55.50  995.00 
+> 
+> # ------------------------------------------------------------------------
+> # GESA
+> # ------------------------------------------------------------------------
+> 
+> pvals = cbind(pval_carseq[,-(1:2)], pval_snseq[,-1])
+> rownames(pvals) = pval_carseq$gene_name
+> 
+> dim(pvals)
+[1] 12527    30
+> pvals[1:2,1:4]
+       CARseq_Astro CARseq_Exc CARseq_Inh CARseq_Micro
+TSPAN6    0.1255027  0.6046280 0.02933506    0.7002754
+DPM1      0.6632756  0.1739825 0.07872326    1.0000000
+> names(pvals)
+ [1] "CARseq_Astro"         "CARseq_Exc"           "CARseq_Inh"          
+ [4] "CARseq_Micro"         "CARseq_Oligo"         "CARseq_OPC"          
+ [7] "DESeq2_bulk"          "TOAST_Astro"          "TOAST_Exc"           
+[10] "TOAST_Inh"            "TOAST_Micro"          "TOAST_Oligo"         
+[13] "TOAST_OPC"            "PFC_AST-FB"           "PFC_AST-PP"          
+[16] "PFC_Endothelial"      "PFC_IN-PV"            "PFC_IN-SST"          
+[19] "PFC_IN-SV2C"          "PFC_IN-VIP"           "PFC_L2_3"            
+[22] "PFC_L4"               "PFC_L5_6-CC"          "PFC_L5_6"            
+[25] "PFC_Microglia"        "PFC_Neu-mat"          "PFC_Neu-NRGN-I"      
+[28] "PFC_Neu-NRGN-II"      "PFC_Oligodendrocytes" "PFC_OPC"             
+> 
+> gsea = list()
+> for(i in 1:ncol(pvals)){
++   cat(i, date(), "\n")
++   
++   stats = -log10(pvals[, i])
++   names(stats) =  rownames(pvals)
++   length(stats)
++   
++   stats = na.omit(stats)
++   length(stats)
++ 
++   set.seed(1234)
++   fgseaRes = fgseaMultilevel(pathways_reactome, stats, minSize=10, 
++                              maxSize=1000)
++   od1 = order(fgseaRes[,"padj"], -fgseaRes[,"NES"])
++   fgseaRes = fgseaRes[od1,]
++   gsea[[names(pvals)[i]]] = fgseaRes
++ }
+1 Fri Dec 11 10:17:59 2020 
+2 Fri Dec 11 10:18:02 2020 
+3 Fri Dec 11 10:18:04 2020 
+4 Fri Dec 11 10:18:06 2020 
+5 Fri Dec 11 10:18:08 2020 
+6 Fri Dec 11 10:18:10 2020 
+7 Fri Dec 11 10:18:12 2020 
+8 Fri Dec 11 10:18:15 2020 
+9 Fri Dec 11 10:18:17 2020 
+10 Fri Dec 11 10:18:19 2020 
+11 Fri Dec 11 10:18:21 2020 
+12 Fri Dec 11 10:18:23 2020 
+13 Fri Dec 11 10:18:25 2020 
+14 Fri Dec 11 10:18:27 2020 
+15 Fri Dec 11 10:18:29 2020 
+16 Fri Dec 11 10:18:31 2020 
+17 Fri Dec 11 10:18:34 2020 
+18 Fri Dec 11 10:18:36 2020 
+19 Fri Dec 11 10:18:38 2020 
+20 Fri Dec 11 10:18:40 2020 
+21 Fri Dec 11 10:18:42 2020 
+22 Fri Dec 11 10:18:44 2020 
+23 Fri Dec 11 10:18:46 2020 
+24 Fri Dec 11 10:18:48 2020 
+25 Fri Dec 11 10:18:50 2020 
+26 Fri Dec 11 10:18:52 2020 
+27 Fri Dec 11 10:18:55 2020 
+28 Fri Dec 11 10:18:58 2020 
+29 Fri Dec 11 10:19:00 2020 
+30 Fri Dec 11 10:19:03 2020 
+There were 50 or more warnings (use warnings() to see the first 50)
+> 
+> lapply(gsea, dim)
+$CARseq_Astro
+[1] 1027    8
+
+$CARseq_Exc
+[1] 1027    8
+
+$CARseq_Inh
+[1] 1027    8
+
+$CARseq_Micro
+[1] 1027    8
+
+$CARseq_Oligo
+[1] 1027    8
+
+$CARseq_OPC
+[1] 1027    8
+
+$DESeq2_bulk
+[1] 1027    8
+
+$TOAST_Astro
+[1] 1027    8
+
+$TOAST_Exc
+[1] 1027    8
+
+$TOAST_Inh
+[1] 1027    8
+
+$TOAST_Micro
+[1] 1027    8
+
+$TOAST_Oligo
+[1] 1027    8
+
+$TOAST_OPC
+[1] 1027    8
+
+$`PFC_AST-FB`
+[1] 1025    8
+
+$`PFC_AST-PP`
+[1] 1027    8
+
+$PFC_Endothelial
+[1] 1027    8
+
+$`PFC_IN-PV`
+[1] 1027    8
+
+$`PFC_IN-SST`
+[1] 1027    8
+
+$`PFC_IN-SV2C`
+[1] 1027    8
+
+$`PFC_IN-VIP`
+[1] 1027    8
+
+$PFC_L2_3
+[1] 1027    8
+
+$PFC_L4
+[1] 1027    8
+
+$`PFC_L5_6-CC`
+[1] 1027    8
+
+$PFC_L5_6
+[1] 1027    8
+
+$PFC_Microglia
+[1] 1027    8
+
+$`PFC_Neu-mat`
+[1] 1027    8
+
+$`PFC_Neu-NRGN-I`
+[1] 1026    8
+
+$`PFC_Neu-NRGN-II`
+[1] 1023    8
+
+$PFC_Oligodendrocytes
+[1] 1027    8
+
+$PFC_OPC
+[1] 1027    8
+
+> gsea$CARseq_Micro[1:2,]
+                                      pathway         pval         padj
+1: REACTOME_EUKARYOTIC_TRANSLATION_INITIATION 2.947966e-08 3.024613e-05
+2:       REACTOME_SELENOAMINO_ACID_METABOLISM 8.441826e-08 4.330657e-05
+     log2err        ES      NES size                            leadingEdge
+1: 0.7337620 0.7622399 1.322394  105 RPL18A,RPS2,RPL32,RPL35,RPS8,RPL41,...
+2: 0.7049757 0.7708310 1.332358   90 RPL18A,RPS2,RPL32,RPL35,RPS8,RPL41,...
+> 
+> pathways_nms = names(pathways_reactome)
+> 
+> ncut = 5
+> fisher_pval = matrix(NA, nrow=ncol(pvals), ncol=ncol(pvals))
+> rownames(fisher_pval) = names(pvals)
+> colnames(fisher_pval) = names(pvals)
+> 
+> for(i in 1:nrow(fisher_pval)){
++   label_i = names(pvals)[i]
++   gsea_i  = gsea[[label_i]]
++   gsea_i  = gsea_i[which(gsea_i$NES > 0 & gsea_i$padj < 0.2),]
++   xi = gsea_i$pathway
++   
++   if(length(xi) <= 1) { next }
++   # xi = gsea_i$pathway[order(gsea_i$NES, decreasing=TRUE)][1:ncut]
++   
++   for(j in 1:ncol(fisher_pval)){
++     label_j = names(pvals)[j]
++     gsea_j  = gsea[[label_j]]
++     gsea_j  = gsea_j[which(gsea_j$NES > 0 & gsea_j$padj < 0.2),]
++     yj = gsea_j$pathway
++     if(length(yj) <= 1) { next }
++     
++     # yj = gsea_j$pathway[order(gsea_j$pval, -gsea_j$NES)][1:ncut]
++     
++     f1 = fisher.test(pathways_nms %in% xi, 
++                      pathways_nms %in% yj, alternative = "greater")
++     fisher_pval[i,j] = f1$p.value
++   }
++ }
+> 
+> 
+> summary(c(fisher_pval))
+   Min. 1st Qu.  Median    Mean 3rd Qu.    Max.    NA's 
+ 0.0000  0.0000  0.0002  0.2480  0.3511  1.0000     416 
+> rowSums(is.na(fisher_pval[1:13,14:30]))
+CARseq_Astro   CARseq_Exc   CARseq_Inh CARseq_Micro CARseq_Oligo   CARseq_OPC 
+           3            3            3            3           17            3 
+ DESeq2_bulk  TOAST_Astro    TOAST_Exc    TOAST_Inh  TOAST_Micro  TOAST_Oligo 
+           3            3           17           17            3           17 
+   TOAST_OPC 
+          17 
+> colSums(is.na(fisher_pval[1:13,14:30]))
+          PFC_AST-FB           PFC_AST-PP      PFC_Endothelial 
+                   5                    5                    5 
+           PFC_IN-PV           PFC_IN-SST          PFC_IN-SV2C 
+                   5                    5                   13 
+          PFC_IN-VIP             PFC_L2_3               PFC_L4 
+                   5                   13                   13 
+         PFC_L5_6-CC             PFC_L5_6        PFC_Microglia 
+                   5                    5                    5 
+         PFC_Neu-mat       PFC_Neu-NRGN-I      PFC_Neu-NRGN-II 
+                   5                    5                    5 
+PFC_Oligodendrocytes              PFC_OPC 
+                   5                    5 
+> 
+> sort(c(fisher_pval[upper.tri(fisher_pval)]))[1:30]
+ [1] 9.557019e-57 9.427535e-39 1.173045e-35 3.555596e-31 3.967149e-27
+ [6] 7.028797e-26 1.013966e-25 1.084616e-19 2.500098e-19 9.366073e-19
+[11] 9.163091e-18 2.479027e-17 7.003086e-16 7.830408e-16 9.787296e-16
+[16] 1.252157e-15 3.286394e-15 3.322189e-15 4.959959e-15 6.860678e-15
+[21] 1.398976e-14 4.201215e-14 1.776190e-13 1.972875e-13 9.451724e-13
+[26] 1.639322e-12 1.845461e-12 3.973524e-12 7.435668e-12 7.698410e-12
+> fisher_pval[which(fisher_pval < 1e-10)] = 1e-10
+> 
+> gc2 = ggcorrplot(t(-log10(fisher_pval[1:13,14:30])), tl.cex = 6) + 
++   scale_fill_gradient2(limit = c(0,10.01), low = "blue", high =  "red", 
++                        mid = "white", midpoint = 2) 
+Scale for 'fill' is already present. Adding another scale for 'fill', which
+will replace the existing scale.
+> 
+> pdf("../figures/step_z1_gsea_top10_pathways_overlap_fisher_pval.pdf", 
++     width=5, height=3.5)
+> print(gc2)
+> dev.off()
+null device 
+          1 
+> 
+> sessionInfo()
+R version 3.6.2 (2019-12-12)
+Platform: x86_64-apple-darwin15.6.0 (64-bit)
+Running under: macOS Catalina 10.15.7
+
+Matrix products: default
+BLAS:   /Library/Frameworks/R.framework/Versions/3.6/Resources/lib/libRblas.0.dylib
+LAPACK: /Library/Frameworks/R.framework/Versions/3.6/Resources/lib/libRlapack.dylib
+
+locale:
+[1] en_US.UTF-8/en_US.UTF-8/en_US.UTF-8/C/en_US.UTF-8/en_US.UTF-8
+
+attached base packages:
+[1] parallel  stats     graphics  grDevices utils     datasets  methods  
+[8] base     
+
+other attached packages:
+ [1] ggcorrplot_0.1.3     stringr_1.4.0        fgsea_1.17.1        
+ [4] ggpointdensity_0.1.0 ggpubr_0.4.0.999     ggplot2_3.3.1       
+ [7] qvalue_2.16.0        doParallel_1.0.15    iterators_1.0.12    
+[10] foreach_1.4.7        data.table_1.12.8    MASS_7.3-51.5       
+
+loaded via a namespace (and not attached):
+ [1] tidyselect_1.0.0    reshape2_1.4.3      purrr_0.3.3        
+ [4] splines_3.6.2       haven_2.3.0         lattice_0.20-38    
+ [7] carData_3.0-4       colorspace_1.4-1    vctrs_0.3.0        
+[10] generics_0.0.2      rlang_0.4.6         pillar_1.4.3       
+[13] foreign_0.8-75      glue_1.3.1          withr_2.1.2        
+[16] BiocParallel_1.18.1 readxl_1.3.1        lifecycle_0.2.0    
+[19] plyr_1.8.5          munsell_0.5.0       ggsignif_0.6.0     
+[22] gtable_0.3.0        cellranger_1.1.0    zip_2.0.4          
+[25] codetools_0.2-16    labeling_0.3        rio_0.5.16         
+[28] forcats_0.5.0       curl_4.3            broom_0.5.6        
+[31] Rcpp_1.0.3          scales_1.1.0        backports_1.1.5    
+[34] abind_1.4-5         farver_2.0.3        gridExtra_2.3      
+[37] fastmatch_1.1-0     digest_0.6.23       hms_0.5.3          
+[40] stringi_1.4.5       openxlsx_4.1.5      rstatix_0.6.0      
+[43] dplyr_0.8.4         grid_3.6.2          tools_3.6.2        
+[46] magrittr_1.5        tibble_3.0.1        crayon_1.3.4       
+[49] tidyr_1.0.2         car_3.0-8           pkgconfig_2.0.3    
+[52] Matrix_1.2-18       ellipsis_0.3.0      assertthat_0.2.1   
+[55] R6_2.4.1            nlme_3.1-144        compiler_3.6.2     
+> q(save="no")
+> proc.time()
+   user  system elapsed 
+221.680  20.406  69.165 

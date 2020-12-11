@@ -7,6 +7,8 @@ library(ggpubr)
 library(ggpointdensity)
 theme_set(theme_classic2())
 library(ggcorrplot)
+library(qvalue)
+library(ggpointdensity)
 
 path_ideas = "../../ideas/Autism"
 
@@ -16,76 +18,396 @@ path_ideas = "../../ideas/Autism"
 
 pval.path = "../results/_pvalues"
 
-pval.files = list.files(path=pval.path, pattern="ASD", full.names=TRUE)
-pval.files
+pval_files = list.files(path=pval.path, pattern="ASD", full.names=TRUE)
+pval_files
 
-f1 = pval.files[1]
-pval.ASD = fread(f1)
+f1 = pval_files[1]
+pval_carseq = fread(f1)
 lb = str_extract(basename(f1), "(?<=ASD_)\\w+_\\w+(?=.txt)")
-names(pval.ASD)[3] = lb
+names(pval_carseq)[3] = lb
 
-dim(pval.ASD)
-pval.ASD[1:2,]
+dim(pval_carseq)
+pval_carseq[1:2,]
 
-length(unique(pval.ASD$gene_id))
-length(unique(pval.ASD$gene_name))
+length(unique(pval_carseq$gene_id))
+length(unique(pval_carseq$gene_name))
 
-for(f1 in pval.files[-1]){
+for(f1 in pval_files[-1]){
   d1 = fread(f1)
-  if(any(d1$gene_id != pval.ASD$gene_id)){
+  if(any(d1$gene_id != pval_carseq$gene_id)){
     stop("gene_id do not match\n")
   }
   
   bn = basename(f1)
   lb = str_extract(bn, "(?<=ASD_)\\w+_\\w+(?=.txt)")
   
-  pval.ASD[[lb]] = d1$pvalue
+  pval_carseq[[lb]] = d1$pvalue
 }
 
-dim(pval.ASD)
-pval.ASD[1:2,]
+dim(pval_carseq)
+pval_carseq[1:2,]
 
 # ----------------------------------------------------------------------
 # read in p-values from snRNA-seq analysis
 # ----------------------------------------------------------------------
 
-pval_mtrx = data.frame(pval.ASD[,-(1:2)])
-rownames(pval_mtrx) = pval.ASD$gene_id
+rds_files = list.files(path=file.path(path_ideas, "data/ct_mtx"))
+rds_files[1:2]
+length(rds_files)
+cts = gsub(".rds", "", rds_files, fixed=TRUE)
+cts
 
-dim(pval_mtrx)
-pval_mtrx[1:2,]
-
-
-grp = "PFC_L2_3"
+grp = cts[1]
 fnm = sprintf("%s/res/step1_DESeq2_%s_adj_covariates.txt", path_ideas, grp)
 
 deseq2 = read.table(file=fnm, sep="\t", header=TRUE)
 dim(deseq2)
 deseq2[1:2,]
 
-gene2use = intersect(pval.ASD$gene_name, rownames(deseq2))
+pval_snseq = data.frame(gene_name = rownames(deseq2), stringsAsFactors=FALSE)
+pval_snseq[[grp]] = deseq2$pvalue
+
+for(grp in cts[-1]){
+  fnm = sprintf("%s/res/step1_DESeq2_%s_adj_covariates.txt", path_ideas, grp)
+  
+  deseq2 = read.table(file=fnm, sep="\t", header=TRUE)
+  
+  if(nrow(deseq2) != nrow(pval_snseq)){
+    stop("the number of rows of deseq2 results do not match\n")
+  }
+  
+  if(any(rownames(deseq2) != pval_snseq$gene_name)){
+    stop("rownames of deseq2 results do not match\n")
+  }
+  
+  pval_snseq[[grp]] = deseq2$pvalue
+}
+
+dim(pval_snseq)
+pval_snseq[1:2,]
+
+# ----------------------------------------------------------------------
+# take the intersection of genes from the two studies
+# ----------------------------------------------------------------------
+
+nrow(pval_snseq)
+nrow(pval_carseq)
+
+pval_snseq$gene_name[1:2]
+pval_carseq$gene_name[1:2]
+
+gene2use = intersect(pval_carseq$gene_name, pval_snseq$gene_name)
 length(gene2use)
 
-mat1 = match(gene2use, pval.ASD$gene_name)
-mat2 = match(gene2use, rownames(deseq2))
+pval_snseq  = pval_snseq[match(gene2use,  pval_snseq$gene_name),]
+pval_carseq = pval_carseq[match(gene2use, pval_carseq$gene_name),]
 
-pval_mtrx[[grp]] = rep(NA, nrow(pval.ASD))
-pval_mtrx[[grp]][mat1] = deseq2$pvalue[mat2]
+dim(pval_snseq)
+pval_snseq[1:2,]
 
-min(pval_mtrx, na.rm = TRUE)
-pval_mtrx = -log10(pval_mtrx)
+pval_carseq = as.data.frame(pval_carseq)
+dim(pval_carseq)
+pval_carseq[1:2,]
 
-dim(pval_mtrx)
-pval_mtrx[1:2,]
+table(pval_snseq$gene_name == pval_carseq$gene_name)
 
-cor(pval_mtrx[,1:6],  pval_mtrx[,"DESeq2_bulk"], use="pairwise")
-cor(pval_mtrx[,8:14], pval_mtrx[,"DESeq2_bulk"], use="pairwise")
+saveRDS(pval_carseq, "../results/step_z_pval_carseq.rds")
+saveRDS(pval_snseq,  "../results/step_z_pval_snseq.rds")
 
-cor(pval_mtrx[,1:6],  pval_mtrx[,grp], use="pairwise")
-cor(pval_mtrx[,8:13], pval_mtrx[,grp], use="pairwise")
+# ----------------------------------------------------------------------
+# check the correlation matrix within each method
+# ----------------------------------------------------------------------
 
-cor(pval_mtrx[,1:6],  pval_mtrx[,grp], use="pairwise", method="spearman")
-cor(pval_mtrx[,8:13], pval_mtrx[,grp], use="pairwise", method="spearman")
+cor_carseq = cor(pval_carseq[,-(1:2)], method = "spearman", use="pair")
+summary(c(cor_carseq))
+
+cor_snseq = cor(pval_snseq[,-(1:1)], method = "spearman", use="pair")
+summary(c(cor_snseq))
+
+gc1 = ggcorrplot(cor_carseq, tl.cex = 6)  
+
+pdf("../figures/step_z_cor_CARseq.pdf", width=4.5, height=3.5)
+print(gc1)
+dev.off()
+
+gc1 = ggcorrplot(cor_snseq, tl.cex = 6)  
+
+pdf("../figures/step_z_cor_snseq.pdf", width=4.5, height=3.5)
+print(gc1)
+dev.off()
+
+# ----------------------------------------------------------------------
+# check the correlation matrix between methods
+# ----------------------------------------------------------------------
+
+cormat = cor(pval_carseq[,-(1:2)], pval_snseq[,-1], 
+             method = "spearman", use="pair")
+summary(c(cormat))
+
+gc1 = ggcorrplot(t(cormat), tl.cex = 6) + 
+  scale_fill_gradient2(limit = c(-0.1,0.1), low = "blue", high =  "red", 
+                       mid = "white", midpoint = 0) 
+
+pdf("../figures/step_z_cor_CARseq_vs_snRNAseq.pdf", width=4.5, height=3.5)
+print(gc1)
+dev.off()
+
+cor_pval = matrix(nrow=nrow(cormat), ncol=ncol(cormat))
+for(i in 1:nrow(cor_pval)){
+  for(j in 1:ncol(cor_pval)){
+    xi = pval_carseq[,2+i]
+    yj = pval_snseq[,1+j]
+    
+    cor_pval[i,j] = cor.test(xi, yj, alternative = "greater", 
+                             method = "spearman", use="pair")$p.value
+  }
+}
+
+rownames(cor_pval) = names(pval_carseq)[-(1:2)]
+colnames(cor_pval) = names(pval_snseq)[-(1)]
+
+summary(c(cor_pval))
+sort(c(cor_pval))[1:10]
+cor_pval[which(cor_pval < 1e-8)] = 1e-8
+
+gc2 = ggcorrplot(t(-log10(cor_pval)), tl.cex = 6) + 
+  scale_fill_gradient2(limit = c(0,8.01), low = "blue", high =  "red", 
+                       mid = "white", midpoint = 2) 
+
+pdf("../figures/step_z_cor_pval_CARseq_vs_snRNAseq.pdf", width=4.5, height=3.5)
+print(gc2)
+dev.off()
+
+# ----------------------------------------------------------------------
+# check the association using fisher exact test
+# ----------------------------------------------------------------------
+
+pcut = 0.05
+fisher_pval = matrix(nrow=nrow(cormat), ncol=ncol(cormat))
+
+for(i in 1:nrow(cor_pval)){
+  for(j in 1:ncol(cor_pval)){
+    xi = pval_carseq[,2+i]
+    yj = pval_snseq[,1+j]
+    f1 = fisher.test(xi < pcut, yj < pcut, alternative = "greater")
+    fisher_pval[i,j] = f1$p.value
+  }
+}
+
+rownames(fisher_pval) = names(pval_carseq)[-(1:2)]
+colnames(fisher_pval) = names(pval_snseq)[-(1)]
+
+summary(c(fisher_pval))
+sort(c(fisher_pval))[1:10]
+fisher_pval[which(fisher_pval < 1e-4)] = 1e-4
+
+gc2 = ggcorrplot(t(-log10(fisher_pval)), tl.cex = 6) + 
+  scale_fill_gradient2(limit = c(0,4.01), low = "blue", high =  "red", 
+                       mid = "white", midpoint = 1) 
+
+pdf("../figures/step_z_fisher_pval_CARseq_vs_snRNAseq.pdf", width=4.5, height=3.5)
+print(gc2)
+dev.off()
+
+# ----------------------------------------------------------------------
+# read in the correlation between bulk RNA-seq and pseudo bulk
+# ----------------------------------------------------------------------
+
+sn_cr = fread("../data/sn_bulk_corr.txt")
+dim(sn_cr)
+sn_cr[1:5,]
+
+table(sn_cr$r > 0.5)
+table(sn_cr$r > 0.3)
+
+table(pval_snseq$gene_name == gene2use)
+table(pval_carseq$gene_name == gene2use)
+
+sn_cr_v = rep(NA, length(gene2use))
+match_gene = match(gene2use, sn_cr$gene)
+table(is.na(match_gene))
+sn_cr_v[!is.na(match_gene)] = sn_cr$r[match_gene[!is.na(match_gene)]]
+
+table(sn_cr_v >= 0.31)
+w2kp = which(sn_cr_v >= 0.31)
+
+# ----------------------------------------------------------------------
+# check the overall correlation matrix
+# ----------------------------------------------------------------------
+
+cormat = cor(pval_carseq[w2kp,-(1:2)], pval_snseq[w2kp,-1], 
+             method = "spearman", use="pair")
+summary(c(cormat))
+
+gc1 = ggcorrplot(t(cormat), tl.cex = 6) + 
+  scale_fill_gradient2(limit = c(-0.1,0.1), low = "blue", high =  "red", 
+                       mid = "white", midpoint = 0) 
+
+pdf("../figures/step_z_cor_CARseq_vs_snRNAseq_selected_genes.pdf", 
+    width=4.5, height=3.5)
+print(gc1)
+dev.off()
+
+cor_pval = matrix(nrow=nrow(cormat), ncol=ncol(cormat))
+for(i in 1:nrow(cor_pval)){
+  for(j in 1:ncol(cor_pval)){
+    xi = pval_carseq[w2kp,2+i]
+    yj = pval_snseq[w2kp,1+j]
+    
+    cor_pval[i,j] = cor.test(xi, yj, alternative = "greater", 
+                             method = "spearman", use="pair")$p.value
+  }
+}
+
+rownames(cor_pval) = names(pval_carseq)[-(1:2)]
+colnames(cor_pval) = names(pval_snseq)[-(1)]
+
+summary(c(cor_pval))
+sort(c(cor_pval))[1:10]
+cor_pval[which(cor_pval < 1e-4)] = 1e-4
+
+gc2 = ggcorrplot(t(-log10(cor_pval)), tl.cex = 6) + 
+  scale_fill_gradient2(limit = c(0,4.01), low = "blue", high =  "red", 
+                       mid = "white", midpoint = 1) 
+
+pdf("../figures/step_z_cor_pval_CARseq_vs_snRNAseq_selected_genes.pdf", 
+    width=4.5, height=3.5)
+print(gc2)
+dev.off()
+
+# ----------------------------------------------------------------------
+# check the association using fisher exact test
+# ----------------------------------------------------------------------
+
+pcut = 0.05
+fisher_pval = matrix(nrow=nrow(cormat), ncol=ncol(cormat))
+
+for(i in 1:nrow(fisher_pval)){
+  for(j in 1:ncol(fisher_pval)){
+    xi = pval_carseq[w2kp,2+i]
+    yj = pval_snseq[w2kp,1+j]
+    f1 = fisher.test(xi < pcut, yj < pcut, alternative = "greater")
+    fisher_pval[i,j] = f1$p.value
+  }
+}
+
+rownames(fisher_pval) = names(pval_carseq)[-(1:2)]
+colnames(fisher_pval) = names(pval_snseq)[-(1)]
+
+summary(c(fisher_pval))
+sort(c(fisher_pval))[1:10]
+fisher_pval[which(fisher_pval < 1e-4)] = 1e-4
+
+gc2 = ggcorrplot(t(-log10(fisher_pval)), tl.cex = 6) + 
+  scale_fill_gradient2(limit = c(0,4.01), low = "blue", high =  "red", 
+                       mid = "white", midpoint = 1) 
+
+pdf("../figures/step_z_fisher_pval_CARseq_vs_snRNAseq_selected_genes.pdf", 
+    width=4.5, height=3.5)
+print(gc2)
+dev.off()
+
+# ----------------------------------------------------------------------
+# check the association within carseq using fisher exact test
+# ----------------------------------------------------------------------
+
+pcut = 0.05
+fisher_carseq = matrix(nrow=nrow(cor_carseq), ncol=ncol(cor_carseq))
+
+for(i in 1:nrow(fisher_carseq)){
+  for(j in 1:ncol(fisher_carseq)){
+    xi = pval_carseq[,2+i]
+    yj = pval_carseq[,2+j]
+    f1 = fisher.test(xi < pcut, yj < pcut, alternative = "greater")
+    fisher_carseq[i,j] = f1$p.value
+  }
+}
+
+rownames(fisher_carseq) = names(pval_carseq)[-(1:2)]
+colnames(fisher_carseq) = names(pval_carseq)[-(1:2)]
+
+summary(c(fisher_carseq))
+sort(c(fisher_carseq[upper.tri(fisher_carseq)]))[1:20]
+fisher_carseq[which(fisher_carseq < 1e-10)] = 1e-10
+
+gc2 = ggcorrplot(t(-log10(fisher_carseq)), tl.cex = 6) + 
+  scale_fill_gradient2(limit = c(0,10.01), low = "blue", high =  "red", 
+                       mid = "white", midpoint = 2) 
+
+pdf("../figures/step_z_fisher_pval_CARseq.pdf", 
+    width=4.5, height=3.5)
+print(gc2)
+dev.off()
+
+
+# ----------------------------------------------------------------------
+# check the association within carseq using fisher exact test
+# ----------------------------------------------------------------------
+
+pcut = 0.05
+fisher_snseq = matrix(nrow=nrow(cor_snseq), ncol=ncol(cor_snseq))
+
+for(i in 1:nrow(fisher_snseq)){
+  for(j in 1:ncol(fisher_snseq)){
+    xi = pval_snseq[,1+i]
+    yj = pval_snseq[,1+j]
+    f1 = fisher.test(xi < pcut, yj < pcut, alternative = "greater")
+    fisher_snseq[i,j] = f1$p.value
+  }
+}
+
+rownames(fisher_snseq) = names(pval_snseq)[-(1)]
+colnames(fisher_snseq) = names(pval_snseq)[-(1)]
+
+summary(c(fisher_snseq))
+sort(c(fisher_snseq[upper.tri(fisher_snseq)]))[1:20]
+
+fisher_snseq_bounded = fisher_snseq
+fisher_snseq_bounded[which(fisher_snseq < 1e-80)] = 1e-80
+
+gc2 = ggcorrplot(t(-log10(fisher_snseq_bounded)), tl.cex = 6) + 
+  scale_fill_gradient2(limit = c(0,80.01), low = "blue", high =  "red", 
+                       mid = "white", midpoint = 2) 
+
+pdf("../figures/step_z_fisher_pval_snseq.pdf", 
+    width=4.5, height=3.5)
+print(gc2)
+dev.off()
+
+# ----------------------------------------------------------------------
+# check a few cases
+# ----------------------------------------------------------------------
+
+w1 = which(fisher_snseq < 1e-100 & fisher_snseq > 0, arr.ind = TRUE)
+cts = rownames(fisher_snseq)
+df1 = data.frame(ct1=cts[w1[,1]], ct2=cts[w1[,2]], 
+                 fisher_pval=fisher_snseq[w1], stringsAsFactors=FALSE)
+df1[order(df1$fisher_pval),]
+
+summary(pval_snseq$PFC_L2_3)
+summary(pval_snseq$PFC_L4)
+
+gs1 = ggplot(pval_snseq,aes(x=-log10(PFC_L2_3),y=-log10(PFC_L4))) +
+  geom_pointdensity(size = 0.6) + scale_color_viridis_c()
+
+pdf("../figures/step_z_snseq_PFC_L2_3_vs_PFC_L4.pdf", 
+    width=4.5, height=3.5)
+print(gs1)
+dev.off()
+
+gs1 = ggplot(pval_snseq,aes(x=-log10(PFC_L2_3),y=-log10(`PFC_IN-VIP`))) +
+  geom_pointdensity(size = 0.6) + scale_color_viridis_c()
+
+pdf("../figures/step_z_snseq_PFC_L2_3_vs_PFC_IN-VIP.pdf", 
+    width=4.5, height=3.5)
+print(gs1)
+dev.off()
+
+
+c1 = chisq.test(pval_snseq$PFC_L2_3 < pcut, pval_snseq$PFC_L4 < pcut)
+c1$p.value
+c1$expected
+c1$observed
 
 gc()
 

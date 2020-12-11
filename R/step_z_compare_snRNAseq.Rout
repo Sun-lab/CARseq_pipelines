@@ -1,0 +1,690 @@
+
+R version 3.6.2 (2019-12-12) -- "Dark and Stormy Night"
+Copyright (C) 2019 The R Foundation for Statistical Computing
+Platform: x86_64-apple-darwin15.6.0 (64-bit)
+
+R is free software and comes with ABSOLUTELY NO WARRANTY.
+You are welcome to redistribute it under certain conditions.
+Type 'license()' or 'licence()' for distribution details.
+
+  Natural language support but running in an English locale
+
+R is a collaborative project with many contributors.
+Type 'contributors()' for more information and
+'citation()' on how to cite R or R packages in publications.
+
+Type 'demo()' for some demos, 'help()' for on-line help, or
+'help.start()' for an HTML browser interface to help.
+Type 'q()' to quit R.
+
+> 
+> library(data.table)
+> library(stringr)
+> 
+> library(ggplot2)
+> library(ggpubr)
+> library(ggpointdensity)
+> theme_set(theme_classic2())
+> library(ggcorrplot)
+> library(qvalue)
+> library(ggpointdensity)
+> 
+> path_ideas = "../../ideas/Autism"
+> 
+> # ----------------------------------------------------------------------
+> # read in p-values for ASD
+> # ----------------------------------------------------------------------
+> 
+> pval.path = "../results/_pvalues"
+> 
+> pval_files = list.files(path=pval.path, pattern="ASD", full.names=TRUE)
+> pval_files
+ [1] "../results/_pvalues/ASD_CARseq_Astro.txt"
+ [2] "../results/_pvalues/ASD_CARseq_Exc.txt"  
+ [3] "../results/_pvalues/ASD_CARseq_Inh.txt"  
+ [4] "../results/_pvalues/ASD_CARseq_Micro.txt"
+ [5] "../results/_pvalues/ASD_CARseq_Oligo.txt"
+ [6] "../results/_pvalues/ASD_CARseq_OPC.txt"  
+ [7] "../results/_pvalues/ASD_DESeq2_bulk.txt" 
+ [8] "../results/_pvalues/ASD_TOAST_Astro.txt" 
+ [9] "../results/_pvalues/ASD_TOAST_Exc.txt"   
+[10] "../results/_pvalues/ASD_TOAST_Inh.txt"   
+[11] "../results/_pvalues/ASD_TOAST_Micro.txt" 
+[12] "../results/_pvalues/ASD_TOAST_Oligo.txt" 
+[13] "../results/_pvalues/ASD_TOAST_OPC.txt"   
+> 
+> f1 = pval_files[1]
+> pval_carseq = fread(f1)
+> lb = str_extract(basename(f1), "(?<=ASD_)\\w+_\\w+(?=.txt)")
+> names(pval_carseq)[3] = lb
+> 
+> dim(pval_carseq)
+[1] 19604     3
+> pval_carseq[1:2,]
+              gene_id gene_name CARseq_Astro
+1: ENSG00000000003.10    TSPAN6    0.1255027
+2:  ENSG00000000419.8      DPM1    0.6632756
+> 
+> length(unique(pval_carseq$gene_id))
+[1] 19604
+> length(unique(pval_carseq$gene_name))
+[1] 19547
+> 
+> for(f1 in pval_files[-1]){
++   d1 = fread(f1)
++   if(any(d1$gene_id != pval_carseq$gene_id)){
++     stop("gene_id do not match\n")
++   }
++   
++   bn = basename(f1)
++   lb = str_extract(bn, "(?<=ASD_)\\w+_\\w+(?=.txt)")
++   
++   pval_carseq[[lb]] = d1$pvalue
++ }
+> 
+> dim(pval_carseq)
+[1] 19604    15
+> pval_carseq[1:2,]
+              gene_id gene_name CARseq_Astro CARseq_Exc CARseq_Inh CARseq_Micro
+1: ENSG00000000003.10    TSPAN6    0.1255027  0.6046280 0.02933506    0.7002754
+2:  ENSG00000000419.8      DPM1    0.6632756  0.1739825 0.07872326    1.0000000
+   CARseq_Oligo CARseq_OPC  DESeq2_bulk TOAST_Astro TOAST_Exc TOAST_Inh
+1:    0.3585876          1 0.0001603225   0.9589563 0.8811683 0.7498910
+2:    0.4720418          1 0.6959505937   0.6538012 0.7786788 0.8705232
+   TOAST_Micro TOAST_Oligo TOAST_OPC
+1:   0.1313709   0.3853622 0.9883231
+2:   0.9372846   0.7714128 0.7818392
+> 
+> # ----------------------------------------------------------------------
+> # read in p-values from snRNA-seq analysis
+> # ----------------------------------------------------------------------
+> 
+> rds_files = list.files(path=file.path(path_ideas, "data/ct_mtx"))
+> rds_files[1:2]
+[1] "PFC_AST-FB.rds" "PFC_AST-PP.rds"
+> length(rds_files)
+[1] 17
+> cts = gsub(".rds", "", rds_files, fixed=TRUE)
+> cts
+ [1] "PFC_AST-FB"           "PFC_AST-PP"           "PFC_Endothelial"     
+ [4] "PFC_IN-PV"            "PFC_IN-SST"           "PFC_IN-SV2C"         
+ [7] "PFC_IN-VIP"           "PFC_L2_3"             "PFC_L4"              
+[10] "PFC_L5_6-CC"          "PFC_L5_6"             "PFC_Microglia"       
+[13] "PFC_Neu-mat"          "PFC_Neu-NRGN-I"       "PFC_Neu-NRGN-II"     
+[16] "PFC_Oligodendrocytes" "PFC_OPC"             
+> 
+> grp = cts[1]
+> fnm = sprintf("%s/res/step1_DESeq2_%s_adj_covariates.txt", path_ideas, grp)
+> 
+> deseq2 = read.table(file=fnm, sep="\t", header=TRUE)
+> dim(deseq2)
+[1] 18041     6
+> deseq2[1:2,]
+         baseMean log2FoldChange     lfcSE       stat    pvalue      padj
+DNAJC11 2.8149700      0.3965713 0.4147585  0.9561499 0.3389965 0.9999255
+NADK    0.7486279     -0.7269977 0.8628304 -0.8425731 0.3994672 0.9999255
+> 
+> pval_snseq = data.frame(gene_name = rownames(deseq2), stringsAsFactors=FALSE)
+> pval_snseq[[grp]] = deseq2$pvalue
+> 
+> for(grp in cts[-1]){
++   fnm = sprintf("%s/res/step1_DESeq2_%s_adj_covariates.txt", path_ideas, grp)
++   
++   deseq2 = read.table(file=fnm, sep="\t", header=TRUE)
++   
++   if(nrow(deseq2) != nrow(pval_snseq)){
++     stop("the number of rows of deseq2 results do not match\n")
++   }
++   
++   if(any(rownames(deseq2) != pval_snseq$gene_name)){
++     stop("rownames of deseq2 results do not match\n")
++   }
++   
++   pval_snseq[[grp]] = deseq2$pvalue
++ }
+> 
+> dim(pval_snseq)
+[1] 18041    18
+> pval_snseq[1:2,]
+  gene_name PFC_AST-FB PFC_AST-PP PFC_Endothelial PFC_IN-PV PFC_IN-SST
+1   DNAJC11  0.3389965  0.6955412       0.3323688 0.1119647 0.10660155
+2      NADK  0.3994672  0.9130071       0.6706436 0.1688822 0.07788352
+  PFC_IN-SV2C PFC_IN-VIP   PFC_L2_3     PFC_L4 PFC_L5_6-CC  PFC_L5_6
+1   0.2643496  0.2488290 0.09751284 0.09096388   0.3508354 0.7244922
+2   0.4293852  0.8518556 0.51646784 0.17871765   0.1550552 0.1284990
+  PFC_Microglia PFC_Neu-mat PFC_Neu-NRGN-I PFC_Neu-NRGN-II PFC_Oligodendrocytes
+1     0.9159246   0.2997509      0.6043373       0.9479712            0.9513268
+2     0.5809093   0.8672251      0.2923771       0.7675817            0.6873919
+    PFC_OPC
+1 0.2426673
+2 0.8758234
+> 
+> # ----------------------------------------------------------------------
+> # take the intersection of genes from the two studies
+> # ----------------------------------------------------------------------
+> 
+> nrow(pval_snseq)
+[1] 18041
+> nrow(pval_carseq)
+[1] 19604
+> 
+> pval_snseq$gene_name[1:2]
+[1] "DNAJC11" "NADK"   
+> pval_carseq$gene_name[1:2]
+[1] "TSPAN6" "DPM1"  
+> 
+> gene2use = intersect(pval_carseq$gene_name, pval_snseq$gene_name)
+> length(gene2use)
+[1] 12527
+> 
+> pval_snseq  = pval_snseq[match(gene2use,  pval_snseq$gene_name),]
+> pval_carseq = pval_carseq[match(gene2use, pval_carseq$gene_name),]
+> 
+> dim(pval_snseq)
+[1] 12527    18
+> pval_snseq[1:2,]
+      gene_name PFC_AST-FB PFC_AST-PP PFC_Endothelial PFC_IN-PV PFC_IN-SST
+7741     TSPAN6  0.8947925  0.6802144       0.9197326 0.1512528  0.8875916
+15992      DPM1  0.6482658  0.1096199       0.5339589 0.4811941  0.2139307
+      PFC_IN-SV2C PFC_IN-VIP  PFC_L2_3    PFC_L4 PFC_L5_6-CC  PFC_L5_6
+7741    0.7261116  0.9029420 0.5053968 0.4322709   0.5459669 0.4873304
+15992   0.8286643  0.6770929 0.6198634 0.6566290   0.9340717 0.4827340
+      PFC_Microglia PFC_Neu-mat PFC_Neu-NRGN-I PFC_Neu-NRGN-II
+7741      0.5604572   0.8194594      0.8280195       0.8854074
+15992     0.8221065   0.8907421      0.7751579       0.6132683
+      PFC_Oligodendrocytes   PFC_OPC
+7741             0.9015658 0.1404762
+15992            0.2178388 0.4335813
+> 
+> pval_carseq = as.data.frame(pval_carseq)
+> dim(pval_carseq)
+[1] 12527    15
+> pval_carseq[1:2,]
+             gene_id gene_name CARseq_Astro CARseq_Exc CARseq_Inh CARseq_Micro
+1 ENSG00000000003.10    TSPAN6    0.1255027  0.6046280 0.02933506    0.7002754
+2  ENSG00000000419.8      DPM1    0.6632756  0.1739825 0.07872326    1.0000000
+  CARseq_Oligo CARseq_OPC  DESeq2_bulk TOAST_Astro TOAST_Exc TOAST_Inh
+1    0.3585876          1 0.0001603225   0.9589563 0.8811683 0.7498910
+2    0.4720418          1 0.6959505937   0.6538012 0.7786788 0.8705232
+  TOAST_Micro TOAST_Oligo TOAST_OPC
+1   0.1313709   0.3853622 0.9883231
+2   0.9372846   0.7714128 0.7818392
+> 
+> table(pval_snseq$gene_name == pval_carseq$gene_name)
+
+ TRUE 
+12527 
+> 
+> saveRDS(pval_carseq, "../results/step_z_pval_carseq.rds")
+> saveRDS(pval_snseq,  "../results/step_z_pval_snseq.rds")
+> 
+> # ----------------------------------------------------------------------
+> # check the correlation matrix within each method
+> # ----------------------------------------------------------------------
+> 
+> cor_carseq = cor(pval_carseq[,-(1:2)], method = "spearman", use="pair")
+> summary(c(cor_carseq))
+    Min.  1st Qu.   Median     Mean  3rd Qu.     Max. 
+-0.15165 -0.01299  0.02731  0.11755  0.08367  1.00000 
+> 
+> cor_snseq = cor(pval_snseq[,-(1:1)], method = "spearman", use="pair")
+> summary(c(cor_snseq))
+   Min. 1st Qu.  Median    Mean 3rd Qu.    Max. 
+0.00721 0.07617 0.10043 0.16257 0.14896 1.00000 
+> 
+> gc1 = ggcorrplot(cor_carseq, tl.cex = 6)  
+> 
+> pdf("../figures/step_z_cor_CARseq.pdf", width=4.5, height=3.5)
+> print(gc1)
+> dev.off()
+null device 
+          1 
+> 
+> gc1 = ggcorrplot(cor_snseq, tl.cex = 6)  
+> 
+> pdf("../figures/step_z_cor_snseq.pdf", width=4.5, height=3.5)
+> print(gc1)
+> dev.off()
+null device 
+          1 
+> 
+> # ----------------------------------------------------------------------
+> # check the correlation matrix between methods
+> # ----------------------------------------------------------------------
+> 
+> cormat = cor(pval_carseq[,-(1:2)], pval_snseq[,-1], 
++              method = "spearman", use="pair")
+> summary(c(cormat))
+     Min.   1st Qu.    Median      Mean   3rd Qu.      Max. 
+-0.050510 -0.003213  0.010361  0.009371  0.021348  0.083370 
+> 
+> gc1 = ggcorrplot(t(cormat), tl.cex = 6) + 
++   scale_fill_gradient2(limit = c(-0.1,0.1), low = "blue", high =  "red", 
++                        mid = "white", midpoint = 0) 
+Scale for 'fill' is already present. Adding another scale for 'fill', which
+will replace the existing scale.
+> 
+> pdf("../figures/step_z_cor_CARseq_vs_snRNAseq.pdf", width=4.5, height=3.5)
+> print(gc1)
+> dev.off()
+null device 
+          1 
+> 
+> cor_pval = matrix(nrow=nrow(cormat), ncol=ncol(cormat))
+> for(i in 1:nrow(cor_pval)){
++   for(j in 1:ncol(cor_pval)){
++     xi = pval_carseq[,2+i]
++     yj = pval_snseq[,1+j]
++     
++     cor_pval[i,j] = cor.test(xi, yj, alternative = "greater", 
++                              method = "spearman", use="pair")$p.value
++   }
++ }
+There were 50 or more warnings (use warnings() to see the first 50)
+> 
+> rownames(cor_pval) = names(pval_carseq)[-(1:2)]
+> colnames(cor_pval) = names(pval_snseq)[-(1)]
+> 
+> summary(c(cor_pval))
+    Min.  1st Qu.   Median     Mean  3rd Qu.     Max. 
+0.000000 0.008439 0.123117 0.321718 0.640408 1.000000 
+> sort(c(cor_pval))[1:10]
+ [1] 5.701951e-21 3.253767e-19 3.084566e-16 4.959350e-12 6.628871e-11
+ [6] 7.363091e-10 7.427615e-09 2.308114e-08 3.442792e-08 5.609158e-08
+> cor_pval[which(cor_pval < 1e-8)] = 1e-8
+> 
+> gc2 = ggcorrplot(t(-log10(cor_pval)), tl.cex = 6) + 
++   scale_fill_gradient2(limit = c(0,8.01), low = "blue", high =  "red", 
++                        mid = "white", midpoint = 2) 
+Scale for 'fill' is already present. Adding another scale for 'fill', which
+will replace the existing scale.
+> 
+> pdf("../figures/step_z_cor_pval_CARseq_vs_snRNAseq.pdf", width=4.5, height=3.5)
+> print(gc2)
+> dev.off()
+null device 
+          1 
+> 
+> # ----------------------------------------------------------------------
+> # check the association using fisher exact test
+> # ----------------------------------------------------------------------
+> 
+> pcut = 0.05
+> fisher_pval = matrix(nrow=nrow(cormat), ncol=ncol(cormat))
+> 
+> for(i in 1:nrow(cor_pval)){
++   for(j in 1:ncol(cor_pval)){
++     xi = pval_carseq[,2+i]
++     yj = pval_snseq[,1+j]
++     f1 = fisher.test(xi < pcut, yj < pcut, alternative = "greater")
++     fisher_pval[i,j] = f1$p.value
++   }
++ }
+> 
+> rownames(fisher_pval) = names(pval_carseq)[-(1:2)]
+> colnames(fisher_pval) = names(pval_snseq)[-(1)]
+> 
+> summary(c(fisher_pval))
+     Min.   1st Qu.    Median      Mean   3rd Qu.      Max. 
+0.0000123 0.1350738 0.3881588 0.4287540 0.7085356 0.9987893 
+> sort(c(fisher_pval))[1:10]
+ [1] 1.232421e-05 1.612976e-04 5.199117e-04 1.980276e-03 2.786855e-03
+ [6] 4.135850e-03 5.279223e-03 7.599620e-03 7.624885e-03 9.226336e-03
+> fisher_pval[which(fisher_pval < 1e-4)] = 1e-4
+> 
+> gc2 = ggcorrplot(t(-log10(fisher_pval)), tl.cex = 6) + 
++   scale_fill_gradient2(limit = c(0,4.01), low = "blue", high =  "red", 
++                        mid = "white", midpoint = 1) 
+Scale for 'fill' is already present. Adding another scale for 'fill', which
+will replace the existing scale.
+> 
+> pdf("../figures/step_z_fisher_pval_CARseq_vs_snRNAseq.pdf", width=4.5, height=3.5)
+> print(gc2)
+> dev.off()
+null device 
+          1 
+> 
+> # ----------------------------------------------------------------------
+> # read in the correlation between bulk RNA-seq and pseudo bulk
+> # ----------------------------------------------------------------------
+> 
+> sn_cr = fread("../data/sn_bulk_corr.txt")
+> dim(sn_cr)
+[1] 12796     3
+> sn_cr[1:5,]
+                ID         gene         r
+1: ENSG00000233913 CTC-575D19.1 0.9381673
+2: ENSG00000228065    LINC01515 0.8954752
+3: ENSG00000225972     MTND1P23 0.8886650
+4: ENSG00000113494         PRLR 0.8577662
+5: ENSG00000229807         XIST 0.8446731
+> 
+> table(sn_cr$r > 0.5)
+
+FALSE  TRUE 
+11821   975 
+> table(sn_cr$r > 0.3)
+
+FALSE  TRUE 
+ 7787  5009 
+> 
+> table(pval_snseq$gene_name == gene2use)
+
+ TRUE 
+12527 
+> table(pval_carseq$gene_name == gene2use)
+
+ TRUE 
+12527 
+> 
+> sn_cr_v = rep(NA, length(gene2use))
+> match_gene = match(gene2use, sn_cr$gene)
+> table(is.na(match_gene))
+
+FALSE  TRUE 
+10893  1634 
+> sn_cr_v[!is.na(match_gene)] = sn_cr$r[match_gene[!is.na(match_gene)]]
+> 
+> table(sn_cr_v >= 0.31)
+
+FALSE  TRUE 
+ 6836  4057 
+> w2kp = which(sn_cr_v >= 0.31)
+> 
+> # ----------------------------------------------------------------------
+> # check the overall correlation matrix
+> # ----------------------------------------------------------------------
+> 
+> cormat = cor(pval_carseq[w2kp,-(1:2)], pval_snseq[w2kp,-1], 
++              method = "spearman", use="pair")
+> summary(c(cormat))
+     Min.   1st Qu.    Median      Mean   3rd Qu.      Max. 
+-0.058591 -0.008222  0.003987  0.004079  0.018811  0.060151 
+> 
+> gc1 = ggcorrplot(t(cormat), tl.cex = 6) + 
++   scale_fill_gradient2(limit = c(-0.1,0.1), low = "blue", high =  "red", 
++                        mid = "white", midpoint = 0) 
+Scale for 'fill' is already present. Adding another scale for 'fill', which
+will replace the existing scale.
+> 
+> pdf("../figures/step_z_cor_CARseq_vs_snRNAseq_selected_genes.pdf", 
++     width=4.5, height=3.5)
+> print(gc1)
+> dev.off()
+null device 
+          1 
+> 
+> cor_pval = matrix(nrow=nrow(cormat), ncol=ncol(cormat))
+> for(i in 1:nrow(cor_pval)){
++   for(j in 1:ncol(cor_pval)){
++     xi = pval_carseq[w2kp,2+i]
++     yj = pval_snseq[w2kp,1+j]
++     
++     cor_pval[i,j] = cor.test(xi, yj, alternative = "greater", 
++                              method = "spearman", use="pair")$p.value
++   }
++ }
+There were 50 or more warnings (use warnings() to see the first 50)
+> 
+> rownames(cor_pval) = names(pval_carseq)[-(1:2)]
+> colnames(cor_pval) = names(pval_snseq)[-(1)]
+> 
+> summary(c(cor_pval))
+     Min.   1st Qu.    Median      Mean   3rd Qu.      Max. 
+0.0000647 0.1159166 0.3998316 0.4306078 0.6996917 0.9999037 
+> sort(c(cor_pval))[1:10]
+ [1] 6.474461e-05 2.756210e-04 2.023977e-03 2.099673e-03 2.233950e-03
+ [6] 2.962022e-03 3.228778e-03 3.497955e-03 3.940099e-03 4.221808e-03
+> cor_pval[which(cor_pval < 1e-4)] = 1e-4
+> 
+> gc2 = ggcorrplot(t(-log10(cor_pval)), tl.cex = 6) + 
++   scale_fill_gradient2(limit = c(0,4.01), low = "blue", high =  "red", 
++                        mid = "white", midpoint = 1) 
+Scale for 'fill' is already present. Adding another scale for 'fill', which
+will replace the existing scale.
+> 
+> pdf("../figures/step_z_cor_pval_CARseq_vs_snRNAseq_selected_genes.pdf", 
++     width=4.5, height=3.5)
+> print(gc2)
+> dev.off()
+null device 
+          1 
+> 
+> # ----------------------------------------------------------------------
+> # check the association using fisher exact test
+> # ----------------------------------------------------------------------
+> 
+> pcut = 0.05
+> fisher_pval = matrix(nrow=nrow(cormat), ncol=ncol(cormat))
+> 
+> for(i in 1:nrow(fisher_pval)){
++   for(j in 1:ncol(fisher_pval)){
++     xi = pval_carseq[w2kp,2+i]
++     yj = pval_snseq[w2kp,1+j]
++     f1 = fisher.test(xi < pcut, yj < pcut, alternative = "greater")
++     fisher_pval[i,j] = f1$p.value
++   }
++ }
+> 
+> rownames(fisher_pval) = names(pval_carseq)[-(1:2)]
+> colnames(fisher_pval) = names(pval_snseq)[-(1)]
+> 
+> summary(c(fisher_pval))
+    Min.  1st Qu.   Median     Mean  3rd Qu.     Max. 
+0.004596 0.253448 0.547061 0.527062 0.823666 1.000000 
+> sort(c(fisher_pval))[1:10]
+ [1] 0.004595748 0.005924014 0.016385268 0.022672885 0.023113728 0.024582100
+ [7] 0.024916977 0.024991602 0.027881438 0.032748353
+> fisher_pval[which(fisher_pval < 1e-4)] = 1e-4
+> 
+> gc2 = ggcorrplot(t(-log10(fisher_pval)), tl.cex = 6) + 
++   scale_fill_gradient2(limit = c(0,4.01), low = "blue", high =  "red", 
++                        mid = "white", midpoint = 1) 
+Scale for 'fill' is already present. Adding another scale for 'fill', which
+will replace the existing scale.
+> 
+> pdf("../figures/step_z_fisher_pval_CARseq_vs_snRNAseq_selected_genes.pdf", 
++     width=4.5, height=3.5)
+> print(gc2)
+> dev.off()
+null device 
+          1 
+> 
+> # ----------------------------------------------------------------------
+> # check the association within carseq using fisher exact test
+> # ----------------------------------------------------------------------
+> 
+> pcut = 0.05
+> fisher_carseq = matrix(nrow=nrow(cor_carseq), ncol=ncol(cor_carseq))
+> 
+> for(i in 1:nrow(fisher_carseq)){
++   for(j in 1:ncol(fisher_carseq)){
++     xi = pval_carseq[,2+i]
++     yj = pval_carseq[,2+j]
++     f1 = fisher.test(xi < pcut, yj < pcut, alternative = "greater")
++     fisher_carseq[i,j] = f1$p.value
++   }
++ }
+> 
+> rownames(fisher_carseq) = names(pval_carseq)[-(1:2)]
+> colnames(fisher_carseq) = names(pval_carseq)[-(1:2)]
+> 
+> summary(c(fisher_carseq))
+     Min.   1st Qu.    Median      Mean   3rd Qu.      Max. 
+0.0000000 0.0000001 0.0851466 0.3664354 0.8512921 1.0000000 
+> sort(c(fisher_carseq[upper.tri(fisher_carseq)]))[1:20]
+ [1]  0.000000e+00 6.583276e-165 1.656413e-145  1.068534e-94  5.135158e-73
+ [6]  9.176272e-39  9.502791e-39  6.006883e-26  4.386294e-14  1.106731e-10
+[11]  1.621427e-09  3.769074e-09  2.128888e-08  6.482569e-08  9.589644e-08
+[16]  2.176595e-07  3.961893e-06  8.835513e-06  1.033526e-05  1.278544e-05
+> fisher_carseq[which(fisher_carseq < 1e-10)] = 1e-10
+> 
+> gc2 = ggcorrplot(t(-log10(fisher_carseq)), tl.cex = 6) + 
++   scale_fill_gradient2(limit = c(0,10.01), low = "blue", high =  "red", 
++                        mid = "white", midpoint = 2) 
+Scale for 'fill' is already present. Adding another scale for 'fill', which
+will replace the existing scale.
+> 
+> pdf("../figures/step_z_fisher_pval_CARseq.pdf", 
++     width=4.5, height=3.5)
+> print(gc2)
+> dev.off()
+null device 
+          1 
+> 
+> 
+> # ----------------------------------------------------------------------
+> # check the association within carseq using fisher exact test
+> # ----------------------------------------------------------------------
+> 
+> pcut = 0.05
+> fisher_snseq = matrix(nrow=nrow(cor_snseq), ncol=ncol(cor_snseq))
+> 
+> for(i in 1:nrow(fisher_snseq)){
++   for(j in 1:ncol(fisher_snseq)){
++     xi = pval_snseq[,1+i]
++     yj = pval_snseq[,1+j]
++     f1 = fisher.test(xi < pcut, yj < pcut, alternative = "greater")
++     fisher_snseq[i,j] = f1$p.value
++   }
++ }
+> 
+> rownames(fisher_snseq) = names(pval_snseq)[-(1)]
+> colnames(fisher_snseq) = names(pval_snseq)[-(1)]
+> 
+> summary(c(fisher_snseq))
+    Min.  1st Qu.   Median     Mean  3rd Qu.     Max. 
+0.000000 0.000000 0.000000 0.008388 0.000000 0.733800 
+> sort(c(fisher_snseq[upper.tri(fisher_snseq)]))[1:20]
+ [1] 6.190987e-230 2.584902e-150 2.098603e-127 1.490933e-125 2.583257e-120
+ [6] 6.604004e-102 9.733731e-101 1.510347e-100  1.767546e-98  3.434545e-91
+[11]  3.582187e-90  1.310770e-85  3.632601e-85  1.922147e-84  3.188764e-84
+[16]  5.619171e-79  7.677171e-78  1.791477e-77  2.604309e-76  4.667965e-76
+> 
+> fisher_snseq_bounded = fisher_snseq
+> fisher_snseq_bounded[which(fisher_snseq < 1e-80)] = 1e-80
+> 
+> gc2 = ggcorrplot(t(-log10(fisher_snseq_bounded)), tl.cex = 6) + 
++   scale_fill_gradient2(limit = c(0,80.01), low = "blue", high =  "red", 
++                        mid = "white", midpoint = 2) 
+Scale for 'fill' is already present. Adding another scale for 'fill', which
+will replace the existing scale.
+> 
+> pdf("../figures/step_z_fisher_pval_snseq.pdf", 
++     width=4.5, height=3.5)
+> print(gc2)
+> dev.off()
+null device 
+          1 
+> 
+> # ----------------------------------------------------------------------
+> # check a few cases
+> # ----------------------------------------------------------------------
+> 
+> w1 = which(fisher_snseq < 1e-100 & fisher_snseq > 0, arr.ind = TRUE)
+> cts = rownames(fisher_snseq)
+> df1 = data.frame(ct1=cts[w1[,1]], ct2=cts[w1[,2]], 
++                  fisher_pval=fisher_snseq[w1], stringsAsFactors=FALSE)
+> df1[order(df1$fisher_pval),]
+               ct1             ct2   fisher_pval
+6           PFC_L4        PFC_L2_3 6.190987e-230
+9         PFC_L2_3          PFC_L4 6.190987e-230
+7      PFC_L5_6-CC        PFC_L2_3 2.584902e-150
+11        PFC_L2_3     PFC_L5_6-CC 2.584902e-150
+8       PFC_IN-VIP          PFC_L4 2.098603e-127
+4           PFC_L4      PFC_IN-VIP 2.098603e-127
+10     PFC_L5_6-CC          PFC_L4 1.490933e-125
+12          PFC_L4     PFC_L5_6-CC 1.490933e-125
+5       PFC_IN-VIP        PFC_L2_3 2.583257e-120
+3         PFC_L2_3      PFC_IN-VIP 2.583257e-120
+13 PFC_Neu-NRGN-II  PFC_Neu-NRGN-I 6.604004e-102
+14  PFC_Neu-NRGN-I PFC_Neu-NRGN-II 6.604004e-102
+2       PFC_IN-SST      PFC_IN-VIP 9.733731e-101
+1       PFC_IN-VIP      PFC_IN-SST 9.733731e-101
+> 
+> summary(pval_snseq$PFC_L2_3)
+     Min.   1st Qu.    Median      Mean   3rd Qu.      Max. 
+0.0000007 0.1608360 0.4090107 0.4354314 0.6969864 0.9999646 
+> summary(pval_snseq$PFC_L4)
+     Min.   1st Qu.    Median      Mean   3rd Qu.      Max. 
+0.0000018 0.1800413 0.4412875 0.4564634 0.7143292 0.9999199 
+> 
+> gs1 = ggplot(pval_snseq,aes(x=-log10(PFC_L2_3),y=-log10(PFC_L4))) +
++   geom_pointdensity(size = 0.6) + scale_color_viridis_c()
+> 
+> pdf("../figures/step_z_snseq_PFC_L2_3_vs_PFC_L4.pdf", 
++     width=4.5, height=3.5)
+> print(gs1)
+> dev.off()
+null device 
+          1 
+> 
+> gs1 = ggplot(pval_snseq,aes(x=-log10(PFC_L2_3),y=-log10(`PFC_IN-VIP`))) +
++   geom_pointdensity(size = 0.6) + scale_color_viridis_c()
+> 
+> pdf("../figures/step_z_snseq_PFC_L2_3_vs_PFC_IN-VIP.pdf", 
++     width=4.5, height=3.5)
+> print(gs1)
+> dev.off()
+null device 
+          1 
+> 
+> 
+> c1 = chisq.test(pval_snseq$PFC_L2_3 < pcut, pval_snseq$PFC_L4 < pcut)
+> c1$p.value
+[1] 0
+> c1$expected
+                          pval_snseq$PFC_L4 < pcut
+pval_snseq$PFC_L2_3 < pcut     FALSE      TRUE
+                     FALSE 10226.857 1003.1428
+                     TRUE   1181.143  115.8572
+> c1$observed
+                          pval_snseq$PFC_L4 < pcut
+pval_snseq$PFC_L2_3 < pcut FALSE  TRUE
+                     FALSE 10617   613
+                     TRUE    791   506
+> 
+> gc()
+          used (Mb) gc trigger (Mb) limit (Mb) max used (Mb)
+Ncells 1002840 53.6    1694331 90.5         NA  1694331 90.5
+Vcells 3162122 24.2    8388608 64.0      32768  8388608 64.0
+> 
+> sessionInfo()
+R version 3.6.2 (2019-12-12)
+Platform: x86_64-apple-darwin15.6.0 (64-bit)
+Running under: macOS Catalina 10.15.7
+
+Matrix products: default
+BLAS:   /Library/Frameworks/R.framework/Versions/3.6/Resources/lib/libRblas.0.dylib
+LAPACK: /Library/Frameworks/R.framework/Versions/3.6/Resources/lib/libRlapack.dylib
+
+locale:
+[1] en_US.UTF-8/en_US.UTF-8/en_US.UTF-8/C/en_US.UTF-8/en_US.UTF-8
+
+attached base packages:
+[1] stats     graphics  grDevices utils     datasets  methods   base     
+
+other attached packages:
+[1] qvalue_2.16.0        ggcorrplot_0.1.3     ggpointdensity_0.1.0
+[4] ggpubr_0.4.0.999     ggplot2_3.3.1        stringr_1.4.0       
+[7] data.table_1.12.8   
+
+loaded via a namespace (and not attached):
+ [1] tidyselect_1.0.0  purrr_0.3.3       reshape2_1.4.3    splines_3.6.2    
+ [5] haven_2.3.0       lattice_0.20-38   carData_3.0-4     colorspace_1.4-1 
+ [9] vctrs_0.3.0       generics_0.0.2    viridisLite_0.3.0 rlang_0.4.6      
+[13] pillar_1.4.3      foreign_0.8-75    glue_1.3.1        withr_2.1.2      
+[17] readxl_1.3.1      lifecycle_0.2.0   plyr_1.8.5        munsell_0.5.0    
+[21] ggsignif_0.6.0    gtable_0.3.0      cellranger_1.1.0  zip_2.0.4        
+[25] labeling_0.3      rio_0.5.16        forcats_0.5.0     curl_4.3         
+[29] broom_0.5.6       Rcpp_1.0.3        backports_1.1.5   scales_1.1.0     
+[33] abind_1.4-5       farver_2.0.3      hms_0.5.3         digest_0.6.23    
+[37] stringi_1.4.5     openxlsx_4.1.5    rstatix_0.6.0     dplyr_0.8.4      
+[41] grid_3.6.2        tools_3.6.2       magrittr_1.5      tibble_3.0.1     
+[45] crayon_1.3.4      car_3.0-8         tidyr_1.0.2       pkgconfig_2.0.3  
+[49] ellipsis_0.3.0    assertthat_0.2.1  R6_2.4.1          nlme_3.1-144     
+[53] compiler_3.6.2   
+> q(save="no")
+> proc.time()
+   user  system elapsed 
+ 16.548   0.779  12.398 

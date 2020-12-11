@@ -1,7 +1,7 @@
 
-R version 3.6.1 (2019-07-05) -- "Action of the Toes"
+R version 3.6.2 (2019-12-12) -- "Dark and Stormy Night"
 Copyright (C) 2019 The R Foundation for Statistical Computing
-Platform: x86_64-pc-linux-gnu (64-bit)
+Platform: x86_64-apple-darwin15.6.0 (64-bit)
 
 R is free software and comes with ABSOLUTELY NO WARRANTY.
 You are welcome to redistribute it under certain conditions.
@@ -23,7 +23,6 @@ Type 'q()' to quit R.
 > 
 > library(ggplot2)
 > library(ggpubr)
-Loading required package: magrittr
 > library(ggpointdensity)
 > theme_set(theme_classic2())
 > library(ggcorrplot)
@@ -378,45 +377,27 @@ FALSE  TRUE
 > 
 > cr1 = cor(-log10(pvals[,3:8]), -log10(pvals[,17:22]), 
 +           use="pairwise.complete.obs")
+> 
+> cr1.sp = cor(-log10(pvals[,3:8]), -log10(pvals[,17:22]), 
++           use="pairwise.complete.obs", method="spearman")
+> 
 > cr2 = cor(-log10(pvals[,10:15]), -log10(pvals[,24:29]), 
 +           use="pairwise.complete.obs")
+> 
+> cr2.sp = cor(-log10(pvals[,10:15]), -log10(pvals[,24:29]), 
++           use="pairwise.complete.obs", method="spearman")
 > 
 > rownames(cr1) = gsub("CARseq_", "", rownames(cr1))
 > colnames(cr1) = gsub("CARseq_", "", colnames(cr1))
 > 
+> rownames(cr1.sp) = gsub("CARseq_", "", rownames(cr1.sp))
+> colnames(cr1.sp) = gsub("CARseq_", "", colnames(cr1.sp))
+> 
 > rownames(cr2) = gsub("TOAST_", "", rownames(cr2))
 > colnames(cr2) = gsub("TOAST_", "", colnames(cr2))
 > 
-> cor.test(-log10(pvals[,CARseq_Astro.SCZ]), 
-+          -log10(pvals[,CARseq_Astro.ASD]))
-
-	Pearson's product-moment correlation
-
-data:  -log10(pvals[, CARseq_Astro.SCZ]) and -log10(pvals[, CARseq_Astro.ASD])
-t = 10.836, df = 17847, p-value < 2.2e-16
-alternative hypothesis: true correlation is not equal to 0
-95 percent confidence interval:
- 0.06625581 0.09540518
-sample estimates:
-       cor 
-0.08084778 
-
-> 
-> cor.test(-log10(pvals[,TOAST_Astro.SCZ]), 
-+          -log10(pvals[,TOAST_Astro.ASD]))
-
-	Pearson's product-moment correlation
-
-data:  -log10(pvals[, TOAST_Astro.SCZ]) and -log10(pvals[, TOAST_Astro.ASD])
-t = 3.1299, df = 17912, p-value = 0.001752
-alternative hypothesis: true correlation is not equal to 0
-95 percent confidence interval:
- 0.008738501 0.038010321
-sample estimates:
-       cor 
-0.02337942 
-
-> 
+> rownames(cr2.sp) = gsub("TOAST_", "", rownames(cr2.sp))
+> colnames(cr2.sp) = gsub("TOAST_", "", colnames(cr2.sp))
 > 
 > cor.test(-log10(pvals[,CARseq_Micro.SCZ]), 
 +          -log10(pvals[,CARseq_Micro.ASD]))
@@ -448,6 +429,39 @@ sample estimates:
 0.03045528 
 
 > 
+> 
+> cor.test(-log10(pvals[,CARseq_Micro.SCZ]), 
++          -log10(pvals[,CARseq_Micro.ASD]), method="spearman")
+
+	Spearman's rank correlation rho
+
+data:  -log10(pvals[, CARseq_Micro.SCZ]) and -log10(pvals[, CARseq_Micro.ASD])
+S = 7.3301e+11, p-value < 2.2e-16
+alternative hypothesis: true rho is not equal to 0
+sample estimates:
+      rho 
+0.2265722 
+
+Warning message:
+In cor.test.default(-log10(pvals[, CARseq_Micro.SCZ]), -log10(pvals[,  :
+  Cannot compute exact p-value with ties
+> 
+> cor.test(-log10(pvals[,TOAST_Micro.SCZ]), 
++          -log10(pvals[,TOAST_Micro.ASD]), method="spearman")
+
+	Spearman's rank correlation rho
+
+data:  -log10(pvals[, TOAST_Micro.SCZ]) and -log10(pvals[, TOAST_Micro.ASD])
+S = 9.152e+11, p-value = 1.976e-09
+alternative hypothesis: true rho is not equal to 0
+sample estimates:
+       rho 
+0.04480732 
+
+Warning message:
+In cor.test.default(-log10(pvals[, TOAST_Micro.SCZ]), -log10(pvals[,  :
+  Cannot compute exact p-value with ties
+> 
 > summary(c(cr1))
     Min.  1st Qu.   Median     Mean  3rd Qu.     Max. 
 -0.08343 -0.01508  0.02227  0.01873  0.05118  0.14210 
@@ -464,6 +478,15 @@ Inh.SCZ       -0.04    0.06    0.06     -0.08     -0.03    0.01
 Micro.SCZ      0.05   -0.05   -0.03      0.14      0.03    0.03
 Oligo.SCZ      0.03    0.02    0.02      0.00      0.09    0.02
 OPC.SCZ        0.05    0.06    0.08     -0.04      0.02    0.06
+> round(cr1.sp, 2)
+          Astro.ASD Exc.ASD Inh.ASD Micro.ASD Oligo.ASD OPC.ASD
+Astro.SCZ      0.17   -0.03   -0.02      0.09      0.07    0.03
+Exc.SCZ       -0.01   -0.01   -0.02      0.00      0.00    0.00
+Inh.SCZ       -0.05    0.10    0.13     -0.12     -0.03    0.03
+Micro.SCZ      0.11   -0.06   -0.08      0.23      0.04    0.05
+Oligo.SCZ      0.07    0.01    0.02      0.03      0.16    0.05
+OPC.SCZ        0.09    0.09    0.12     -0.05      0.03    0.10
+> 
 > rownames(cr1) = gsub(".SCZ", "", rownames(cr1), fixed=TRUE)
 > colnames(cr1) = gsub(".ASD", "", colnames(cr1), fixed=TRUE)
 > 
@@ -481,6 +504,25 @@ will replace the existing scale.
 pdf 
   2 
 > 
+> 
+> rownames(cr1.sp) = gsub(".SCZ", "", rownames(cr1.sp), fixed=TRUE)
+> colnames(cr1.sp) = gsub(".ASD", "", colnames(cr1.sp), fixed=TRUE)
+> 
+> gc1 = ggcorrplot(cr1.sp, lab = TRUE) + 
++   scale_fill_gradient2(low="blue", mid="white", high="red", 
++                        limit=c(-0.25, 0.25))
+Scale for 'fill' is already present. Adding another scale for 'fill', which
+will replace the existing scale.
+> gc1 = annotate_figure(gc1, bottom = text_grob("Schizophrenia"), 
++                       left=text_grob("ASD", rot = 90))
+> 
+> pdf("../figures/step_x_SCZ_vs_ASD_CARseq_cor_spearman.pdf", width=4.5, height=4)
+> print(gc1)
+> dev.off()
+pdf 
+  2 
+> 
+> 
 > round(cr2, 2)
           Astro.ASD Exc.ASD Inh.ASD Micro.ASD Oligo.ASD OPC.ASD
 Astro.SCZ      0.02    0.02    0.03     -0.05      0.03   -0.06
@@ -489,6 +531,15 @@ Inh.SCZ        0.02    0.00    0.03     -0.02     -0.04   -0.02
 Micro.SCZ     -0.01    0.02    0.01      0.03      0.02    0.00
 Oligo.SCZ      0.02    0.01    0.04      0.01     -0.01   -0.02
 OPC.SCZ        0.03    0.00    0.03     -0.03      0.04   -0.03
+> round(cr2.sp, 2)
+          Astro.ASD Exc.ASD Inh.ASD Micro.ASD Oligo.ASD OPC.ASD
+Astro.SCZ      0.03    0.02    0.02     -0.05      0.00   -0.06
+Exc.SCZ        0.04    0.03    0.04      0.00      0.01    0.01
+Inh.SCZ        0.02    0.01    0.02      0.00     -0.04    0.00
+Micro.SCZ     -0.02    0.03    0.00      0.04      0.01    0.01
+Oligo.SCZ      0.01    0.03    0.03      0.02     -0.01   -0.01
+OPC.SCZ        0.03    0.00    0.03     -0.02      0.02   -0.03
+> 
 > rownames(cr2) = gsub(".SCZ", "", rownames(cr2), fixed=TRUE)
 > colnames(cr2) = gsub(".ASD", "", colnames(cr2), fixed=TRUE)
 > 
@@ -1012,44 +1063,45 @@ X-squared = 10.263, df = 1, p-value = 0.001357
 > fwrite(df4, "../results/DEG_Oligo_in_both_SCZ_ASD.csv")
 > 
 > gc()
-           used (Mb) gc trigger  (Mb) max used  (Mb)
-Ncells   880664 47.1    1862008  99.5  1862008  99.5
-Vcells 11643447 88.9   21467213 163.8 17815653 136.0
+           used (Mb) gc trigger  (Mb) limit (Mb) max used  (Mb)
+Ncells  1042570 55.7    2018337 107.8         NA  2018337 107.8
+Vcells 11846913 90.4   20622711 157.4      32768 17118819 130.7
 > 
 > sessionInfo()
-R version 3.6.1 (2019-07-05)
-Platform: x86_64-pc-linux-gnu (64-bit)
-Running under: Ubuntu 18.04.3 LTS
+R version 3.6.2 (2019-12-12)
+Platform: x86_64-apple-darwin15.6.0 (64-bit)
+Running under: macOS Catalina 10.15.6
 
 Matrix products: default
-BLAS/LAPACK: /opt/intel/compilers_and_libraries_2018.2.199/linux/mkl/lib/intel64_lin/libmkl_rt.so
+BLAS:   /Library/Frameworks/R.framework/Versions/3.6/Resources/lib/libRblas.0.dylib
+LAPACK: /Library/Frameworks/R.framework/Versions/3.6/Resources/lib/libRlapack.dylib
 
 locale:
- [1] LC_CTYPE=en_US.UTF-8       LC_NUMERIC=C              
- [3] LC_TIME=en_US.UTF-8        LC_COLLATE=en_US.UTF-8    
- [5] LC_MONETARY=en_US.UTF-8    LC_MESSAGES=en_US.UTF-8   
- [7] LC_PAPER=en_US.UTF-8       LC_NAME=C                 
- [9] LC_ADDRESS=C               LC_TELEPHONE=C            
-[11] LC_MEASUREMENT=en_US.UTF-8 LC_IDENTIFICATION=C       
+[1] en_US.UTF-8/en_US.UTF-8/en_US.UTF-8/C/en_US.UTF-8/en_US.UTF-8
 
 attached base packages:
 [1] stats     graphics  grDevices utils     datasets  methods   base     
 
 other attached packages:
-[1] ggcorrplot_0.1.3     ggpointdensity_0.1.0 ggpubr_0.2.4        
-[4] magrittr_1.5         ggplot2_3.3.1        stringr_1.4.0       
-[7] data.table_1.12.2   
+[1] ggcorrplot_0.1.3     ggpointdensity_0.1.0 ggpubr_0.4.0.999    
+[4] ggplot2_3.3.1        stringr_1.4.0        data.table_1.12.8   
 
 loaded via a namespace (and not attached):
- [1] Rcpp_1.0.2        cowplot_1.0.0     tidyselect_0.2.5  munsell_0.5.0    
- [5] viridisLite_0.3.0 colorspace_1.4-1  R6_2.4.0          rlang_0.4.0      
- [9] plyr_1.8.4        dplyr_0.8.3       tools_3.6.1       grid_3.6.1       
-[13] gtable_0.3.0      withr_2.1.2       digest_0.6.21     assertthat_0.2.1 
-[17] tibble_2.1.3      ggsignif_0.6.0    crayon_1.3.4      gridExtra_2.3    
-[21] reshape2_1.4.3    purrr_0.3.3       glue_1.3.1        labeling_0.3     
-[25] stringi_1.4.3     compiler_3.6.1    pillar_1.4.2      scales_1.0.0     
-[29] pkgconfig_2.0.2  
+ [1] tidyselect_1.0.0  purrr_0.3.3       reshape2_1.4.3    haven_2.3.0      
+ [5] lattice_0.20-38   carData_3.0-4     colorspace_1.4-1  vctrs_0.3.0      
+ [9] generics_0.0.2    viridisLite_0.3.0 rlang_0.4.6       pillar_1.4.3     
+[13] foreign_0.8-75    glue_1.3.1        withr_2.1.2       readxl_1.3.1     
+[17] lifecycle_0.2.0   plyr_1.8.5        munsell_0.5.0     ggsignif_0.6.0   
+[21] gtable_0.3.0      cellranger_1.1.0  zip_2.0.4         labeling_0.3     
+[25] rio_0.5.16        forcats_0.5.0     curl_4.3          broom_0.5.6      
+[29] Rcpp_1.0.3        backports_1.1.5   scales_1.1.0      abind_1.4-5      
+[33] farver_2.0.3      gridExtra_2.3     hms_0.5.3         digest_0.6.23    
+[37] stringi_1.4.5     openxlsx_4.1.5    rstatix_0.6.0     dplyr_0.8.4      
+[41] grid_3.6.2        cowplot_1.0.0     tools_3.6.2       magrittr_1.5     
+[45] tibble_3.0.1      crayon_1.3.4      car_3.0-8         tidyr_1.0.2      
+[49] pkgconfig_2.0.3   ellipsis_0.3.0    assertthat_0.2.1  R6_2.4.1         
+[53] nlme_3.1-144      compiler_3.6.2   
 > q(save="no")
 > proc.time()
    user  system elapsed 
- 15.311   0.154  14.740 
+ 19.475   0.517  11.925 
