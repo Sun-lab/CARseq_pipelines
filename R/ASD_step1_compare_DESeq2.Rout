@@ -1,7 +1,7 @@
 
-R version 3.6.1 (2019-07-05) -- "Action of the Toes"
+R version 3.6.2 (2019-12-12) -- "Dark and Stormy Night"
 Copyright (C) 2019 The R Foundation for Statistical Computing
-Platform: x86_64-pc-linux-gnu (64-bit)
+Platform: x86_64-apple-darwin15.6.0 (64-bit)
 
 R is free software and comes with ABSOLUTELY NO WARRANTY.
 You are welcome to redistribute it under certain conditions.
@@ -24,10 +24,92 @@ Type 'q()' to quit R.
 > library(data.table)
 > library(ggplot2)
 > library(ggpubr)
-Loading required package: magrittr
 > library(ggpointdensity)
 > theme_set(theme_classic2())
 > library(CARseq)
+> library(SummarizedExperiment)
+Loading required package: GenomicRanges
+Loading required package: stats4
+Loading required package: BiocGenerics
+Loading required package: parallel
+
+Attaching package: ‘BiocGenerics’
+
+The following objects are masked from ‘package:parallel’:
+
+    clusterApply, clusterApplyLB, clusterCall, clusterEvalQ,
+    clusterExport, clusterMap, parApply, parCapply, parLapply,
+    parLapplyLB, parRapply, parSapply, parSapplyLB
+
+The following objects are masked from ‘package:stats’:
+
+    IQR, mad, sd, var, xtabs
+
+The following objects are masked from ‘package:base’:
+
+    anyDuplicated, append, as.data.frame, basename, cbind, colnames,
+    dirname, do.call, duplicated, eval, evalq, Filter, Find, get, grep,
+    grepl, intersect, is.unsorted, lapply, Map, mapply, match, mget,
+    order, paste, pmax, pmax.int, pmin, pmin.int, Position, rank,
+    rbind, Reduce, rownames, sapply, setdiff, sort, table, tapply,
+    union, unique, unsplit, which, which.max, which.min
+
+Loading required package: S4Vectors
+
+Attaching package: ‘S4Vectors’
+
+The following objects are masked from ‘package:data.table’:
+
+    first, second
+
+The following object is masked from ‘package:base’:
+
+    expand.grid
+
+Loading required package: IRanges
+
+Attaching package: ‘IRanges’
+
+The following object is masked from ‘package:data.table’:
+
+    shift
+
+Loading required package: GenomeInfoDb
+Loading required package: Biobase
+Welcome to Bioconductor
+
+    Vignettes contain introductory material; view with
+    'browseVignettes()'. To cite Bioconductor, see
+    'citation("Biobase")', and for packages 'citation("pkgname")'.
+
+Loading required package: DelayedArray
+Loading required package: matrixStats
+
+Attaching package: ‘matrixStats’
+
+The following objects are masked from ‘package:Biobase’:
+
+    anyMissing, rowMedians
+
+Loading required package: BiocParallel
+
+Attaching package: ‘DelayedArray’
+
+The following objects are masked from ‘package:matrixStats’:
+
+    colMaxs, colMins, colRanges, rowMaxs, rowMins, rowRanges
+
+The following objects are masked from ‘package:base’:
+
+    aperm, apply, rowsum
+
+> library(foreach)
+> library(doParallel)
+Loading required package: iterators
+> 
+> # ------------------------------------------------------------------------
+> # read in DESeq2 results and compare
+> # ------------------------------------------------------------------------
 > 
 > res1 = fread("../results/ASD_step1_DESeq2_bulk_adj_covariates_seqSV4.txt")
 Warning message:
@@ -44,9 +126,10 @@ In fread("../results/ASD_step1_DESeq2_bulk_adj_covariates_seqSV4.txt") :
 1: 0.0001603225 0.02341826
 2: 0.6959505937 0.88554527
 > 
-> res2 = fread("../results/ASD_step1_DESeq2_bulk_adj_covariates_seqSV4_log_ct_fractions.txt")
+> fnm2 = "ASD_step1_DESeq2_bulk_adj_covariates_seqSV4_log_ct_fractions.txt"
+> res2 = fread(file.path("../results", fnm2))
 Warning message:
-In fread("../results/ASD_step1_DESeq2_bulk_adj_covariates_seqSV4_log_ct_fractions.txt") :
+In fread(file.path("../results", fnm2)) :
   Detected 6 column names but the data has 7 columns (i.e. invalid file). Added 1 extra default column name for the first column which is guessed to be row names or an index. Use setnames() afterwards if this guess is not correct, or fix the file write command that created the file to create a valid file.
 > 
 > dim(res2)
@@ -59,6 +142,9 @@ In fread("../results/ASD_step1_DESeq2_bulk_adj_covariates_seqSV4_log_ct_fraction
 1: 0.1874398
 2: 0.7911032
 > 
+> res1$qvalue = get_qvalues_one_inflated(res1$pvalue)
+> res2$qvalue = get_qvalues_one_inflated(res2$pvalue)
+> 
 > table(res1$V1 == res2$V1)
 
  TRUE 
@@ -69,15 +155,17 @@ In fread("../results/ASD_step1_DESeq2_bulk_adj_covariates_seqSV4_log_ct_fraction
 > sort(res2$pvalue)[1:5]
 [1] 6.905556e-07 3.371306e-06 5.171250e-06 5.822550e-06 1.110075e-05
 > 
+> sort(res1$qvalue)[1:5]
+[1] 2.765332e-06 3.594397e-04 1.178781e-03 1.178781e-03 1.178781e-03
+> sort(res2$qvalue)[1:5]
+[1] 0.01005173 0.01871445 0.01871445 0.01871445 0.01871445
+> 
 > summary(res1$pvalue)
    Min. 1st Qu.  Median    Mean 3rd Qu.    Max. 
  0.0000  0.1004  0.3329  0.3890  0.6474  0.9999 
 > summary(res2$pvalue)
      Min.   1st Qu.    Median      Mean   3rd Qu.      Max. 
 0.0000007 0.1154887 0.3428173 0.3979760 0.6582638 0.9999756 
-> 
-> res1$qvalue = get_qvalues_one_inflated(res1$pvalue)
-> res2$qvalue = get_qvalues_one_inflated(res2$pvalue)
 > 
 > summary(res1$qvalue)
      Min.   1st Qu.    Median      Mean   3rd Qu.      Max. 
@@ -100,13 +188,14 @@ In fread("../results/ASD_step1_DESeq2_bulk_adj_covariates_seqSV4_log_ct_fraction
 1: 0.05916482 2.5064921 0.01219358 0.1874398  0.1537076
 2: 0.06115376 0.6386936 0.52302226 0.7911032  0.5991808
 > 
-> res.df$pvalue.noCT[which(res.df$pvalue.noCT < 1e-8)] = 1e-8
-> res.df$pvalue.wCT[which(res.df$pvalue.wCT < 1e-8)]   = 1e-8
+> cut1 = 1e-4
+> res.df$qvalue.noCT[which(res.df$qvalue.noCT < cut1)] = cut1
+> res.df$qvalue.wCT[which(res.df$qvalue.wCT < cut1)]   = cut1
 > 
-> g1 = ggplot(res.df, aes(x=-log10(pvalue.noCT),y=-log10(pvalue.wCT))) +
+> g1 = ggplot(res.df, aes(x=-log10(qvalue.noCT),y=-log10(qvalue.wCT))) +
 +   geom_pointdensity(size = 0.6) + scale_color_viridis_c() +
-+   labs(x= "-log10(pval no CT adj.)", y= "-log10(pval with CT adj.)", 
-+        title="ASD vs. control") + xlim(0, 8) + ylim(0, 8) + 
++   labs(x= "-log10(qvalue no CT adj.)", y= "-log10(qvalue with CT adj.)", 
++        title="ASD vs. control") + xlim(0, 4) + ylim(0, 4) + 
 +   geom_abline(intercept = 0, slope=1)
 > 
 > summary(res.df$log2FoldChange.noCT)
@@ -123,17 +212,278 @@ In fread("../results/ASD_step1_DESeq2_bulk_adj_covariates_seqSV4_log_ct_fraction
 +        title="ASD vs. control") + 
 +   geom_abline(intercept = 0, slope=1)
 > 
-> pdf("../figures/ASD_DESeq2_comparison_log10pval.pdf", width=4, height=3.2)
+> pdf("../figures/ASD_DESeq2_compare_log10pval.pdf", width=4, height=3.2)
 > print(g1)
 > dev.off()
 null device 
           1 
 > 
-> pdf("../figures/ASD_DESeq2_comparison_log2fc.pdf", width=4, height=3.2)
+> pdf("../figures/ASD_DESeq2_compare_log2fc.pdf", width=4, height=3.2)
 > print(g2)
 > dev.off()
 null device 
           1 
+> 
+> # ------------------------------------------------------------------------
+> # read in gene expression data
+> # ------------------------------------------------------------------------
+> 
+> fnm = "../../CARseq_pipelines_private/data/ASD_rse_filtered_with_SVs.rds"
+> rse_filtered = readRDS(fnm)
+> set.seed(1234)
+> assay(rse_filtered, "counts") = round(assay(rse_filtered, "counts"))
+> 
+> trec = assays(rse_filtered)$counts
+> 
+> dim(trec)
+[1] 19604    85
+> trec[1:2,1:3]
+                   AN00142_ba9_3rd AN00493_ba9_104 AN00544_ba9_16
+ENSG00000000003.10              14             112            144
+ENSG00000000419.8               47             229            401
+> table(rownames(trec) == res.df$V1)
+
+ TRUE 
+19604 
+> 
+> col_data = colData(rse_filtered)
+> 
+> dim(col_data)
+[1] 85 72
+> col_data[1:2,1:5]
+DataFrame with 2 rows and 5 columns
+                Individual_ID       Assay       Sample_ID
+                  <character> <character>     <character>
+AN00142_ba9_3rd       AN00142     RNA-seq AN00142_ba9_3rd
+AN00493_ba9_104       AN00493     RNA-seq AN00493_ba9_104
+                                                           File_Name
+                                                         <character>
+AN00142_ba9_3rd PEC_ASD_UCLA_PFC_mRNA_HiSeq2000_AN00142_ba9_3rd.R1/2
+AN00493_ba9_104 PEC_ASD_UCLA_PFC_mRNA_HiSeq2000_AN00493_ba9_104.R1/2
+                BrodmannArea
+                 <character>
+AN00142_ba9_3rd          ba9
+AN00493_ba9_104          ba9
+> names(col_data)
+ [1] "Individual_ID"                          
+ [2] "Assay"                                  
+ [3] "Sample_ID"                              
+ [4] "File_Name"                              
+ [5] "BrodmannArea"                           
+ [6] "BrainRegion"                            
+ [7] "CellType"                               
+ [8] "TissueState"                            
+ [9] "RIN"                                    
+[10] "LibraryPrep"                            
+[11] "LibraryKit"                             
+[12] "RunType"                                
+[13] "ReadLength"                             
+[14] "SequencingPlatform"                     
+[15] "TotalReads"                             
+[16] "MappedReads"                            
+[17] "Sequencing.Batch"                       
+[18] "Reads.after.rmdup.Samtools"             
+[19] "Number.of.dup.readsSamtools"            
+[20] "Unique.ReadsSamtools"                   
+[21] "Proportion.of.exonic.reads.HTSeq"       
+[22] "HQ.Aligned.Reads.picard"                
+[23] "PF.All.Bases.picard"                    
+[24] "Coding.Bases.picard"                    
+[25] "UTR.Bases.picard"                       
+[26] "Intronic.Bases.picard"                  
+[27] "Intergenic.bases.picard"                
+[28] "Median.CV.Coverage.picard"              
+[29] "Median.5prime.Bias.picard"              
+[30] "Median.3prime.Bias.picard"              
+[31] "Median.5to3prime.Bias.picard"           
+[32] "AT.Dropout.picard"                      
+[33] "GC.Dropout.picard"                      
+[34] "Total.Expected.Count"                   
+[35] "Grant"                                  
+[36] "StudyName"                              
+[37] "BrainBank"                              
+[38] "Organism"                               
+[39] "PMI"                                    
+[40] "pH"                                     
+[41] "BrainWeight"                            
+[42] "Sex"                                    
+[43] "AgeDeath"                               
+[44] "Diagnosis"                              
+[45] "CauseDeath"                             
+[46] "IQ"                                     
+[47] "Detailed.Diagnosis"                     
+[48] "Agonal.State"                           
+[49] "Seizures"                               
+[50] "Pyschiatric.Medications"                
+[51] "Comorbidity.notes..other.than.seizures."
+[52] "ADI.R.A..cut.off.10."                   
+[53] "ADI.R.B..NV..cut.off.7."                
+[54] "ADI.R.B..V..cut.off.8."                 
+[55] "ADI.R.C..cut.off.3."                    
+[56] "ADI.R.D..cut.off.1."                    
+[57] "IQ.notes"                               
+[58] "Medication_notes"                       
+[59] "Seizure_notes"                          
+[60] "log_depth"                              
+[61] "sv1"                                    
+[62] "sv2"                                    
+[63] "sv3"                                    
+[64] "sv4"                                    
+[65] "sv5"                                    
+[66] "sv6"                                    
+[67] "sv7"                                    
+[68] "sv8"                                    
+[69] "seqSV1"                                 
+[70] "seqSV2"                                 
+[71] "seqSV3"                                 
+[72] "seqSV4"                                 
+> 
+> col_data$scaled_AgeDeath  = scale(col_data$AgeDeath)
+> col_data$scaled_log_depth = scale(col_data$log_depth)
+> col_data$scaled_RIN = scale(col_data$RIN)
+> 
+> col_data$Diagnosis = factor(col_data$Diagnosis)
+> col_data$Diagnosis = relevel(col_data$Diagnosis, ref="Control")
+> 
+> # ------------------------------------------------------------------------
+> # read in cell type proportion data
+> # ------------------------------------------------------------------------
+> 
+> cellular_proportions = readRDS("../data/ASD_prop.rds")
+> lapply(cellular_proportions, dim)
+$ICeDT
+[1] 85  6
+
+$CIBERSORT
+[1] 85  6
+
+> 
+> icedt_rho = cellular_proportions$ICeDT
+> dim(icedt_rho)
+[1] 85  6
+> icedt_rho[1:2,]
+                    Astro       Exc        Inh      Micro      Oligo        OPC
+AN00142_ba9_3rd 0.1191460 0.6184645 0.12836252 0.01081552 0.07980038 0.04341114
+AN00493_ba9_104 0.1485127 0.5163945 0.08302108 0.03695201 0.13447992 0.08063976
+> 
+> table(rownames(col_data) == rownames(icedt_rho))
+
+TRUE 
+  85 
+> 
+> ctypes2use = which(colnames(icedt_rho) != "Exc")
+> plog = log(icedt_rho[,ctypes2use] + 0.01)
+> plog = plog - log(icedt_rho[,which(colnames(icedt_rho) == "Exc")])
+> colnames(plog) = paste("log", colnames(plog), sep="_")
+> 
+> col_data = cbind(col_data, plog)
+> dim(col_data)
+[1] 85 80
+> col_data[1:2,c(1:6,(ncol(col_data)-6):ncol(col_data))]
+DataFrame with 2 rows and 13 columns
+                Individual_ID       Assay       Sample_ID
+                  <character> <character>     <character>
+AN00142_ba9_3rd       AN00142     RNA-seq AN00142_ba9_3rd
+AN00493_ba9_104       AN00493     RNA-seq AN00493_ba9_104
+                                                           File_Name
+                                                         <character>
+AN00142_ba9_3rd PEC_ASD_UCLA_PFC_mRNA_HiSeq2000_AN00142_ba9_3rd.R1/2
+AN00493_ba9_104 PEC_ASD_UCLA_PFC_mRNA_HiSeq2000_AN00493_ba9_104.R1/2
+                BrodmannArea       BrainRegion  scaled_log_depth
+                 <character>       <character>          <matrix>
+AN00142_ba9_3rd          ba9 Prefrontal Cortex  -2.9691117327693
+AN00493_ba9_104          ba9 Prefrontal Cortex 0.729997361793625
+                        scaled_RIN         log_Astro           log_Inh
+                          <matrix>         <numeric>         <numeric>
+AN00142_ba9_3rd -0.442068255142521 -1.56629649883952 -1.49736255132221
+AN00493_ba9_104  0.304021670052889 -1.18103616136427 -1.71404487974965
+                        log_Micro         log_Oligo           log_OPC
+                        <numeric>         <numeric>         <numeric>
+AN00142_ba9_3rd -3.39154077702174 -1.92965056981914 -2.44922046888933
+AN00493_ba9_104 -2.39774494259018 -1.27373049490032 -1.73997808567171
+> 
+> # ------------------------------------------------------------------------
+> # run linear regression, estimate the R2 by all the covariates 
+> # with or without cell type proportions
+> # ------------------------------------------------------------------------
+> 
+> rd = colSums(trec)
+> summary(rd)
+    Min.  1st Qu.   Median     Mean  3rd Qu.     Max. 
+ 4072687 16540597 23201902 25729543 33010268 55600750 
+> rd = rd/median(rd)
+> summary(rd)
+   Min. 1st Qu.  Median    Mean 3rd Qu.    Max. 
+ 0.1755  0.7129  1.0000  1.1089  1.4227  2.3964 
+> 
+> log_trec = log(t(t(trec + 1)/rd))
+> dim(log_trec)
+[1] 19604    85
+> log_trec[1:2,1:5]
+                   AN00142_ba9_3rd AN00493_ba9_104 AN00544_ba9_16
+ENSG00000000003.10        4.447981        4.410517       4.726127
+ENSG00000000419.8         5.611132        5.121209       5.745845
+                   AN00764_ba9_61 AN01125_ba9_22
+ENSG00000000003.10       4.329547       4.841157
+ENSG00000000419.8        5.371001       5.875361
+> 
+> R2s = matrix(NA, nrow=nrow(trec), ncol=2)
+> 
+> nCore = 15
+> 
+> registerDoParallel(cores=nCore)
+> options(mc.cores=nCore)
+> 
+> R2s = foreach(i = 1:nrow(trec), .combine = "rbind") %dopar% {
++   y   = log_trec[i,]
++ 
++   lm0 = lm(y ~ BrainBank + Sequencing.Batch + scaled_AgeDeath + 
++              scaled_log_depth + scaled_RIN + seqSV1 + seqSV2 + 
++              seqSV3 + seqSV4 + Diagnosis, data=col_data)
++   
++   lm1 = lm(y ~ BrainBank + Sequencing.Batch + scaled_AgeDeath + 
++              scaled_log_depth + scaled_RIN + seqSV1 + seqSV2 + 
++              seqSV3 + seqSV4 + Diagnosis + log_Astro + log_Inh + 
++              log_Micro + log_Oligo + log_OPC, data=col_data)
++   
++   a1 = anova(lm0, lm1)
++   s0 = summary(lm0)
++   s1 = summary(lm1)
++   
++   c(s0$r.squared, s1$r.squared, a1$`Pr(>F)`[2])
++ }
+> 
+> dim(R2s)
+[1] 19604     3
+> R2s[1:2,]
+              [,1]      [,2]         [,3]
+result.1 0.6368569 0.7750313 3.365291e-06
+result.2 0.6561098 0.7284082 5.805724e-03
+> 
+> R2s = as.data.frame(R2s)
+> rownames(R2s) = rownames(trec)
+> names(R2s) = c("R2_no_ct", "R2_with_ct", "pval")
+> table(rownames(R2s) == res.df$V1)
+
+ TRUE 
+19604 
+> 
+> g2 = ggplot(R2s, aes(x=R2_no_ct, y=R2_with_ct)) +
++   geom_pointdensity(size = 0.6) + scale_color_viridis_c() +
++   labs(x = "R2, no CT adj.", y = "R2, with CT adj.") +  
++   geom_abline(intercept = 0, slope=1)
+> 
+> pdf("../figures/ASD_DESeq2_compare_R2_with_or_without_log_ct_prop.pdf", 
++     width=4, height=3.2)
+> print(g2)
+> dev.off()
+null device 
+          1 
+> 
+> # ------------------------------------------------------------------------
+> # check the association between ct-R2 and wether the gene expression
+> # is assocaited with case/control status with/without ct correction
+> # ------------------------------------------------------------------------
 > 
 > table(res.df$qvalue.noCT < 0.1)
 
@@ -144,66 +494,250 @@ FALSE  TRUE
 FALSE  TRUE 
 19123   481 
 > 
-> table(res.df$qvalue.noCT < 0.05)
+> table(res.df$qvalue.noCT < 0.2)
 
 FALSE  TRUE 
-19115   489 
-> table(res.df$qvalue.wCT  < 0.05)
+16732  2872 
+> table(res.df$qvalue.wCT  < 0.2)
 
 FALSE  TRUE 
-19543    61 
+17694  1910 
 > 
-> table(res.df$qvalue.noCT < 0.05, res.df$qvalue.wCT < 0.05)
-       
-        FALSE  TRUE
-  FALSE 19078    37
-  TRUE    465    24
-> table(res.df$qvalue.noCT < 0.1, res.df$qvalue.wCT  < 0.1)
+> table(R2s$pval < 0.05/nrow(R2s))
+
+FALSE  TRUE 
+14233  5371 
+> 
+> table(res.df$qvalue.noCT < 0.1, res.df$qvalue.wCT < 0.1)
        
         FALSE  TRUE
   FALSE 18245   296
   TRUE    878   185
+> table(res.df$qvalue.noCT < 0.2, res.df$qvalue.wCT < 0.2)
+       
+        FALSE  TRUE
+  FALSE 15623  1109
+  TRUE   2071   801
+> 
+> stats = list()
+> qcuts = c(0.1, 0.2)
+> 
+> for(k in 1:length(qcuts)){
++   qcut = qcuts[k]
++   w00 = res.df$qvalue.noCT >= qcut & res.df$qvalue.wCT >= qcut
++   w10 = res.df$qvalue.noCT < qcut  & res.df$qvalue.wCT >= qcut
++   w01 = res.df$qvalue.noCT >= qcut & res.df$qvalue.wCT < qcut
++   w11 = res.df$qvalue.noCT < qcut  & res.df$qvalue.wCT < qcut
++   
++   f00 = fisher.test(R2s$pval < 0.05/nrow(R2s), w00)
++   f10 = fisher.test(R2s$pval < 0.05/nrow(R2s), w10)
++   f01 = fisher.test(R2s$pval < 0.05/nrow(R2s), w01)
++   f11 = fisher.test(R2s$pval < 0.05/nrow(R2s), w11)
++   
++   stat1 = c(f00$estimate, f00$conf.int, f00$p.value)
++   stat1 = rbind(stat1, c(f10$estimate, f10$conf.int, f10$p.value))
++   stat1 = rbind(stat1, c(f01$estimate, f01$conf.int, f01$p.value))
++   stat1 = rbind(stat1, c(f11$estimate, f11$conf.int, f11$p.value))
++   
++   stats[[k]] = stat1 
++ }
+> 
+> stats
+[[1]]
+      odds ratio                                 
+stat1  0.4464788 0.3985763 0.5003017 2.769432e-43
+       2.8102080 2.4463861 3.2284009 3.238204e-48
+       1.6741332 1.3100196 2.1321789 3.192076e-05
+       0.9016722 0.6323089 1.2659728 6.192214e-01
+
+[[2]]
+      odds ratio                                  
+stat1  0.4547631 0.4224430 0.4895995  3.058929e-96
+       2.8813912 2.6232363 3.1648032 2.583240e-107
+       1.7230069 1.5165137 1.9560815  8.121398e-17
+       0.8176157 0.6888782 0.9668860  1.699120e-02
+
+> 
+> table(R2s$pval < 0.05/nrow(R2s))
+
+FALSE  TRUE 
+14233  5371 
+> 
+> qcut = 0.1
+> 
+> w00 = res.df$qvalue.noCT >= qcut & res.df$qvalue.wCT >= qcut
+> c1 = chisq.test(R2s$pval < 0.05/nrow(R2s), w00)
+> c1$expected/rowSums(c1$observed)
+                         w00
+R2s$pval < 0.05/nrow(R2s)      FALSE      TRUE
+                    FALSE 0.06932259 0.9306774
+                    TRUE  0.06932259 0.9306774
+> c1$observed/rowSums(c1$observed)
+                         w00
+R2s$pval < 0.05/nrow(R2s)      FALSE       TRUE
+                    FALSE 0.05325652 0.94674348
+                    TRUE  0.11189723 0.88810277
+> 
+> w10 = res.df$qvalue.noCT < qcut & res.df$qvalue.wCT >= qcut
+> c1 = chisq.test(R2s$pval < 0.05/nrow(R2s), w10)
+> c1$expected/rowSums(c1$observed)
+                         w10
+R2s$pval < 0.05/nrow(R2s)     FALSE       TRUE
+                    FALSE 0.9552132 0.04478678
+                    TRUE  0.9552132 0.04478678
+> c1$observed/rowSums(c1$observed)
+                         w10
+R2s$pval < 0.05/nrow(R2s)      FALSE       TRUE
+                    FALSE 0.96922645 0.03077355
+                    TRUE  0.91807857 0.08192143
+> 
+> w01 = res.df$qvalue.noCT >= qcut & res.df$qvalue.wCT < qcut
+> c1 = chisq.test(R2s$pval < 0.05/nrow(R2s), w01)
+> c1$expected/rowSums(c1$observed)
+                         w01
+R2s$pval < 0.05/nrow(R2s)    FALSE       TRUE
+                    FALSE 0.984901 0.01509896
+                    TRUE  0.984901 0.01509896
+> c1$observed/rowSums(c1$observed)
+                         w01
+R2s$pval < 0.05/nrow(R2s)      FALSE       TRUE
+                    FALSE 0.98721282 0.01278718
+                    TRUE  0.97877490 0.02122510
+> 
+> w11 = res.df$qvalue.noCT < qcut & res.df$qvalue.wCT < qcut
+> c1 = chisq.test(R2s$pval < 0.05/nrow(R2s), w11)
+> c1$expected/rowSums(c1$observed)
+                         w11
+R2s$pval < 0.05/nrow(R2s)     FALSE       TRUE
+                    FALSE 0.9905632 0.00943685
+                    TRUE  0.9905632 0.00943685
+> c1$observed/rowSums(c1$observed)
+                         w11
+R2s$pval < 0.05/nrow(R2s)       FALSE        TRUE
+                    FALSE 0.990304223 0.009695777
+                    TRUE  0.991249302 0.008750698
+> 
+> # ------------------------------------------------------------------------
+> # plot the odds ratio
+> # ------------------------------------------------------------------------
+> 
+> grp = c("q < 0.1 with or w/o accounting for\n cell type (ct) proportion (prop.)", 
++         "q < 0.1 with ct prop. and \nq >= 0.1 w/o ct prop.", 
++         "q >= 0.1 with ct prop. and \nq < 0.1 w/o ct prop. ", 
++         "q < 0.1 with or w/o ct prop.")
+> yAxis = length(grp):1
+> 
+> df_or = data.frame(group = grp, yAxis = yAxis, OR = stats[[1]][,1], 
++                    CI_low = stats[[1]][,2], CI_high = stats[[1]][,3], 
++                    pval = paste0("p = ", signif(stats[[1]][,4],2)))
+> 
+> p1 = ggplot(df_or, aes(x = OR, y = yAxis, label= pval)) + 
++   geom_vline(aes(xintercept = 1), size = .25, linetype = "dashed") +
++   geom_errorbarh(aes(xmax = CI_high, xmin = CI_low), size = .5, 
++                  height = .2, color = "gray50") +
++   geom_point(size = 3.5, color = "orange") +
++   theme(panel.grid.minor = element_blank()) +
++   scale_y_continuous(breaks = yAxis, labels = grp) + ylab("") + 
++   xlab("Odds Ratio") + theme_bw() + 
++   ggtitle("ASD association vs. cell type prop. association") +
++   geom_text(nudge_x = 0.15, nudge_y = - 0.2)
+> 
+> pdf("../figures/ASD_DESeq2_qval_vs_log_ct_association.pdf", 
++     width=6, height=2.5)
+> print(p1)
+> dev.off()
+null device 
+          1 
+> 
+> # ------------------------------------------------------------------------
+> # Compare the significance level for different groups of genes
+> # ------------------------------------------------------------------------
+> 
+> R2s$R2_diff = R2s$R2_with_ct - R2s$R2_no_ct
+> R2s$grp = rep(NA, nrow(R2s))
+> R2s$grp[w00] = "00"
+> R2s$grp[w01] = "01"
+> R2s$grp[w10] = "10"
+> R2s$grp[w11] = "11"
+> 
+> R2s$group[(w00 | w01)] = "q >= 0.1 "
+> R2s$group[(w10 | w11)] = "q < 0.1"
+> 
+> res.df$grp   = R2s$grp
+> res.df$group = R2s$group
+> 
+> ttl = "while accounting for cell type prop."
+> g1 = ggplot(subset(res.df, grp %in% c("01", "11")), 
++        aes(x=-log10(qvalue.wCT), color=group)) + 
++   geom_density() + theme(legend.position=c(0.55,0.8)) + xlim(1,2.5) + 
++   xlab("-log10(qvalue for ASD association \n given cell type prop.)") + 
++   ggtitle(paste0("ASD-associated genes (q < 0.1) \n ", ttl)) + 
++   labs(color = "q-value without accounting \n for cell type prop.")
+> 
+> 
+> pdf("../figures/ASD_DESeq2_qval_density.pdf", 
++     width=4, height=3.5)
+> print(g1)
+> dev.off()
+null device 
+          1 
 > 
 > gc()
-          used (Mb) gc trigger  (Mb) max used  (Mb)
-Ncells 1827831 97.7    3551160 189.7  2559792 136.8
-Vcells 3863689 29.5    8391558  64.1  8391558  64.1
+           used  (Mb) gc trigger  (Mb) limit (Mb) max used  (Mb)
+Ncells  5215239 278.6    9767205 521.7         NA  7547354 403.1
+Vcells 18490847 141.1   34488507 263.2      32768 34486654 263.2
 > 
 > sessionInfo()
-R version 3.6.1 (2019-07-05)
-Platform: x86_64-pc-linux-gnu (64-bit)
-Running under: Ubuntu 18.04.3 LTS
+R version 3.6.2 (2019-12-12)
+Platform: x86_64-apple-darwin15.6.0 (64-bit)
+Running under: macOS Catalina 10.15.7
 
 Matrix products: default
-BLAS/LAPACK: /opt/intel/compilers_and_libraries_2018.2.199/linux/mkl/lib/intel64_lin/libmkl_rt.so
+BLAS:   /Library/Frameworks/R.framework/Versions/3.6/Resources/lib/libRblas.0.dylib
+LAPACK: /Library/Frameworks/R.framework/Versions/3.6/Resources/lib/libRlapack.dylib
 
 locale:
- [1] LC_CTYPE=en_US.UTF-8       LC_NUMERIC=C              
- [3] LC_TIME=en_US.UTF-8        LC_COLLATE=en_US.UTF-8    
- [5] LC_MONETARY=en_US.UTF-8    LC_MESSAGES=en_US.UTF-8   
- [7] LC_PAPER=en_US.UTF-8       LC_NAME=C                 
- [9] LC_ADDRESS=C               LC_TELEPHONE=C            
-[11] LC_MEASUREMENT=en_US.UTF-8 LC_IDENTIFICATION=C       
+[1] en_US.UTF-8/en_US.UTF-8/en_US.UTF-8/C/en_US.UTF-8/en_US.UTF-8
 
 attached base packages:
-[1] stats     graphics  grDevices utils     datasets  methods   base     
+[1] parallel  stats4    stats     graphics  grDevices utils     datasets 
+[8] methods   base     
 
 other attached packages:
-[1] CARseq_0.0.0.9007    ggpointdensity_0.1.0 ggpubr_0.2.4        
-[4] magrittr_1.5         ggplot2_3.3.1        data.table_1.12.2   
+ [1] doParallel_1.0.15           iterators_1.0.12           
+ [3] foreach_1.4.7               SummarizedExperiment_1.14.1
+ [5] DelayedArray_0.10.0         BiocParallel_1.18.1        
+ [7] matrixStats_0.55.0          Biobase_2.44.0             
+ [9] GenomicRanges_1.36.1        GenomeInfoDb_1.20.0        
+[11] IRanges_2.18.3              S4Vectors_0.22.1           
+[13] BiocGenerics_0.30.0         CARseq_0.0.0.9007          
+[15] ggpointdensity_0.1.0        ggpubr_0.4.0.999           
+[17] ggplot2_3.3.1               data.table_1.12.8          
 
 loaded via a namespace (and not attached):
- [1] Rcpp_1.0.2         pillar_1.4.2       compiler_3.6.1     nloptr_1.2.2.1000 
- [5] iterators_1.0.12   digest_0.6.21      viridisLite_0.3.0  tibble_2.1.3      
- [9] gtable_0.3.0       nlme_3.1-141       lattice_0.20-38    zetadiv_1.1.1     
-[13] mgcv_1.8-29        pkgconfig_2.0.2    rlang_0.4.0        Matrix_1.2-17     
-[17] foreach_1.4.7      parallel_3.6.1     withr_2.1.2        dplyr_0.8.3       
-[21] doMC_1.3.6         bvls_1.4           grid_3.6.1         tidyselect_0.2.5  
-[25] glue_1.3.1         R6_2.4.0           purrr_0.3.3        scales_1.0.0      
-[29] codetools_0.2-16   matrixStats_0.55.0 MASS_7.3-51.4      splines_3.6.1     
-[33] assertthat_0.2.1   colorspace_1.4-1   ggsignif_0.6.0     labeling_0.3      
-[37] munsell_0.5.0      scam_1.2-5         crayon_1.3.4      
+ [1] tidyr_1.0.2            viridisLite_0.3.0      splines_3.6.2         
+ [4] carData_3.0-4          assertthat_0.2.1       GenomeInfoDbData_1.2.1
+ [7] cellranger_1.1.0       pillar_1.4.3           backports_1.1.5       
+[10] lattice_0.20-38        glue_1.3.1             digest_0.6.23         
+[13] ggsignif_0.6.0         XVector_0.24.0         colorspace_1.4-1      
+[16] Matrix_1.2-18          pkgconfig_2.0.3        broom_0.5.6           
+[19] haven_2.3.0            zlibbioc_1.30.0        purrr_0.3.3           
+[22] bvls_1.4               scales_1.1.0           openxlsx_4.1.5        
+[25] rio_0.5.16             tibble_3.0.1           mgcv_1.8-31           
+[28] generics_0.0.2         farver_2.0.3           car_3.0-8             
+[31] ellipsis_0.3.0         withr_2.1.2            magrittr_1.5          
+[34] crayon_1.3.4           readxl_1.3.1           nlme_3.1-144          
+[37] MASS_7.3-51.5          rstatix_0.6.0          forcats_0.5.0         
+[40] foreign_0.8-75         tools_3.6.2            hms_0.5.3             
+[43] doMC_1.3.6             lifecycle_0.2.0        munsell_0.5.0         
+[46] zip_2.0.4              scam_1.2-6             compiler_3.6.2        
+[49] rlang_0.4.6            grid_3.6.2             RCurl_1.98-1.1        
+[52] nloptr_1.2.1           bitops_1.0-6           labeling_0.3          
+[55] gtable_0.3.0           codetools_0.2-16       abind_1.4-5           
+[58] zetadiv_1.1.1          curl_4.3               R6_2.4.1              
+[61] dplyr_0.8.4            stringi_1.4.5          Rcpp_1.0.3            
+[64] vctrs_0.3.0            tidyselect_1.0.0      
 > q(save="no")
 > proc.time()
-   user  system elapsed 
-  2.947   0.113   2.827 
+    user   system  elapsed 
+1529.809   25.140  125.217 
