@@ -51,13 +51,13 @@ Loading required package: parallel
 > # read in p-values
 > # ------------------------------------------------------------------------
 > 
-> pval_carseq = readRDS("../results/step_z_pval_carseq.rds")
-> pval_snseq  = readRDS("../results/step_z_pval_snseq.rds")
+> pval_carseq = readRDS("../results/step_z2_pval_carseq.rds")
+> pval_snseq  = readRDS("../results/step_z2_pval_snseq.rds")
 > 
 > dim(pval_carseq)
 [1] 12527    15
 > dim(pval_snseq)
-[1] 12527    18
+[1] 12527     7
 > pval_carseq[1:2,]
              gene_id gene_name CARseq_Astro CARseq_Exc CARseq_Inh CARseq_Micro
 1 ENSG00000000003.10    TSPAN6    0.1255027  0.6046280 0.02933506    0.7002754
@@ -69,18 +69,9 @@ Loading required package: parallel
 1   0.1313709   0.3853622 0.9883231
 2   0.9372846   0.7714128 0.7818392
 > pval_snseq[1:2,]
-      gene_name PFC_AST-FB PFC_AST-PP PFC_Endothelial PFC_IN-PV PFC_IN-SST
-7741     TSPAN6  0.8947925  0.6802144       0.9197326 0.1512528  0.8875916
-15992      DPM1  0.6482658  0.1096199       0.5339589 0.4811941  0.2139307
-      PFC_IN-SV2C PFC_IN-VIP  PFC_L2_3    PFC_L4 PFC_L5_6-CC  PFC_L5_6
-7741    0.7261116  0.9029420 0.5053968 0.4322709   0.5459669 0.4873304
-15992   0.8286643  0.6770929 0.6198634 0.6566290   0.9340717 0.4827340
-      PFC_Microglia PFC_Neu-mat PFC_Neu-NRGN-I PFC_Neu-NRGN-II
-7741      0.5604572   0.8194594      0.8280195       0.8854074
-15992     0.8221065   0.8907421      0.7751579       0.6132683
-      PFC_Oligodendrocytes   PFC_OPC
-7741             0.9015658 0.1404762
-15992            0.2178388 0.4335813
+      gene_name     Astro       Inh       Exc     Micro     Oligo       OPC
+7741     TSPAN6 0.9402924 0.2318841 0.9527387 0.5604572 0.9015658 0.1404762
+15992      DPM1 0.1983077 0.7365932 0.5050562 0.8221065 0.2178388 0.4335813
 > 
 > table(pval_carseq$gene_name == pval_snseq$gene_name)
 
@@ -125,22 +116,16 @@ Loading required package: parallel
 > rownames(pvals) = pval_carseq$gene_name
 > 
 > dim(pvals)
-[1] 12527    30
+[1] 12527    19
 > pvals[1:2,1:4]
        CARseq_Astro CARseq_Exc CARseq_Inh CARseq_Micro
 TSPAN6    0.1255027  0.6046280 0.02933506    0.7002754
 DPM1      0.6632756  0.1739825 0.07872326    1.0000000
 > names(pvals)
- [1] "CARseq_Astro"         "CARseq_Exc"           "CARseq_Inh"          
- [4] "CARseq_Micro"         "CARseq_Oligo"         "CARseq_OPC"          
- [7] "DESeq2_bulk"          "TOAST_Astro"          "TOAST_Exc"           
-[10] "TOAST_Inh"            "TOAST_Micro"          "TOAST_Oligo"         
-[13] "TOAST_OPC"            "PFC_AST-FB"           "PFC_AST-PP"          
-[16] "PFC_Endothelial"      "PFC_IN-PV"            "PFC_IN-SST"          
-[19] "PFC_IN-SV2C"          "PFC_IN-VIP"           "PFC_L2_3"            
-[22] "PFC_L4"               "PFC_L5_6-CC"          "PFC_L5_6"            
-[25] "PFC_Microglia"        "PFC_Neu-mat"          "PFC_Neu-NRGN-I"      
-[28] "PFC_Neu-NRGN-II"      "PFC_Oligodendrocytes" "PFC_OPC"             
+ [1] "CARseq_Astro" "CARseq_Exc"   "CARseq_Inh"   "CARseq_Micro" "CARseq_Oligo"
+ [6] "CARseq_OPC"   "DESeq2_bulk"  "TOAST_Astro"  "TOAST_Exc"    "TOAST_Inh"   
+[11] "TOAST_Micro"  "TOAST_Oligo"  "TOAST_OPC"    "Astro"        "Inh"         
+[16] "Exc"          "Micro"        "Oligo"        "OPC"         
 > 
 > gsea = list()
 > for(i in 1:ncol(pvals)){
@@ -160,37 +145,26 @@ DPM1      0.6632756  0.1739825 0.07872326    1.0000000
 +   fgseaRes = fgseaRes[od1,]
 +   gsea[[names(pvals)[i]]] = fgseaRes
 + }
-1 Fri Dec 11 10:17:59 2020 
-2 Fri Dec 11 10:18:02 2020 
-3 Fri Dec 11 10:18:04 2020 
-4 Fri Dec 11 10:18:06 2020 
-5 Fri Dec 11 10:18:08 2020 
-6 Fri Dec 11 10:18:10 2020 
-7 Fri Dec 11 10:18:12 2020 
-8 Fri Dec 11 10:18:15 2020 
-9 Fri Dec 11 10:18:17 2020 
-10 Fri Dec 11 10:18:19 2020 
-11 Fri Dec 11 10:18:21 2020 
-12 Fri Dec 11 10:18:23 2020 
-13 Fri Dec 11 10:18:25 2020 
-14 Fri Dec 11 10:18:27 2020 
-15 Fri Dec 11 10:18:29 2020 
-16 Fri Dec 11 10:18:31 2020 
-17 Fri Dec 11 10:18:34 2020 
-18 Fri Dec 11 10:18:36 2020 
-19 Fri Dec 11 10:18:38 2020 
-20 Fri Dec 11 10:18:40 2020 
-21 Fri Dec 11 10:18:42 2020 
-22 Fri Dec 11 10:18:44 2020 
-23 Fri Dec 11 10:18:46 2020 
-24 Fri Dec 11 10:18:48 2020 
-25 Fri Dec 11 10:18:50 2020 
-26 Fri Dec 11 10:18:52 2020 
-27 Fri Dec 11 10:18:55 2020 
-28 Fri Dec 11 10:18:58 2020 
-29 Fri Dec 11 10:19:00 2020 
-30 Fri Dec 11 10:19:03 2020 
-There were 50 or more warnings (use warnings() to see the first 50)
+1 Wed Dec 16 23:08:50 2020 
+2 Wed Dec 16 23:08:53 2020 
+3 Wed Dec 16 23:08:55 2020 
+4 Wed Dec 16 23:08:58 2020 
+5 Wed Dec 16 23:09:00 2020 
+6 Wed Dec 16 23:09:02 2020 
+7 Wed Dec 16 23:09:04 2020 
+8 Wed Dec 16 23:09:07 2020 
+9 Wed Dec 16 23:09:09 2020 
+10 Wed Dec 16 23:09:11 2020 
+11 Wed Dec 16 23:09:13 2020 
+12 Wed Dec 16 23:09:15 2020 
+13 Wed Dec 16 23:09:17 2020 
+14 Wed Dec 16 23:09:19 2020 
+15 Wed Dec 16 23:09:21 2020 
+16 Wed Dec 16 23:09:24 2020 
+17 Wed Dec 16 23:09:26 2020 
+18 Wed Dec 16 23:09:28 2020 
+19 Wed Dec 16 23:09:31 2020 
+There were 42 warnings (use warnings() to see them)
 > 
 > lapply(gsea, dim)
 $CARseq_Astro
@@ -232,55 +206,22 @@ $TOAST_Oligo
 $TOAST_OPC
 [1] 1027    8
 
-$`PFC_AST-FB`
-[1] 1025    8
-
-$`PFC_AST-PP`
+$Astro
 [1] 1027    8
 
-$PFC_Endothelial
+$Inh
 [1] 1027    8
 
-$`PFC_IN-PV`
+$Exc
 [1] 1027    8
 
-$`PFC_IN-SST`
+$Micro
 [1] 1027    8
 
-$`PFC_IN-SV2C`
+$Oligo
 [1] 1027    8
 
-$`PFC_IN-VIP`
-[1] 1027    8
-
-$PFC_L2_3
-[1] 1027    8
-
-$PFC_L4
-[1] 1027    8
-
-$`PFC_L5_6-CC`
-[1] 1027    8
-
-$PFC_L5_6
-[1] 1027    8
-
-$PFC_Microglia
-[1] 1027    8
-
-$`PFC_Neu-mat`
-[1] 1027    8
-
-$`PFC_Neu-NRGN-I`
-[1] 1026    8
-
-$`PFC_Neu-NRGN-II`
-[1] 1023    8
-
-$PFC_Oligodendrocytes
-[1] 1027    8
-
-$PFC_OPC
+$OPC
 [1] 1027    8
 
 > gsea$CARseq_Micro[1:2,]
@@ -291,9 +232,12 @@ $PFC_OPC
 1: 0.7337620 0.7622399 1.322394  105 RPL18A,RPS2,RPL32,RPL35,RPS8,RPL41,...
 2: 0.7049757 0.7708310 1.332358   90 RPL18A,RPS2,RPL32,RPL35,RPS8,RPL41,...
 > 
+> # ------------------------------------------------------------------------
+> # check the overlap of top pathways
+> # ------------------------------------------------------------------------
+> 
 > pathways_nms = names(pathways_reactome)
 > 
-> ncut = 5
 > fisher_pval = matrix(NA, nrow=ncol(pvals), ncol=ncol(pvals))
 > rownames(fisher_pval) = names(pvals)
 > colnames(fisher_pval) = names(pvals)
@@ -303,9 +247,7 @@ $PFC_OPC
 +   gsea_i  = gsea[[label_i]]
 +   gsea_i  = gsea_i[which(gsea_i$NES > 0 & gsea_i$padj < 0.2),]
 +   xi = gsea_i$pathway
-+   
 +   if(length(xi) <= 1) { next }
-+   # xi = gsea_i$pathway[order(gsea_i$NES, decreasing=TRUE)][1:ncut]
 +   
 +   for(j in 1:ncol(fisher_pval)){
 +     label_j = names(pvals)[j]
@@ -314,55 +256,44 @@ $PFC_OPC
 +     yj = gsea_j$pathway
 +     if(length(yj) <= 1) { next }
 +     
-+     # yj = gsea_j$pathway[order(gsea_j$pval, -gsea_j$NES)][1:ncut]
-+     
 +     f1 = fisher.test(pathways_nms %in% xi, 
 +                      pathways_nms %in% yj, alternative = "greater")
 +     fisher_pval[i,j] = f1$p.value
 +   }
 + }
 > 
-> 
+> dim(fisher_pval)
+[1] 19 19
 > summary(c(fisher_pval))
    Min. 1st Qu.  Median    Mean 3rd Qu.    Max.    NA's 
- 0.0000  0.0000  0.0002  0.2480  0.3511  1.0000     416 
-> rowSums(is.na(fisher_pval[1:13,14:30]))
+0.00000 0.00000 0.00867 0.33427 1.00000 1.00000     192 
+> rowSums(is.na(fisher_pval[1:13,14:19]))
 CARseq_Astro   CARseq_Exc   CARseq_Inh CARseq_Micro CARseq_Oligo   CARseq_OPC 
-           3            3            3            3           17            3 
+           1            1            1            1            6            1 
  DESeq2_bulk  TOAST_Astro    TOAST_Exc    TOAST_Inh  TOAST_Micro  TOAST_Oligo 
-           3            3           17           17            3           17 
+           1            1            6            6            1            6 
    TOAST_OPC 
-          17 
-> colSums(is.na(fisher_pval[1:13,14:30]))
-          PFC_AST-FB           PFC_AST-PP      PFC_Endothelial 
-                   5                    5                    5 
-           PFC_IN-PV           PFC_IN-SST          PFC_IN-SV2C 
-                   5                    5                   13 
-          PFC_IN-VIP             PFC_L2_3               PFC_L4 
-                   5                   13                   13 
-         PFC_L5_6-CC             PFC_L5_6        PFC_Microglia 
-                   5                    5                    5 
-         PFC_Neu-mat       PFC_Neu-NRGN-I      PFC_Neu-NRGN-II 
-                   5                    5                    5 
-PFC_Oligodendrocytes              PFC_OPC 
-                   5                    5 
+           6 
+> colSums(is.na(fisher_pval[1:13,14:19]))
+Astro   Inh   Exc Micro Oligo   OPC 
+    5     5    13     5     5     5 
 > 
 > sort(c(fisher_pval[upper.tri(fisher_pval)]))[1:30]
- [1] 9.557019e-57 9.427535e-39 1.173045e-35 3.555596e-31 3.967149e-27
- [6] 7.028797e-26 1.013966e-25 1.084616e-19 2.500098e-19 9.366073e-19
-[11] 9.163091e-18 2.479027e-17 7.003086e-16 7.830408e-16 9.787296e-16
-[16] 1.252157e-15 3.286394e-15 3.322189e-15 4.959959e-15 6.860678e-15
-[21] 1.398976e-14 4.201215e-14 1.776190e-13 1.972875e-13 9.451724e-13
-[26] 1.639322e-12 1.845461e-12 3.973524e-12 7.435668e-12 7.698410e-12
+ [1] 1.013966e-25 2.104237e-22 3.799739e-19 9.366073e-19 2.661329e-15
+ [6] 1.639322e-12 3.973524e-12 7.698410e-12 2.187523e-09 2.865202e-08
+[11] 1.807389e-07 1.819511e-07 2.292303e-07 4.373591e-07 4.493780e-07
+[16] 6.075237e-07 9.128443e-07 2.691293e-06 1.424877e-05 2.910020e-05
+[21] 5.926975e-05 7.770829e-05 1.124912e-04 1.537614e-04 3.003149e-04
+[26] 6.232453e-04 6.293904e-04 8.027202e-04 1.006415e-03 1.174906e-03
 > fisher_pval[which(fisher_pval < 1e-10)] = 1e-10
 > 
-> gc2 = ggcorrplot(t(-log10(fisher_pval[1:13,14:30])), tl.cex = 6) + 
+> gc2 = ggcorrplot(t(-log10(fisher_pval[1:13,14:19])), tl.cex = 6) + 
 +   scale_fill_gradient2(limit = c(0,10.01), low = "blue", high =  "red", 
 +                        mid = "white", midpoint = 2) 
 Scale for 'fill' is already present. Adding another scale for 'fill', which
 will replace the existing scale.
 > 
-> pdf("../figures/step_z1_gsea_top10_pathways_overlap_fisher_pval.pdf", 
+> pdf("../figures/step_z3_gsea_top10_pathways_overlap_fisher_pval.pdf", 
 +     width=5, height=3.5)
 > print(gc2)
 > dev.off()
@@ -414,4 +345,4 @@ loaded via a namespace (and not attached):
 > q(save="no")
 > proc.time()
    user  system elapsed 
-221.680  20.406  69.165 
+139.221  13.195  45.818 

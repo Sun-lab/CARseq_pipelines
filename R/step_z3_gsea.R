@@ -29,8 +29,8 @@ length(reactome_genes)
 # read in p-values
 # ------------------------------------------------------------------------
 
-pval_carseq = readRDS("../results/step_z_pval_carseq.rds")
-pval_snseq  = readRDS("../results/step_z_pval_snseq.rds")
+pval_carseq = readRDS("../results/step_z2_pval_carseq.rds")
+pval_snseq  = readRDS("../results/step_z2_pval_snseq.rds")
 
 dim(pval_carseq)
 dim(pval_snseq)
@@ -94,9 +94,12 @@ for(i in 1:ncol(pvals)){
 lapply(gsea, dim)
 gsea$CARseq_Micro[1:2,]
 
+# ------------------------------------------------------------------------
+# check the overlap of top pathways
+# ------------------------------------------------------------------------
+
 pathways_nms = names(pathways_reactome)
 
-ncut = 5
 fisher_pval = matrix(NA, nrow=ncol(pvals), ncol=ncol(pvals))
 rownames(fisher_pval) = names(pvals)
 colnames(fisher_pval) = names(pvals)
@@ -106,9 +109,7 @@ for(i in 1:nrow(fisher_pval)){
   gsea_i  = gsea[[label_i]]
   gsea_i  = gsea_i[which(gsea_i$NES > 0 & gsea_i$padj < 0.2),]
   xi = gsea_i$pathway
-  
   if(length(xi) <= 1) { next }
-  # xi = gsea_i$pathway[order(gsea_i$NES, decreasing=TRUE)][1:ncut]
   
   for(j in 1:ncol(fisher_pval)){
     label_j = names(pvals)[j]
@@ -117,27 +118,25 @@ for(i in 1:nrow(fisher_pval)){
     yj = gsea_j$pathway
     if(length(yj) <= 1) { next }
     
-    # yj = gsea_j$pathway[order(gsea_j$pval, -gsea_j$NES)][1:ncut]
-    
     f1 = fisher.test(pathways_nms %in% xi, 
                      pathways_nms %in% yj, alternative = "greater")
     fisher_pval[i,j] = f1$p.value
   }
 }
 
-
+dim(fisher_pval)
 summary(c(fisher_pval))
-rowSums(is.na(fisher_pval[1:13,14:30]))
-colSums(is.na(fisher_pval[1:13,14:30]))
+rowSums(is.na(fisher_pval[1:13,14:19]))
+colSums(is.na(fisher_pval[1:13,14:19]))
 
 sort(c(fisher_pval[upper.tri(fisher_pval)]))[1:30]
 fisher_pval[which(fisher_pval < 1e-10)] = 1e-10
 
-gc2 = ggcorrplot(t(-log10(fisher_pval[1:13,14:30])), tl.cex = 6) + 
+gc2 = ggcorrplot(t(-log10(fisher_pval[1:13,14:19])), tl.cex = 6) + 
   scale_fill_gradient2(limit = c(0,10.01), low = "blue", high =  "red", 
                        mid = "white", midpoint = 2) 
 
-pdf("../figures/step_z1_gsea_top10_pathways_overlap_fisher_pval.pdf", 
+pdf("../figures/step_z3_gsea_top10_pathways_overlap_fisher_pval.pdf", 
     width=5, height=3.5)
 print(gc2)
 dev.off()

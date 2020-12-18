@@ -1,0 +1,821 @@
+
+R version 3.6.2 (2019-12-12) -- "Dark and Stormy Night"
+Copyright (C) 2019 The R Foundation for Statistical Computing
+Platform: x86_64-apple-darwin15.6.0 (64-bit)
+
+R is free software and comes with ABSOLUTELY NO WARRANTY.
+You are welcome to redistribute it under certain conditions.
+Type 'license()' or 'licence()' for distribution details.
+
+  Natural language support but running in an English locale
+
+R is a collaborative project with many contributors.
+Type 'contributors()' for more information and
+'citation()' on how to cite R or R packages in publications.
+
+Type 'demo()' for some demos, 'help()' for on-line help, or
+'help.start()' for an HTML browser interface to help.
+Type 'q()' to quit R.
+
+> 
+> library(data.table)
+> library(stringr)
+> library(ggplot2)
+> library(ggpubr)
+> library(ggpointdensity)
+> theme_set(theme_classic2())
+> library(ggcorrplot)
+> library(qvalue)
+> library(ggpointdensity)
+> library(DESeq2)
+Loading required package: S4Vectors
+Loading required package: stats4
+Loading required package: BiocGenerics
+Loading required package: parallel
+
+Attaching package: ‘BiocGenerics’
+
+The following objects are masked from ‘package:parallel’:
+
+    clusterApply, clusterApplyLB, clusterCall, clusterEvalQ,
+    clusterExport, clusterMap, parApply, parCapply, parLapply,
+    parLapplyLB, parRapply, parSapply, parSapplyLB
+
+The following objects are masked from ‘package:stats’:
+
+    IQR, mad, sd, var, xtabs
+
+The following objects are masked from ‘package:base’:
+
+    anyDuplicated, append, as.data.frame, basename, cbind, colnames,
+    dirname, do.call, duplicated, eval, evalq, Filter, Find, get, grep,
+    grepl, intersect, is.unsorted, lapply, Map, mapply, match, mget,
+    order, paste, pmax, pmax.int, pmin, pmin.int, Position, rank,
+    rbind, Reduce, rownames, sapply, setdiff, sort, table, tapply,
+    union, unique, unsplit, which, which.max, which.min
+
+
+Attaching package: ‘S4Vectors’
+
+The following objects are masked from ‘package:data.table’:
+
+    first, second
+
+The following object is masked from ‘package:base’:
+
+    expand.grid
+
+Loading required package: IRanges
+
+Attaching package: ‘IRanges’
+
+The following object is masked from ‘package:data.table’:
+
+    shift
+
+Loading required package: GenomicRanges
+Loading required package: GenomeInfoDb
+Loading required package: SummarizedExperiment
+Loading required package: Biobase
+Welcome to Bioconductor
+
+    Vignettes contain introductory material; view with
+    'browseVignettes()'. To cite Bioconductor, see
+    'citation("Biobase")', and for packages 'citation("pkgname")'.
+
+Loading required package: DelayedArray
+Loading required package: matrixStats
+
+Attaching package: ‘matrixStats’
+
+The following objects are masked from ‘package:Biobase’:
+
+    anyMissing, rowMedians
+
+Loading required package: BiocParallel
+
+Attaching package: ‘DelayedArray’
+
+The following objects are masked from ‘package:matrixStats’:
+
+    colMaxs, colMins, colRanges, rowMaxs, rowMins, rowRanges
+
+The following objects are masked from ‘package:base’:
+
+    aperm, apply, rowsum
+
+> library(dplyr)
+
+Attaching package: ‘dplyr’
+
+The following object is masked from ‘package:matrixStats’:
+
+    count
+
+The following object is masked from ‘package:Biobase’:
+
+    combine
+
+The following objects are masked from ‘package:GenomicRanges’:
+
+    intersect, setdiff, union
+
+The following object is masked from ‘package:GenomeInfoDb’:
+
+    intersect
+
+The following objects are masked from ‘package:IRanges’:
+
+    collapse, desc, intersect, setdiff, slice, union
+
+The following objects are masked from ‘package:S4Vectors’:
+
+    first, intersect, rename, setdiff, setequal, union
+
+The following objects are masked from ‘package:BiocGenerics’:
+
+    combine, intersect, setdiff, union
+
+The following objects are masked from ‘package:data.table’:
+
+    between, first, last
+
+The following objects are masked from ‘package:stats’:
+
+    filter, lag
+
+The following objects are masked from ‘package:base’:
+
+    intersect, setdiff, setequal, union
+
+> 
+> path_ideas = "../../ideas/Autism"
+> 
+> 
+> qqp <- function(pvals, main, confidence=.95, cutoff=1){
++   
++   alpha = 1-confidence
++   n     = length(pvals)
++   
++   pvals[is.na(pvals)]=1
++   pvals=sort(pvals)
++   
++   k=c(1:n)
++   
++   lower = cutoff*qbeta(alpha/2, k, n+1-k)
++   upper = cutoff*qbeta((1-alpha/2), k, n+1-k)
++   
++   expected = cutoff*k/(n+1)
++   n0 = length(which(pvals ==0))
++   
++   if(n0 > 0){
++     warning(sprintf("there are %d p-values being 0\n", n0))
++   }
++   
++   biggest= max(-log10(pvals[which(pvals > 0)]), -log10(expected))
++   
++   plot(-log10(expected), -log10(pvals), xlim=c(0,biggest),
++        ylim=c(0,biggest), pch=20, xlab="-log10(expected p-value)",
++        ylab="-log10(observed p-value)", cex=0.6, bty="n", main=main)
++   
++   lines(-log10(expected), -log10(lower), lty=2)
++   lines(-log10(expected), -log10(upper), lty=2)
++   
++ }
+> 
+> 
+> # ----------------------------------------------------------------------
+> # check the number of cells and gene expression levels
+> # ----------------------------------------------------------------------
+> 
+> cell_info = fread(file.path(path_ideas, "data/meta.tsv"))
+> dim(cell_info)
+[1] 104559     16
+> cell_info[1:2,]
+                           cell     cluster    sample individual region age sex
+1: AAACCTGGTACGCACC-1_1823_BA24 Neu-NRGN-II 1823_BA24       1823    ACC  15   M
+2: AAACGGGCACCAGATT-1_1823_BA24        L5/6 1823_BA24       1823    ACC  15   M
+   diagnosis Capbatch Seqbatch post-mortem interval (hours)
+1:   Control      CB8      SB3                           18
+2:   Control      CB8      SB3                           18
+   RNA Integrity Number genes  UMIs RNA mitochondr. percent
+1:                    7   622   774               2.4547804
+2:                    7  6926 24042               0.4450545
+   RNA ribosomal percent
+1:             1.4211886
+2:             0.4284169
+> 
+> table(cell_info$region)
+
+  ACC   PFC 
+42393 62166 
+> 
+> cell_info = cell_info[which(cell_info$region=="PFC"),]
+> 
+> sort(table(paste(cell_info$diagnosis, cell_info$sample, sep=":")))
+
+         ASD:5978_BA9      Control:5976_BA9          ASD:5403_PFC 
+                  926                  1054                  1112 
+Control:5879_PFC_Nova          ASD:6033_BA9          ASD:5419_PFC 
+                 1850                  1970                  1972 
+Control:5936_PFC_Nova          ASD:5144_PFC      Control:5958_BA9 
+                 2033                  2047                  2083 
+         ASD:5864_BA9 Control:5408_PFC_Nova          ASD:5565_BA9 
+                 2148                  2255                  2319 
+         ASD:5945_PFC          ASD:5294_BA9          ASD:5278_PFC 
+                 2522                  2568                  2819 
+Control:5538_PFC_Nova          ASD:5531_BA9          ASD:5939_BA9 
+                 3034                  3054                  3085 
+     Control:5893_PFC     Control:4341_BA46      Control:5577_BA9 
+                 3317                  3849                  4131 
+         ASD:5841_BA9      Control:5387_BA9 
+                 5477                  6541 
+> 
+> p1 = ggplot(cell_info, aes(x=cluster, y=log10(UMIs), color=diagnosis)) +
++   geom_boxplot(outlier.size = 0.3) + coord_flip() 
+> 
+> pdf("../figures/step_z1_n_UMI_per_cluster.pdf", 
++     width=5, height=6)
+> print(p1)
+> dev.off()
+null device 
+          1 
+> 
+> # ------------------------------------------------------------------------
+> # read in count data of one region and one cluster
+> # ------------------------------------------------------------------------
+> 
+> cts = list.files(file.path(path_ideas, "data/ct_mtx/"))
+> cts = sort(gsub(".rds", "", cts))
+> cts
+ [1] "PFC_AST-FB"           "PFC_AST-PP"           "PFC_Endothelial"     
+ [4] "PFC_IN-PV"            "PFC_IN-SST"           "PFC_IN-SV2C"         
+ [7] "PFC_IN-VIP"           "PFC_L2_3"             "PFC_L4"              
+[10] "PFC_L5_6"             "PFC_L5_6-CC"          "PFC_Microglia"       
+[13] "PFC_Neu-mat"          "PFC_Neu-NRGN-I"       "PFC_Neu-NRGN-II"     
+[16] "PFC_Oligodendrocytes" "PFC_OPC"             
+> 
+> n_zeros = list()
+> n_cells = NULL
+> 
+> for(grp in cts){
++   dat1 = readRDS(file.path(path_ideas, sprintf("data/ct_mtx/%s.rds", grp)))
++   dim(dat1)
++   class(dat1)
++   dat1[1:5,1:4]
++   
++   n_zeros[[grp]] = rowSums(dat1 == 0)
++   n_cells = c(n_cells, ncol(dat1))
++ }
+> 
+> table(sapply(n_zeros, length))
+
+18041 
+   17 
+> n_zeros = as.data.frame(n_zeros)
+> dim(n_zeros)
+[1] 18041    17
+> n_zeros[1:2,1:5]
+        PFC_AST.FB PFC_AST.PP PFC_Endothelial PFC_IN.PV PFC_IN.SST
+DNAJC11       2243       5126            1169      1551       2226
+NADK          2307       5379            1222      2131       2676
+> 
+> names(n_cells) = cts
+> sort(n_cells)
+         PFC_IN-SV2C      PFC_Endothelial       PFC_Neu-NRGN-I 
+                1054                 1237                 1451 
+            PFC_L5_6          PFC_Neu-mat            PFC_IN-PV 
+                1972                 2054                 2236 
+          PFC_AST-FB          PFC_L5_6-CC        PFC_Microglia 
+                2332                 2346                 2542 
+          PFC_IN-SST           PFC_IN-VIP      PFC_Neu-NRGN-II 
+                2729                 3357                 3861 
+              PFC_L4           PFC_AST-PP              PFC_OPC 
+                5109                 5461                 6251 
+            PFC_L2_3 PFC_Oligodendrocytes 
+                8626                 9548 
+> 
+> percent_zeros = t(t(n_zeros)/n_cells)
+> dim(percent_zeros)
+[1] 18041    17
+> percent_zeros[1:2,1:5]
+        PFC_AST.FB PFC_AST.PP PFC_Endothelial PFC_IN.PV PFC_IN.SST
+DNAJC11  0.9618353  0.9386559       0.9450283 0.6936494  0.8156834
+NADK     0.9892796  0.9849844       0.9878739 0.9530411  0.9805790
+> 
+> sort(colSums(percent_zeros < 0.8))
+       PFC_Microglia           PFC_AST.FB      PFC_Neu.NRGN.II 
+                 578                  584                  593 
+PFC_Oligodendrocytes          PFC_Neu.mat              PFC_OPC 
+                 939                 1154                 1490 
+          PFC_AST.PP      PFC_Endothelial       PFC_Neu.NRGN.I 
+                1579                 1665                 1930 
+          PFC_IN.SST           PFC_IN.VIP          PFC_IN.SV2C 
+                4049                 4470                 5555 
+           PFC_IN.PV               PFC_L4             PFC_L5_6 
+                6010                 6332                 7313 
+            PFC_L2_3          PFC_L5_6.CC 
+                8260                 9291 
+> sort(round(colSums(percent_zeros < 0.8)/nrow(percent_zeros),2))
+          PFC_AST.FB        PFC_Microglia      PFC_Neu.NRGN.II 
+                0.03                 0.03                 0.03 
+PFC_Oligodendrocytes          PFC_Neu.mat              PFC_OPC 
+                0.05                 0.06                 0.08 
+          PFC_AST.PP      PFC_Endothelial       PFC_Neu.NRGN.I 
+                0.09                 0.09                 0.11 
+          PFC_IN.SST           PFC_IN.VIP          PFC_IN.SV2C 
+                0.22                 0.25                 0.31 
+           PFC_IN.PV               PFC_L4             PFC_L5_6 
+                0.33                 0.35                 0.41 
+            PFC_L2_3          PFC_L5_6.CC 
+                0.46                 0.51 
+> 
+> for(i in 1:5){ gc() }
+> gc()
+           used  (Mb) gc trigger  (Mb) limit (Mb)  max used   (Mb)
+Ncells  5776349 308.5   11162844 596.2         NA   8718130  465.6
+Vcells 23787773 181.5   71641283 546.6      32768 342801639 2615.4
+> 
+> # ----------------------------------------------------------------------
+> # conduct DESeq2 analysis
+> # ----------------------------------------------------------------------
+> 
+> cts
+ [1] "PFC_AST-FB"           "PFC_AST-PP"           "PFC_Endothelial"     
+ [4] "PFC_IN-PV"            "PFC_IN-SST"           "PFC_IN-SV2C"         
+ [7] "PFC_IN-VIP"           "PFC_L2_3"             "PFC_L4"              
+[10] "PFC_L5_6"             "PFC_L5_6-CC"          "PFC_Microglia"       
+[13] "PFC_Neu-mat"          "PFC_Neu-NRGN-I"       "PFC_Neu-NRGN-II"     
+[16] "PFC_Oligodendrocytes" "PFC_OPC"             
+> 
+> ct_grps = list()
+> ct_grps[["Astro"]] = cts[1:2]
+> ct_grps[["Inh"]]   = cts[4:7]
+> ct_grps[["Exc"]]   = cts[8:11]
+> ct_grps[["Micro"]] = cts[12]
+> ct_grps[["Oligo"]] = cts[16]
+> ct_grps[["OPC"]]   = cts[17]
+> 
+> ct_grps
+$Astro
+[1] "PFC_AST-FB" "PFC_AST-PP"
+
+$Inh
+[1] "PFC_IN-PV"   "PFC_IN-SST"  "PFC_IN-SV2C" "PFC_IN-VIP" 
+
+$Exc
+[1] "PFC_L2_3"    "PFC_L4"      "PFC_L5_6"    "PFC_L5_6-CC"
+
+$Micro
+[1] "PFC_Microglia"
+
+$Oligo
+[1] "PFC_Oligodendrocytes"
+
+$OPC
+[1] "PFC_OPC"
+
+> 
+> for(ct1 in names(ct_grps)){
++   grps  = ct_grps[[ct1]]
++   
++   cat(ct1, date(), "\n")
++   
++   dat1 = NULL
++   for(grp1 in grps){
++     d1 = readRDS(file.path(path_ideas, sprintf("data/ct_mtx/%s.rds", grp1)))
++     dat1 = cbind(dat1, d1)
++   }
++   
++   dim(dat1)
++   dat1[1:2,1:4]
++   
++   cat(sprintf("there are %d cells\n", ncol(dat1)))
++   
++   stopifnot(all(colnames(dat1) %in% cell_info$cell))
++   meta = cell_info[match(colnames(dat1), cell_info$cell),]
++   dim(meta)
++   meta[1:2,]
++   
++   meta_ind = distinct(meta[,3:12])
++   dim(meta_ind)
++   meta_ind[1:2,]
++   names(meta_ind)[9:10] = c("PMI", "RIN")
++   
++   if(nrow(meta_ind) != length(unique(meta$individual))){
++     stop("there is non-unique information\n")
++   }
++   
++   table(meta_ind$Seqbatch, meta_ind$Capbatch)
++   
++   # ------------------------------------------------------------------------
++   # collect count data
++   # ------------------------------------------------------------------------
++   
++   trec1 = matrix(NA, nrow=nrow(dat1), ncol=nrow(meta_ind))
++   colnames(trec1) = meta_ind$sample
++   rownames(trec1) = rownames(dat1)
++   dim(trec1)
++   trec1[1:2,1:3]
++   
++   for(i in 1:ncol(trec1)){
++     wi = which(meta$sample == meta_ind$sample[i])
++     trec1[,i] = rowSums(dat1[,wi])
++   }
++   
++   dim(trec1)
++   trec1[1:2,1:3]
++   
++   summary(apply(trec1, 1, median))
++   q75 = apply(trec1, 1, quantile, probs=0.75)
++   summary(q75)
++   table(q75 >= 20)
++   
++   # ------------------------------------------------------------------------
++   # run DESeq2
++   # ------------------------------------------------------------------------
++   
++   colData = meta_ind
++   for(i in 1:ncol(colData)){
++     if(is.character(colData[[i]])){
++       colData[[i]] = as.factor(colData[[i]])
++     }
++   }
++   dim(colData)
++   colData[1:2,]
++   summary(colData)
++   
++   colData$diagnosis = factor(colData$diagnosis, levels=c("Control", "ASD"))
++   
++   
++   dds = DESeqDataSetFromMatrix(countData = trec1, 
++                                colData = colData,
++                                design = ~ age + sex + Seqbatch + RIN + diagnosis)
++   dds = DESeq(dds)
++   
++   res = results(dds)
++   dim(res)
++   res[1:2,]
++   summary(res)
++   
++   res  = as.data.frame(res)
++   n_zeros_ct1 = rowSums(trec1 == 0)
++   
++   res[["n_zeros"]] = n_zeros_ct1
++   res[["percent_zeros"]] = n_zeros_ct1/ncol(trec1)
++   dim(res)
++   res[1:2,]
++   
++   nms = resultsNames(dds)
++   nms
++   nms = nms[-1]
++   
++   pvals2 = matrix(NA, nrow=nrow(trec1), ncol=length(nms))
++   
++   for(k in 1:length(nms)){
++     rk = results(dds, name=nms[k])
++     pvals2[,k] = rk$pvalue
++   }
++   
++   colnames(pvals2) = nms
++   dim(pvals2)
++   cat("summary of p-values\n")
++   print(summary(pvals2))
++   
++   
++   png(sprintf("../figures/stepz1_DESeq2/%s_pval_hist.png", ct1), 
++       width=7.5, height=5, units="in", res=400)
++   par(mfrow=c(2,3), bty="n", mar=c(5,4,2,1))
++   for(k in 1:length(nms)){
++     hist(pvals2[,k], main=nms[k], xlab="p-value", breaks=50)
++   }
++   
++   mm = "diagnosis_ASD_vs_Control"
++   qqp(pvals2[,mm], main=mm)
++       
++   dev.off()
++   
++   write.table(res, file=sprintf("../results/stepz1_DESeq2_%s.txt", ct1), 
++               quote = FALSE, sep = "\t", row.names = TRUE, col.names = TRUE)
++   
++   gc()
++ }
+Astro Wed Dec 16 18:23:31 2020 
+there are 7793 cells
+converting counts to integer mode
+  the design formula contains a numeric variable with integer values,
+  specifying a model with increasing fold change for higher values.
+  did you mean for this to be a factor? if so, first convert
+  this variable to a factor using the factor() function
+estimating size factors
+estimating dispersions
+gene-wise dispersion estimates
+mean-dispersion relationship
+final dispersion estimates
+fitting model and testing
+3 rows did not converge in beta, labelled in mcols(object)$betaConv. Use larger maxit argument with nbinomWaldTest
+
+out of 18037 with nonzero total read count
+adjusted p-value < 0.1
+LFC > 0 (up)       : 3, 0.017%
+LFC < 0 (down)     : 57, 0.32%
+outliers [1]       : 0, 0%
+low counts [2]     : 4546, 25%
+(mean count < 3)
+[1] see 'cooksCutoff' argument of ?results
+[2] see 'independentFiltering' argument of ?results
+
+summary of p-values
+      age           sex_M_vs_F     Seqbatch_SB2_vs_SB1      RIN        
+ Min.   :0.0000   Min.   :0.0000   Min.   :0.00000     Min.   :0.0000  
+ 1st Qu.:0.2886   1st Qu.:0.2548   1st Qu.:0.02438     1st Qu.:0.1770  
+ Median :0.5451   Median :0.5137   Median :0.18985     Median :0.4430  
+ Mean   :0.5303   Mean   :0.5067   Mean   :0.30538     Mean   :0.4541  
+ 3rd Qu.:0.7800   3rd Qu.:0.7628   3rd Qu.:0.54644     3rd Qu.:0.7199  
+ Max.   :1.0000   Max.   :1.0000   Max.   :0.99995     Max.   :0.9999  
+ NA's   :4        NA's   :4        NA's   :4           NA's   :4       
+ diagnosis_ASD_vs_Control
+ Min.   :0.0000          
+ 1st Qu.:0.2306          
+ Median :0.4917          
+ Mean   :0.4929          
+ 3rd Qu.:0.7519          
+ Max.   :0.9999          
+ NA's   :4               
+Inh Wed Dec 16 18:23:56 2020 
+there are 9376 cells
+converting counts to integer mode
+  the design formula contains a numeric variable with integer values,
+  specifying a model with increasing fold change for higher values.
+  did you mean for this to be a factor? if so, first convert
+  this variable to a factor using the factor() function
+estimating size factors
+estimating dispersions
+gene-wise dispersion estimates
+mean-dispersion relationship
+final dispersion estimates
+fitting model and testing
+
+out of 18041 with nonzero total read count
+adjusted p-value < 0.1
+LFC > 0 (up)       : 249, 1.4%
+LFC < 0 (down)     : 100, 0.55%
+outliers [1]       : 0, 0%
+low counts [2]     : 9794, 54%
+(mean count < 40)
+[1] see 'cooksCutoff' argument of ?results
+[2] see 'independentFiltering' argument of ?results
+
+summary of p-values
+      age              sex_M_vs_F     Seqbatch_SB2_vs_SB1      RIN         
+ Min.   :0.0000002   Min.   :0.0000   Min.   :0.000000    Min.   :0.00000  
+ 1st Qu.:0.2943419   1st Qu.:0.1903   1st Qu.:0.003644    1st Qu.:0.09141  
+ Median :0.5413935   Median :0.4497   Median :0.079340    Median :0.33858  
+ Mean   :0.5303503   Mean   :0.4587   Mean   :0.231912    Mean   :0.38897  
+ 3rd Qu.:0.7729646   3rd Qu.:0.7160   3rd Qu.:0.398650    3rd Qu.:0.65722  
+ Max.   :0.9997736   Max.   :1.0000   Max.   :0.999953    Max.   :0.99991  
+ diagnosis_ASD_vs_Control
+ Min.   :0.0000031       
+ 1st Qu.:0.1298213       
+ Median :0.3704120       
+ Mean   :0.4099680       
+ 3rd Qu.:0.6649421       
+ Max.   :0.9999562       
+Exc Wed Dec 16 18:24:20 2020 
+there are 18053 cells
+converting counts to integer mode
+  the design formula contains a numeric variable with integer values,
+  specifying a model with increasing fold change for higher values.
+  did you mean for this to be a factor? if so, first convert
+  this variable to a factor using the factor() function
+estimating size factors
+estimating dispersions
+gene-wise dispersion estimates
+mean-dispersion relationship
+final dispersion estimates
+fitting model and testing
+2 rows did not converge in beta, labelled in mcols(object)$betaConv. Use larger maxit argument with nbinomWaldTest
+
+out of 18041 with nonzero total read count
+adjusted p-value < 0.1
+LFC > 0 (up)       : 5, 0.028%
+LFC < 0 (down)     : 14, 0.078%
+outliers [1]       : 0, 0%
+low counts [2]     : 0, 0%
+(mean count < 1)
+[1] see 'cooksCutoff' argument of ?results
+[2] see 'independentFiltering' argument of ?results
+
+summary of p-values
+      age           sex_M_vs_F     Seqbatch_SB2_vs_SB1      RIN        
+ Min.   :0.0000   Min.   :0.0000   Min.   :0.0000000   Min.   :0.0000  
+ 1st Qu.:0.2129   1st Qu.:0.1322   1st Qu.:0.0001457   1st Qu.:0.0600  
+ Median :0.4742   Median :0.3798   Median :0.0167022   Median :0.2948  
+ Mean   :0.4757   Mean   :0.4171   Mean   :0.1702282   Mean   :0.3590  
+ 3rd Qu.:0.7294   3rd Qu.:0.6847   3rd Qu.:0.2399491   3rd Qu.:0.6189  
+ Max.   :0.9997   Max.   :0.9999   Max.   :0.9998539   Max.   :0.9998  
+ diagnosis_ASD_vs_Control
+ Min.   :0.0000009       
+ 1st Qu.:0.1608678       
+ Median :0.4105164       
+ Mean   :0.4365065       
+ 3rd Qu.:0.6950543       
+ Max.   :0.9999977       
+Micro Wed Dec 16 18:24:50 2020 
+there are 2542 cells
+converting counts to integer mode
+  the design formula contains a numeric variable with integer values,
+  specifying a model with increasing fold change for higher values.
+  did you mean for this to be a factor? if so, first convert
+  this variable to a factor using the factor() function
+estimating size factors
+estimating dispersions
+gene-wise dispersion estimates
+mean-dispersion relationship
+-- note: fitType='parametric', but the dispersion trend was not well captured by the
+   function: y = a/x + b, and a local regression fit was automatically substituted.
+   specify fitType='local' or 'mean' to avoid this message next time.
+final dispersion estimates
+fitting model and testing
+14 rows did not converge in beta, labelled in mcols(object)$betaConv. Use larger maxit argument with nbinomWaldTest
+
+out of 17880 with nonzero total read count
+adjusted p-value < 0.1
+LFC > 0 (up)       : 0, 0%
+LFC < 0 (down)     : 3, 0.017%
+outliers [1]       : 0, 0%
+low counts [2]     : 0, 0%
+(mean count < 0)
+[1] see 'cooksCutoff' argument of ?results
+[2] see 'independentFiltering' argument of ?results
+
+summary of p-values
+      age           sex_M_vs_F     Seqbatch_SB2_vs_SB1      RIN         
+ Min.   :0.0000   Min.   :0.0000   Min.   :0.0000      Min.   :0.00004  
+ 1st Qu.:0.4390   1st Qu.:0.4233   1st Qu.:0.2350      1st Qu.:0.33841  
+ Median :0.7063   Median :0.6718   Median :0.5407      Median :0.52441  
+ Mean   :0.6385   Mean   :0.6156   Mean   :0.4997      Mean   :0.52170  
+ 3rd Qu.:0.8626   3rd Qu.:0.8325   3rd Qu.:0.7465      3rd Qu.:0.71917  
+ Max.   :1.0000   Max.   :1.0000   Max.   :1.0000      Max.   :0.99999  
+ NA's   :161      NA's   :161      NA's   :161         NA's   :161      
+ diagnosis_ASD_vs_Control
+ Min.   :0.0000          
+ 1st Qu.:0.4028          
+ Median :0.6557          
+ Mean   :0.6017          
+ 3rd Qu.:0.8237          
+ Max.   :0.9999          
+ NA's   :161             
+Oligo Wed Dec 16 18:25:12 2020 
+there are 9548 cells
+converting counts to integer mode
+  the design formula contains a numeric variable with integer values,
+  specifying a model with increasing fold change for higher values.
+  did you mean for this to be a factor? if so, first convert
+  this variable to a factor using the factor() function
+estimating size factors
+estimating dispersions
+gene-wise dispersion estimates
+mean-dispersion relationship
+final dispersion estimates
+fitting model and testing
+3 rows did not converge in beta, labelled in mcols(object)$betaConv. Use larger maxit argument with nbinomWaldTest
+
+out of 18033 with nonzero total read count
+adjusted p-value < 0.1
+LFC > 0 (up)       : 7, 0.039%
+LFC < 0 (down)     : 54, 0.3%
+outliers [1]       : 0, 0%
+low counts [2]     : 7692, 43%
+(mean count < 3)
+[1] see 'cooksCutoff' argument of ?results
+[2] see 'independentFiltering' argument of ?results
+
+summary of p-values
+      age           sex_M_vs_F     Seqbatch_SB2_vs_SB1      RIN        
+ Min.   :0.0000   Min.   :0.0000   Min.   :0.00000     Min.   :0.0000  
+ 1st Qu.:0.2490   1st Qu.:0.3072   1st Qu.:0.06642     1st Qu.:0.2506  
+ Median :0.5032   Median :0.5410   Median :0.30497     Median :0.5142  
+ Mean   :0.5015   Mean   :0.5341   Mean   :0.36760     Mean   :0.5055  
+ 3rd Qu.:0.7553   3rd Qu.:0.7693   3rd Qu.:0.62990     3rd Qu.:0.7635  
+ Max.   :1.0000   Max.   :1.0000   Max.   :0.99969     Max.   :1.0000  
+ NA's   :8        NA's   :8        NA's   :8           NA's   :8       
+ diagnosis_ASD_vs_Control
+ Min.   :0.0000          
+ 1st Qu.:0.2778          
+ Median :0.5354          
+ Mean   :0.5217          
+ 3rd Qu.:0.7725          
+ Max.   :1.0000          
+ NA's   :8               
+OPC Wed Dec 16 18:25:34 2020 
+there are 6251 cells
+converting counts to integer mode
+  the design formula contains a numeric variable with integer values,
+  specifying a model with increasing fold change for higher values.
+  did you mean for this to be a factor? if so, first convert
+  this variable to a factor using the factor() function
+estimating size factors
+estimating dispersions
+gene-wise dispersion estimates
+mean-dispersion relationship
+final dispersion estimates
+fitting model and testing
+2 rows did not converge in beta, labelled in mcols(object)$betaConv. Use larger maxit argument with nbinomWaldTest
+
+out of 18039 with nonzero total read count
+adjusted p-value < 0.1
+LFC > 0 (up)       : 5, 0.028%
+LFC < 0 (down)     : 50, 0.28%
+outliers [1]       : 0, 0%
+low counts [2]     : 7344, 41%
+(mean count < 5)
+[1] see 'cooksCutoff' argument of ?results
+[2] see 'independentFiltering' argument of ?results
+
+summary of p-values
+      age           sex_M_vs_F     Seqbatch_SB2_vs_SB1      RIN        
+ Min.   :0.0000   Min.   :0.0000   Min.   :0.00000     Min.   :0.0000  
+ 1st Qu.:0.2953   1st Qu.:0.2779   1st Qu.:0.03999     1st Qu.:0.1924  
+ Median :0.5486   Median :0.5254   Median :0.23874     Median :0.4606  
+ Mean   :0.5336   Mean   :0.5186   Mean   :0.33217     Mean   :0.4663  
+ 3rd Qu.:0.7822   3rd Qu.:0.7665   3rd Qu.:0.58585     3rd Qu.:0.7343  
+ Max.   :0.9999   Max.   :1.0000   Max.   :0.99997     Max.   :1.0000  
+ NA's   :2        NA's   :2        NA's   :2           NA's   :2       
+ diagnosis_ASD_vs_Control
+ Min.   :0.0000001       
+ 1st Qu.:0.2467131       
+ Median :0.5038227       
+ Mean   :0.5002438       
+ 3rd Qu.:0.7515820       
+ Max.   :0.9999286       
+ NA's   :2               
+> 
+> gc()
+           used  (Mb) gc trigger  (Mb) limit (Mb)  max used   (Mb)
+Ncells  5872565 313.7   11162844 596.2         NA  11162844  596.2
+Vcells 27028262 206.3  126194020 962.8      32768 342801639 2615.4
+> 
+> sessionInfo()
+R version 3.6.2 (2019-12-12)
+Platform: x86_64-apple-darwin15.6.0 (64-bit)
+Running under: macOS Catalina 10.15.7
+
+Matrix products: default
+BLAS:   /Library/Frameworks/R.framework/Versions/3.6/Resources/lib/libRblas.0.dylib
+LAPACK: /Library/Frameworks/R.framework/Versions/3.6/Resources/lib/libRlapack.dylib
+
+locale:
+[1] en_US.UTF-8/en_US.UTF-8/en_US.UTF-8/C/en_US.UTF-8/en_US.UTF-8
+
+attached base packages:
+[1] parallel  stats4    stats     graphics  grDevices utils     datasets 
+[8] methods   base     
+
+other attached packages:
+ [1] dplyr_0.8.4                 DESeq2_1.24.0              
+ [3] SummarizedExperiment_1.14.1 DelayedArray_0.10.0        
+ [5] BiocParallel_1.18.1         matrixStats_0.55.0         
+ [7] Biobase_2.44.0              GenomicRanges_1.36.1       
+ [9] GenomeInfoDb_1.20.0         IRanges_2.18.3             
+[11] S4Vectors_0.22.1            BiocGenerics_0.30.0        
+[13] qvalue_2.16.0               ggcorrplot_0.1.3           
+[15] ggpointdensity_0.1.0        ggpubr_0.4.0.999           
+[17] ggplot2_3.3.1               stringr_1.4.0              
+[19] data.table_1.12.8          
+
+loaded via a namespace (and not attached):
+ [1] nlme_3.1-144           bitops_1.0-6           bit64_0.9-7           
+ [4] RColorBrewer_1.1-2     tools_3.6.2            backports_1.1.5       
+ [7] R6_2.4.1               rpart_4.1-15           DBI_1.1.0             
+[10] Hmisc_4.4-0            colorspace_1.4-1       nnet_7.3-12           
+[13] withr_2.1.2            tidyselect_1.0.0       gridExtra_2.3         
+[16] bit_1.1-15.2           curl_4.3               compiler_3.6.2        
+[19] htmlTable_1.13.3       labeling_0.3           scales_1.1.0          
+[22] checkmate_2.0.0        genefilter_1.66.0      digest_0.6.23         
+[25] foreign_0.8-75         rio_0.5.16             XVector_0.24.0        
+[28] base64enc_0.1-3        jpeg_0.1-8.1           pkgconfig_2.0.3       
+[31] htmltools_0.4.0        htmlwidgets_1.5.1      rlang_0.4.6           
+[34] readxl_1.3.1           RSQLite_2.2.0          rstudioapi_0.11       
+[37] farver_2.0.3           generics_0.0.2         acepack_1.4.1         
+[40] zip_2.0.4              car_3.0-8              RCurl_1.98-1.1        
+[43] magrittr_1.5           GenomeInfoDbData_1.2.1 Formula_1.2-3         
+[46] Matrix_1.2-18          Rcpp_1.0.3             munsell_0.5.0         
+[49] abind_1.4-5            lifecycle_0.2.0        stringi_1.4.5         
+[52] carData_3.0-4          zlibbioc_1.30.0        plyr_1.8.5            
+[55] blob_1.2.1             grid_3.6.2             forcats_0.5.0         
+[58] crayon_1.3.4           lattice_0.20-38        haven_2.3.0           
+[61] splines_3.6.2          annotate_1.62.0        hms_0.5.3             
+[64] locfit_1.5-9.4         knitr_1.28             pillar_1.4.3          
+[67] ggsignif_0.6.0         geneplotter_1.62.0     reshape2_1.4.3        
+[70] XML_3.99-0.3           glue_1.3.1             latticeExtra_0.6-29   
+[73] png_0.1-7              vctrs_0.3.0            cellranger_1.1.0      
+[76] gtable_0.3.0           purrr_0.3.3            tidyr_1.0.2           
+[79] assertthat_0.2.1       xfun_0.12              openxlsx_4.1.5        
+[82] xtable_1.8-4           broom_0.5.6            rstatix_0.6.0         
+[85] survival_3.1-8         tibble_3.0.1           memoise_1.1.0         
+[88] AnnotationDbi_1.46.1   cluster_2.1.0          ellipsis_0.3.0        
+> q(save="no")
+> proc.time()
+   user  system elapsed 
+186.928   7.275 174.879 
