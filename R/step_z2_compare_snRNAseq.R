@@ -88,7 +88,8 @@ pval_snseq[1:2,]
 dim(percent_zeros)
 percent_zeros[1:2,]
 
-colSums(pval_snseq[,-1] < 0.001)
+colSums(pval_snseq[,-1] < 0.001, na.rm=TRUE)
+colSums(is.na(pval_snseq[,-1]))
 colSums(percent_zeros[,-1] > 0.5)
 
 # ----------------------------------------------------------------------
@@ -118,6 +119,19 @@ table(pval_snseq$gene_name == pval_carseq$gene_name)
 
 saveRDS(pval_carseq, "../results/step_z2_pval_carseq.rds")
 saveRDS(pval_snseq,  "../results/step_z2_pval_snseq.rds")
+
+# ----------------------------------------------------------------------
+# draw the p-value histograms
+# ----------------------------------------------------------------------
+
+
+pdf("../figures/step_z2_snseq_pval_hist.pdf", width=7.5, height=5)
+par(mfrow=c(2,3), mar=c(5,4,2,1))
+for(k in 2:7){
+  hist(pval_snseq[,k], main=names(pval_snseq)[k], breaks=20, 
+       xlab="p-value")
+}
+dev.off()
 
 # ----------------------------------------------------------------------
 # check the correlation matrix within each method

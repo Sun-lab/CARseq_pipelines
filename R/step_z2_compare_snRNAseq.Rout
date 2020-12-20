@@ -152,9 +152,12 @@ NADK          0    0.00000000
 1   DNAJC11 0.08695652 0.00000000   0 0.0952381 0.0000000 0.0000000
 2      NADK 0.00000000 0.04347826   0 0.4761905 0.3913043 0.1304348
 > 
-> colSums(pval_snseq[,-1] < 0.001)
+> colSums(pval_snseq[,-1] < 0.001, na.rm=TRUE)
 Astro   Inh   Exc Micro Oligo   OPC 
-   NA   205   110    NA    NA    NA 
+   91   205   110    20    82    76 
+> colSums(is.na(pval_snseq[,-1]))
+Astro   Inh   Exc Micro Oligo   OPC 
+    4     0     0   161     8     2 
 > colSums(percent_zeros[,-1] > 0.5)
 Astro   Inh   Exc Micro Oligo   OPC 
   989    35     1  6587  2357   913 
@@ -208,6 +211,21 @@ Astro   Inh   Exc Micro Oligo   OPC
 > 
 > saveRDS(pval_carseq, "../results/step_z2_pval_carseq.rds")
 > saveRDS(pval_snseq,  "../results/step_z2_pval_snseq.rds")
+> 
+> # ----------------------------------------------------------------------
+> # draw the p-value histograms
+> # ----------------------------------------------------------------------
+> 
+> 
+> pdf("../figures/step_z2_snseq_pval_hist.pdf", width=7.5, height=5)
+> par(mfrow=c(2,3), mar=c(5,4,2,1))
+> for(k in 2:7){
++   hist(pval_snseq[,k], main=names(pval_snseq)[k], breaks=20, 
++        xlab="p-value")
++ }
+> dev.off()
+null device 
+          1 
 > 
 > # ----------------------------------------------------------------------
 > # check the correlation matrix within each method
@@ -614,8 +632,8 @@ pval_snseq$Inh < pcut FALSE TRUE
 > 
 > gc()
           used (Mb) gc trigger (Mb) limit (Mb) max used (Mb)
-Ncells 1003810 53.7    1655145 88.4         NA  1655145 88.4
-Vcells 2896686 22.1    8388608 64.0      32768  8388477 64.0
+Ncells 1007117 53.8    1682422 89.9         NA  1682422 89.9
+Vcells 2904737 22.2    8388608 64.0      32768  8388583 64.0
 > 
 > sessionInfo()
 R version 3.6.2 (2019-12-12)
@@ -655,4 +673,4 @@ loaded via a namespace (and not attached):
 > q(save="no")
 > proc.time()
    user  system elapsed 
- 11.363   0.475   6.922 
+ 11.627   0.461   7.056 

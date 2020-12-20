@@ -77,6 +77,7 @@ cts = sort(gsub(".rds", "", cts))
 cts
 
 n_zeros = list()
+cell_rd = list()
 n_cells = NULL
 
 for(grp in cts){
@@ -86,10 +87,14 @@ for(grp in cts){
   dat1[1:5,1:4]
   
   n_zeros[[grp]] = rowSums(dat1 == 0)
+  cell_rd[[grp]] = colSums(dat1)
   n_cells = c(n_cells, ncol(dat1))
 }
 
 table(sapply(n_zeros, length))
+sapply(cell_rd, median)
+sapply(cell_rd, mean)
+
 n_zeros = as.data.frame(n_zeros)
 dim(n_zeros)
 n_zeros[1:2,1:5]
@@ -110,6 +115,10 @@ gc()
 # ----------------------------------------------------------------------
 # conduct DESeq2 analysis
 # ----------------------------------------------------------------------
+
+n_zeros = q75_trec = list()
+ 
+n_cells = NULL
 
 cts
 
@@ -136,6 +145,9 @@ for(ct1 in names(ct_grps)){
   
   dim(dat1)
   dat1[1:2,1:4]
+  
+  n_zeros[[ct1]] = rowSums(dat1 == 0)
+  n_cells = c(n_cells, ncol(dat1))
   
   cat(sprintf("there are %d cells\n", ncol(dat1)))
   
@@ -177,6 +189,8 @@ for(ct1 in names(ct_grps)){
   q75 = apply(trec1, 1, quantile, probs=0.75)
   summary(q75)
   table(q75 >= 20)
+  
+  q75_trec[[ct1]] = q75
   
   # ------------------------------------------------------------------------
   # run DESeq2
@@ -247,6 +261,50 @@ for(ct1 in names(ct_grps)){
   
   gc()
 }
+
+
+# ----------------------------------------------------------------------
+# sumarize number of zeros at cell level and the 75th percentile after 
+# collpasing cell level counts as individual level counts
+# ----------------------------------------------------------------------
+
+table(sapply(n_zeros, length))
+table(sapply(q75_trec, length))
+
+n_zeros = as.data.frame(n_zeros)
+dim(n_zeros)
+n_zeros[1:2,]
+
+q75_trec = as.data.frame(q75_trec)
+dim(q75_trec)
+q75_trec[1:2,]
+
+names(n_cells) = names(ct_grps)
+sort(n_cells)
+
+percent_zeros = t(t(n_zeros)/n_cells)
+dim(percent_zeros)
+percent_zeros[1:2,1:5]
+
+sort(colSums(percent_zeros < 0.8))
+sort(round(colSums(percent_zeros < 0.8)/nrow(percent_zeros),2))
+
+pdf("../figures/step_z1_snseq_percent_zero_across_cells.pdf", width=7.5, height=5)
+par(mfrow=c(2,3), mar=c(5,4,2,1))
+for(k in 1:6){
+  hist(1 - percent_zeros[,k], main=names(ct_grps)[k], breaks=20, 
+       xlab="proportion of cells with any expression")
+}
+dev.off()
+
+
+pdf("../figures/step_z1_snseq_percent_q75_across_individuals.pdf", width=7.5, height=5)
+par(mfrow=c(2,3), mar=c(5,4,2,1))
+for(k in 1:6){
+  hist(log10(q75_trec[,k]+1), main=names(ct_grps)[k], breaks=seq(0,6,by=0.2), 
+       xlab="log10(75-th percentile of read counts +1)")
+}
+dev.off()
 
 gc()
 
