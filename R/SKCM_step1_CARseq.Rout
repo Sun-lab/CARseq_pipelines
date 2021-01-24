@@ -1,0 +1,1472 @@
+
+R version 4.0.3 (2020-10-10) -- "Bunny-Wunnies Freak Out"
+Copyright (C) 2020 The R Foundation for Statistical Computing
+Platform: x86_64-apple-darwin17.0 (64-bit)
+
+R is free software and comes with ABSOLUTELY NO WARRANTY.
+You are welcome to redistribute it under certain conditions.
+Type 'license()' or 'licence()' for distribution details.
+
+  Natural language support but running in an English locale
+
+R is a collaborative project with many contributors.
+Type 'contributors()' for more information and
+'citation()' on how to cite R or R packages in publications.
+
+Type 'demo()' for some demos, 'help()' for on-line help, or
+'help.start()' for an HTML browser interface to help.
+Type 'q()' to quit R.
+
+> 
+> library(CARseq)
+> library(matrixStats)
+> library(sva)
+Loading required package: mgcv
+Loading required package: nlme
+This is mgcv 1.8-33. For overview type 'help("mgcv-package")'.
+Loading required package: genefilter
+
+Attaching package: ‘genefilter’
+
+The following objects are masked from ‘package:matrixStats’:
+
+    rowSds, rowVars
+
+Loading required package: BiocParallel
+> library(readxl)
+> library(parallel)
+> library(tidyr)
+> library(ggplot2)
+> theme_set(theme_bw())
+> source("base_functions_plittle.R")
+> 
+> # cell size factor
+> # here we use the cell size factors in github.com/GfellerLab/EPIC:
+> # data/mRNA_cell_default.rda:
+> # Bcells Macrophages   Monocytes Neutrophils     NKcells      Tcells 
+> # 0.4016      1.4196      1.4196      0.1300      0.4396      0.3952 
+> # CD4_Tcells  CD8_Tcells  Thelper        Treg  otherCells     default 
+> # 0.3952      0.3952      0.3952      0.3952      0.4000      0.4000 
+> 
+> cell_sizes = c(0.4016, 0.4, 0.3952, 0.3952, 0.4, 1.4196, 0.4396)
+> names(cell_sizes) = c("Bcells", "CAFs", "CD4_Tcells", "CD8_Tcells",
++                       "Endothelial", "Macrophages", "NKcells")
+> 
+> trec_file_name = "../data/SKCM_trec.rds"
+> covariate_file_name = "../data/SKCM_dat_cavariates_with_svs.rds"
+> cell_fractions_file_name = "../data/SKCM_cell_fraction.rds"
+> 
+> # ------------------------------------------------------------------------
+> # read in gene expression and cell type proportion estimates
+> # ------------------------------------------------------------------------
+> 
+> # read counts
+> counts = readRDS("../data/TCGA_SKCM_raw_counts.rds")
+> dim(counts)
+[1] 60483   472
+> counts[1:5,1:5]
+                   TCGA.D3.A8GB.06A TCGA.WE.A8ZN.06A TCGA.ER.A2NF.01A
+ENSG00000000003.13             1049              835             2748
+ENSG00000000005.5                20               21                3
+ENSG00000000419.11             1062              312             1212
+ENSG00000000457.12              371              142             1194
+ENSG00000000460.15              197              116              526
+                   TCGA.HR.A2OH.06A TCGA.WE.A8K6.06A
+ENSG00000000003.13              617             1391
+ENSG00000000005.5                 1                0
+ENSG00000000419.11             2013             1787
+ENSG00000000457.12             1106              409
+ENSG00000000460.15              809              245
+> 
+> # remove genes with low read counts: 
+> # genes with 75% percentile of read counts rd75 < 20 are removed
+> rd75   = apply(counts, 1, function(x) quantile(x, 0.75))
+> counts = counts[rd75 >= 20, ]
+> counts = round(counts)
+> dim(counts)
+[1] 19161   472
+> 
+> # read cell fractions
+> ct_prop = read.table("../CIBERSORT/CIBERSORTx_SKCM_EPIC_Adjusted.txt",
++                                   header = TRUE, row.names = 1)
+> ct_prop = ct_prop[,1:7]
+> 
+> dim(ct_prop)
+[1] 471   7
+> ct_prop[1:2,]
+                     Bcells        CAFs CD4_Tcells CD8_Tcells Endothelial
+TCGA.D3.A8GB.06A 0.36760422 0.000000000  0.1145192  0.1179153  0.01369190
+TCGA.WE.A8ZN.06A 0.04058889 0.003110984  0.1540030  0.1742821  0.05315892
+                 Macrophages    NKcells
+TCGA.D3.A8GB.06A   0.3362146 0.05005479
+TCGA.WE.A8ZN.06A   0.5434158 0.03144027
+> 
+> stopifnot(all (rownames(ct_prop) %in% names(counts)))
+> counts = counts[,match(rownames(ct_prop), names(counts))]
+> table(rownames(ct_prop) == names(counts))
+
+TRUE 
+ 471 
+> 
+> cell_sizes = cell_sizes[names(ct_prop)]
+> stopifnot(all(names(ct_prop) == names(cell_sizes)))
+> 
+> ct_prop_sized = t(apply(ct_prop, 1, 
++                         function(xx){yy = xx / cell_sizes; yy / sum(yy)}))
+> 
+> dim(ct_prop_sized)
+[1] 471   7
+> ct_prop_sized[1:2,]
+                     Bcells        CAFs CD4_Tcells CD8_Tcells Endothelial
+TCGA.D3.A8GB.06A 0.48471570 0.000000000  0.1534481  0.1579987  0.01812609
+TCGA.WE.A8ZN.06A 0.06619859 0.005094165  0.2552393  0.2888492  0.08704651
+                 Macrophages    NKcells
+TCGA.D3.A8GB.06A   0.1254154 0.06029596
+TCGA.WE.A8ZN.06A   0.2507272 0.04684506
+> 
+> # ------------------------------------------------------------------------
+> # read ABSOLUTE cancer cell fraction estimates
+> # ------------------------------------------------------------------------
+> 
+> abs_tbl = read.delim("../data/TCGA_mastercalls.abs_tables_JSedit.fixed.txt", 
++                      as.is = TRUE)
+> dim(abs_tbl)
+[1] 10786    10
+> abs_tbl[1:2,]
+            array                       sample call.status purity ploidy
+1 TCGA-OR-A5J1-01 TCGA-OR-A5J1-01A-11D-A29H-01      called   0.90    2.0
+2 TCGA-OR-A5J2-01 TCGA-OR-A5J2-01A-11D-A29H-01      called   0.89    1.3
+  Genome.doublings Coverage.for.80..power Cancer.DNA.fraction
+1                0                      9                0.90
+2                0                      6                0.84
+  Subclonal.genome.fraction solution
+1                      0.02      new
+2                      0.16      new
+> 
+> table(substr(rownames(ct_prop_sized), 15, 16))
+
+ 1A  6A  6B  7A 
+103 365   2   1 
+> 
+> rownames(abs_tbl) = paste0(gsub("-", ".", abs_tbl$array), "A")
+> table(rownames(ct_prop_sized) %in% rownames(abs_tbl))
+
+FALSE  TRUE 
+   13   458 
+> 
+> abs_tbl_match = match(rownames(ct_prop_sized), rownames(abs_tbl))
+> print(table(is.na(abs_tbl_match)))
+
+FALSE  TRUE 
+  458    13 
+> 
+> tumor_purity = abs_tbl$purity[abs_tbl_match]
+> summary(tumor_purity)
+   Min. 1st Qu.  Median    Mean 3rd Qu.    Max.    NA's 
+ 0.1000  0.4975  0.7000  0.6610  0.8500  1.0000      15 
+> table(tumor_purity < 0.10)
+
+FALSE 
+  456 
+> table(tumor_purity < 0.20)
+
+FALSE  TRUE 
+  447     9 
+> table(tumor_purity < 0.30)
+
+FALSE  TRUE 
+  416    40 
+> 
+> table(tumor_purity > 0.90)
+
+FALSE  TRUE 
+  387    69 
+> table(tumor_purity > 0.95)
+
+FALSE  TRUE 
+  430    26 
+> table(tumor_purity > 0.99)
+
+FALSE  TRUE 
+  452     4 
+> 
+> # ------------------------------------------------------------------------
+> # renormalize cell type proportion based on tumor purity
+> # ------------------------------------------------------------------------
+> 
+> ct_prop_sized = data.frame(as.matrix(ct_prop_sized) * (1 - tumor_purity), 
++                            Cancer_cells = tumor_purity)
+> ww1 = which(tumor_purity > 0.95)
+> tumor_purity[ww1]
+ [1] 0.96 0.97 0.99 0.99 1.00 0.99 0.97 0.98 0.98 0.97 1.00 0.96 1.00 0.98 0.99
+[16] 0.98 0.97 0.97 0.96 0.97 0.99 0.98 0.97 0.97 1.00 0.98
+> ct_prop_sized[ww1[1:4],]
+                       Bcells         CAFs   CD4_Tcells   CD8_Tcells
+TCGA.RP.A690.06A 0.0016887123 0.0001171864 0.0148869648 5.401054e-04
+TCGA.YG.AA3P.06A 0.0001533845 0.0003929469 0.0120540946 5.188276e-05
+TCGA.ER.A3ES.06A 0.0006096240 0.0001117131 0.0053017564 0.000000e+00
+TCGA.FS.A1ZM.06A 0.0000000000 0.0000000000 0.0006234168 1.090526e-03
+                  Endothelial Macrophages      NKcells Cancer_cells
+TCGA.RP.A690.06A 0.0055057607 0.016927901 0.0003333696         0.96
+TCGA.YG.AA3P.06A 0.0057573412 0.011590350 0.0000000000         0.97
+TCGA.ER.A3ES.06A 0.0006976242 0.003279282 0.0000000000         0.99
+TCGA.FS.A1ZM.06A 0.0010682274 0.007036133 0.0001816971         0.99
+> 
+> ct_prop_long = pivot_longer(ct_prop_sized, everything(), names_to = "cell_type",
++                             values_to = "proportion")
+> dim(ct_prop_long)
+[1] 3768    2
+> ct_prop_long[1:2,]
+# A tibble: 2 x 2
+  cell_type proportion
+  <chr>          <dbl>
+1 Bcells         0.325
+2 CAFs           0    
+> 
+> p = ggplot(ct_prop_long, aes(x=cell_type, y=proportion, color=cell_type)) +
++   geom_boxplot() + coord_flip()
+> ggsave("../figures/SKCM_ct_prop.pdf", p, width=6, height=6)
+Warning message:
+Removed 120 rows containing non-finite values (stat_boxplot). 
+> 
+> dim(ct_prop_sized)
+[1] 471   8
+> ct_prop_sized[1:2,]
+                     Bcells        CAFs CD4_Tcells CD8_Tcells Endothelial
+TCGA.D3.A8GB.06A 0.32475952 0.000000000  0.1028103  0.1058591  0.01214448
+TCGA.WE.A8ZN.06A 0.03243731 0.002496141  0.1250672  0.1415361  0.04265279
+                 Macrophages    NKcells Cancer_cells
+TCGA.D3.A8GB.06A  0.08402832 0.04039830         0.33
+TCGA.WE.A8ZN.06A  0.12285634 0.02295408         0.51
+> 
+> # ------------------------------------------------------------------------
+> # read clinical data
+> # ------------------------------------------------------------------------
+> 
+> cdat = read_excel("../data/TCGA-CDR-SupplementalTableS1.xlsx", 
++                   sheet = "TCGA-CDR", na="#NA", guess_max=2000)
+New names:
+* `` -> ...1
+> dim(cdat)
+[1] 11160    34
+> cdat[1:2,1:5]
+# A tibble: 2 x 5
+  ...1  bcr_patient_barcode type  age_at_initial_pathologic_diagnosis gender
+  <chr> <chr>               <chr>                               <dbl> <chr> 
+1 1     TCGA-OR-A5J1        ACC                                    58 MALE  
+2 2     TCGA-OR-A5J2        ACC                                    44 FEMALE
+> names(cdat)
+ [1] "...1"                                "bcr_patient_barcode"                
+ [3] "type"                                "age_at_initial_pathologic_diagnosis"
+ [5] "gender"                              "race"                               
+ [7] "ajcc_pathologic_tumor_stage"         "clinical_stage"                     
+ [9] "histological_type"                   "histological_grade"                 
+[11] "initial_pathologic_dx_year"          "menopause_status"                   
+[13] "birth_days_to"                       "vital_status"                       
+[15] "tumor_status"                        "last_contact_days_to"               
+[17] "death_days_to"                       "cause_of_death"                     
+[19] "new_tumor_event_type"                "new_tumor_event_site"               
+[21] "new_tumor_event_site_other"          "new_tumor_event_dx_days_to"         
+[23] "treatment_outcome_first_course"      "margin_status"                      
+[25] "residual_tumor"                      "OS"                                 
+[27] "OS.time"                             "DSS"                                
+[29] "DSS.time"                            "DFI"                                
+[31] "DFI.time"                            "PFI"                                
+[33] "PFI.time"                            "Redaction"                          
+> 
+> patient = substr(colnames(counts), 1, 12)
+> patient = gsub(".", "-", patient, fixed = TRUE)
+> table(patient %in% cdat$bcr_patient_barcode)
+
+TRUE 
+ 471 
+> 
+> cdat = cdat[match(patient, cdat$bcr_patient_barcode),]
+> dim(cdat)
+[1] 471  34
+> cdat[1:2,]
+# A tibble: 2 x 34
+  ...1  bcr_patient_bar… type  age_at_initial_… gender race  ajcc_pathologic…
+  <chr> <chr>            <chr>            <dbl> <chr>  <chr> <chr>           
+1 8883  TCGA-D3-A8GB     SKCM                48 MALE   WHITE Stage IIIB      
+2 9241  TCGA-WE-A8ZN     SKCM                57 MALE   [Not… Stage IIB       
+# … with 27 more variables: clinical_stage <chr>, histological_type <chr>,
+#   histological_grade <chr>, initial_pathologic_dx_year <dbl>,
+#   menopause_status <chr>, birth_days_to <dbl>, vital_status <chr>,
+#   tumor_status <chr>, last_contact_days_to <dbl>, death_days_to <dbl>,
+#   cause_of_death <chr>, new_tumor_event_type <chr>,
+#   new_tumor_event_site <chr>, new_tumor_event_site_other <chr>,
+#   new_tumor_event_dx_days_to <dbl>, treatment_outcome_first_course <chr>,
+#   margin_status <chr>, residual_tumor <chr>, OS <dbl>, OS.time <dbl>,
+#   DSS <dbl>, DSS.time <dbl>, DFI <dbl>, DFI.time <dbl>, PFI <dbl>,
+#   PFI.time <dbl>, Redaction <chr>
+> 
+> # ------------------------------------------------------------------------
+> # aggregate patient group into 4 main stages
+> # ------------------------------------------------------------------------
+> 
+> summary(cdat$DSS.time)
+   Min. 1st Qu.  Median    Mean 3rd Qu.    Max.    NA's 
+    0.0   484.5  1098.0  1817.6  2360.5 11252.0      15 
+> cdat$stage = cdat$ajcc_pathologic_tumor_stage
+> table(cdat$stage, useNA="ifany")
+
+[Not Available]        I/II NOS         Stage 0         Stage I        Stage IA 
+             39              14               7              30              17 
+       Stage IB        Stage II       Stage IIA       Stage IIB       Stage IIC 
+             30              30              18              28              64 
+      Stage III      Stage IIIA      Stage IIIB      Stage IIIC        Stage IV 
+             41              16              46              67              24 
+> 
+> cdat$stage[grep("Stage I", cdat$ajcc_pathologic_tumor_stage)] = "I"
+> cdat$stage[grep("Stage II", cdat$ajcc_pathologic_tumor_stage)] = "II"
+> cdat$stage[grep("Stage III", cdat$ajcc_pathologic_tumor_stage)] = "III"
+> cdat$stage[grep("Stage IV", cdat$ajcc_pathologic_tumor_stage)] = "IV"
+> cdat$stage[!(cdat$stage %in% c("I","II","III","IV"))] = NA
+> table(cdat$stage, useNA="ifany")
+
+   I   II  III   IV <NA> 
+  77  140  170   24   60 
+> 
+> # ------------------------------------------------------------------------
+> # generate an indicator of 5 year survival 
+> # ------------------------------------------------------------------------
+> 
+> table(cdat$vital_status, cdat$OS)
+       
+          0   1
+  Alive 248   0
+  Dead    0 216
+> table(cdat$vital_status, cdat$DSS)
+       
+          0   1
+  Alive 248   0
+  Dead   20 190
+> summary(cdat$DSS.time)
+   Min. 1st Qu.  Median    Mean 3rd Qu.    Max.    NA's 
+    0.0   484.5  1098.0  1817.6  2360.5 11252.0      15 
+> 
+> cdat$five_year_DSS = rep(NA, nrow(cdat))
+> cdat$five_year_DSS[which(cdat$DSS.time > 365 * 5)] = 1
+> cdat$five_year_DSS[which(cdat$DSS.time <= 365 * 5 & cdat$DSS == 1)] = 0
+> table(cdat$five_year_DSS, useNA="ifany")
+
+   0    1 <NA> 
+ 128  153  190 
+> 
+> # ------------------------------------------------------------------------
+> # select samples without NA and with purity < 0.90
+> # ------------------------------------------------------------------------
+> 
+> notNA = !(is.na(cdat$stage)) & !(is.na(cdat$DSS.time)) & !(is.na(tumor_purity))
+> table(notNA)
+notNA
+FALSE  TRUE 
+   74   397 
+> 
+> notNA = notNA & !(is.na(cdat$five_year_DSS))
+> table(notNA)
+notNA
+FALSE  TRUE 
+  232   239 
+> 
+> notNA = notNA & (tumor_purity < 0.90)
+> table(notNA)
+notNA
+FALSE  TRUE 
+  282   189 
+> 
+> trec = as.matrix(counts[notNA])
+> cell_fractions = ct_prop_sized[notNA, ]
+> cdat = cdat[notNA,]
+> 
+> rm(counts)
+> rm(ct_prop)
+> rm(ct_prop_sized)
+> 
+> # ----------------------------------------------------------------------
+> # remove lonely samples that from the TSS with few samples
+> # ----------------------------------------------------------------------
+> 
+> trec[1:2,1:4]
+                   TCGA.D3.A8GB.06A TCGA.ER.A2NF.01A TCGA.D9.A3Z1.06A
+ENSG00000000003.13             1049             2748              894
+ENSG00000000419.11             1062             1212             1394
+                   TCGA.D3.A1Q6.06A
+ENSG00000000003.13              823
+ENSG00000000419.11             1964
+> tss = substr(colnames(trec), 6, 7)
+> 
+> tb_tss = table(tss)
+> tb_tss
+tss
+3N D3 D9 DA EB EE ER FR FS GF GN QB W3 WE XV 
+ 2 37  3 14  4 59 19  8 20  1  8  1  8  4  1 
+> 
+> lonely_ones = which(tss %in% names(tb_tss)[which(tb_tss <= 4)])
+> colnames(trec)[lonely_ones]
+ [1] "TCGA.D9.A3Z1.06A" "TCGA.WE.A8ZY.06A" "TCGA.XV.AAZW.01A" "TCGA.EB.A5VU.01A"
+ [5] "TCGA.GF.A769.01A" "TCGA.D9.A4Z2.01A" "TCGA.WE.A8ZM.06A" "TCGA.WE.A8ZO.06A"
+ [9] "TCGA.EB.A5FP.01A" "TCGA.EB.A42Y.01A" "TCGA.3N.A9WC.06A" "TCGA.EB.A5SE.01A"
+[13] "TCGA.QB.AA9O.06A" "TCGA.WE.A8K5.06A" "TCGA.3N.A9WD.06A" "TCGA.D9.A3Z4.01A"
+> 
+> trec = trec[,-lonely_ones]
+> cdat = cdat[-lonely_ones,]
+> cell_fractions = cell_fractions[-lonely_ones,]
+> 
+> patient = substr(colnames(trec), 1, 12)
+> patient = gsub(".", "-", patient, fixed = TRUE)
+> table(patient == cdat$bcr_patient_barcode)
+
+TRUE 
+ 173 
+> 
+> saveRDS(trec, file = trec_file_name)
+> saveRDS(cell_fractions, file = cell_fractions_file_name)
+> 
+> # ----------------------------------------------------------------------
+> # TSS clustering
+> # ----------------------------------------------------------------------
+> 
+> tss = substr(colnames(trec), 6, 7)
+> 
+> log_depth = log(apply(trec, 2, function(x) quantile(x, 0.75)))
+> cdat$log_depth = log_depth
+> 
+> log_trec  = t(log(t(trec)) -log_depth)
+> log_trec[1:2,1:4]
+                   TCGA.D3.A8GB.06A TCGA.ER.A2NF.01A TCGA.D3.A1Q6.06A
+ENSG00000000003.13       -0.5646419      0.008038041       -1.0372280
+ENSG00000000419.11       -0.5523254     -0.810563446       -0.1674457
+                   TCGA.ER.A2NG.06A
+ENSG00000000003.13       -0.5932533
+ENSG00000000419.11       -0.6609009
+> 
+> ge_tss = numeric(0)
+> u_tss = unique(tss)
+> for(tss1 in u_tss){
++   w1 = which(tss == tss1)
++   ge_tss = cbind(ge_tss, rowMeans(log_trec[,w1]))
++ }
+> colnames(ge_tss) = u_tss
+> dim(ge_tss)
+[1] 19161     8
+> ge_tss[1:2,1:3]
+                           D3         ER         FR
+ENSG00000000003.13 -0.4331196 -0.2854327 -0.2463113
+ENSG00000000419.11 -0.4127226 -0.4302188 -0.5317021
+> 
+> ge_tss = ge_tss - rowMeans(ge_tss)
+> dim(ge_tss)
+[1] 19161     8
+> ge_tss[1:2,1:3]
+                            D3          ER          FR
+ENSG00000000003.13 -0.20232724 -0.05464031 -0.01551888
+ENSG00000000419.11 -0.02067038 -0.03816660 -0.13964991
+> 
+> h1 = hclust(dist(t(ge_tss)))
+> pdf("../figures/SKCM_tss_cluster.pdf", width=4, height=4)
+> plot(h1)
+> dev.off()
+null device 
+          1 
+> c1 = cutree(h1, k=5)
+> c1
+D3 ER FR FS DA EE W3 GN 
+ 1  1  2  1  3  1  4  5 
+> 
+> table(tss)
+tss
+D3 DA EE ER FR FS GN W3 
+37 14 59 19  8 20  8  8 
+> 
+> cdat$tss = rep(NA, nrow(cdat))
+> for(k in 1:5){
++   cdat$tss[which(tss %in% names(c1)[c1==k])] = k
++ }
+> table(cdat$tss)
+
+  1   2   3   4   5 
+135   8  14   8   8 
+> table(cdat$tss, tss)
+   tss
+    D3 DA EE ER FR FS GN W3
+  1 37  0 59 19  0 20  0  0
+  2  0  0  0  0  8  0  0  0
+  3  0 14  0  0  0  0  0  0
+  4  0  0  0  0  0  0  0  8
+  5  0  0  0  0  0  0  8  0
+> cdat$tss = as.factor(cdat$tss)
+> # if (!file.exists(covariate_file_name)) {
+> # ------------------------------------------------------------------------
+> # generate covariate data
+> # ------------------------------------------------------------------------
+> 
+> col_data = cdat[, c("age_at_initial_pathologic_diagnosis",
++                     "gender", "stage", "five_year_DSS", "tss")]
+> 
+> col_data$scaled_age = scale(col_data$age_at_initial_pathologic_diagnosis)
+> col_data$scaled_log_depth = scale(cdat$log_depth)
+> 
+> cor(model.matrix(~ gender + scaled_age + scaled_log_depth + stage, col_data)[,-1])
+                  genderMALE  scaled_age scaled_log_depth     stageII
+genderMALE        1.00000000 -0.03035893      -0.13447972 -0.05583666
+scaled_age       -0.03035893  1.00000000       0.05651763  0.21215779
+scaled_log_depth -0.13447972  0.05651763       1.00000000  0.07859670
+stageII          -0.05583666  0.21215779       0.07859670  1.00000000
+stageIII         -0.02879283  0.04223141      -0.09981124 -0.46431846
+stageIV          -0.01577366 -0.03968151       0.02007129 -0.12859809
+                    stageIII     stageIV
+genderMALE       -0.02879283 -0.01577366
+scaled_age        0.04223141 -0.03968151
+scaled_log_depth -0.09981124  0.02007129
+stageII          -0.46431846 -0.12859809
+stageIII          1.00000000 -0.17506023
+stageIV          -0.17506023  1.00000000
+> 
+> # ----------------------------------------------------------------------
+> # first run PCA on residuals to help determin the number of PCs to use
+> # ----------------------------------------------------------------------
+> 
+> prop = cell_fractions
+> dat  = col_data
+> 
+> dim(prop)
+[1] 173   8
+> prop[1:2,]
+                    Bcells CAFs CD4_Tcells CD8_Tcells Endothelial Macrophages
+TCGA.D3.A8GB.06A 0.3247595    0 0.10281025 0.10585913  0.01214448  0.08402832
+TCGA.ER.A2NF.01A 0.1845557    0 0.05197813 0.03536896  0.02786938  0.11236588
+                     NKcells Cancer_cells
+TCGA.D3.A8GB.06A 0.040398296         0.33
+TCGA.ER.A2NF.01A 0.007861942         0.58
+> 
+> dim(dat)
+[1] 173   7
+> dat[1:2,]
+# A tibble: 2 x 7
+  age_at_initial_… gender stage five_year_DSS tss   scaled_age[,1]
+             <dbl> <chr>  <chr>         <dbl> <fct>          <dbl>
+1               48 MALE   III               0 1             -0.448
+2               53 MALE   III               0 1             -0.150
+# … with 1 more variable: scaled_log_depth[,1] <dbl>
+> 
+> plog = log(prop + 1e-5)
+> plog = plog - plog[,"Cancer_cells"]
+> colnames(plog) = paste("log", colnames(plog), sep="_")
+> plog = plog[, !grepl("log_Cancer_cells", colnames(plog))]
+> 
+> dat = cbind(dat, plog)
+> dim(dat)
+[1] 173  14
+> dat[1:2,]
+                 age_at_initial_pathologic_diagnosis gender stage five_year_DSS
+TCGA.D3.A8GB.06A                                  48   MALE   III             0
+TCGA.ER.A2NF.01A                                  53   MALE   III             0
+                 tss scaled_age scaled_log_depth log_Bcells  log_CAFs
+TCGA.D3.A8GB.06A   1 -0.4479354       -0.8892329 -0.0160072 -10.40429
+TCGA.ER.A2NF.01A   1 -0.1498861        0.1952321 -1.1450398 -10.96822
+                 log_CD4_Tcells log_CD8_Tcells log_Endothelial log_Macrophages
+TCGA.D3.A8GB.06A      -1.166141      -1.136919       -3.301425       -1.367850
+TCGA.ER.A2NF.01A      -2.412030      -2.796928       -3.035158       -1.641196
+                 log_NKcells
+TCGA.D3.A8GB.06A   -2.100088
+TCGA.ER.A2NF.01A   -4.299741
+> 
+> mod0.terms = c("gender", "scaled_age", "scaled_log_depth", "stage", 
++                "tss", colnames(plog))
+> length(mod0.terms)
+[1] 12
+> 
+> mod0.str = paste(mod0.terms, collapse = " + ")
+> 
+> # Looping over genes for lm() and residuals
+> GG = nrow(trec); NN = ncol(trec)
+> rr = matrix(NA,GG,NN) # residual matrix
+> 
+> for(gg in seq(GG)){
++   # gg = 1
++   if(gg %% 1e2 == 0) cat(".")
++   if(gg %% 2e3 == 0 || gg == GG) cat(sprintf("%s out of %s\n",gg,GG))
++   
++   log.trec.gg = log(trec[gg,] + 1)
++   
++   lm_out = lm(formula(sprintf("log.trec.gg ~ %s", mod0.str)), data = dat)
++   rr[gg,] = as.numeric(lm_out$residuals)
++   aa = drop1(lm_out,.~.,test="F")
++   
++   if(gg == 1){
++     pp = matrix(NA,GG,nrow(aa)-1)
++     colnames(pp) = rownames(aa)[-1]
++   }
++   
++   pp[gg,] = aa[-1,6]
++   rm(lm_out)
++ }
+....................2000 out of 19161
+....................4000 out of 19161
+....................6000 out of 19161
+....................8000 out of 19161
+....................10000 out of 19161
+....................12000 out of 19161
+....................14000 out of 19161
+....................16000 out of 19161
+....................18000 out of 19161
+...........19161 out of 19161
+> 
+> pdf(file.path("..", "figures", "SKCM_expression_PCA_all_log_Prop.pdf"),
++     height = 8,width = 8)
+> 
+> show_pvalue_hist(mat_pvalues = pp, test_type0 = 3)
+> 
+> rr2 = rr - rowMeans(rr,na.rm = TRUE)
+> cov_rr2 = t(rr2) %*% rr2 / nrow(rr2); pca_rr2 = eigen(cov_rr2)
+> 
+> show_screeplot(pca_rr2,main = "")
+> par(mfrow = c(2,1),mar = c(4,4,1,1),oma = c(0,0,2,0))
+> barplot(pca_rr2$values[3:21], names.arg =3:21, main = "", 
++         xlab = "Index", ylab = "Eigen-value")
+> barplot(diff(-pca_rr2$values[3:22]), names.arg =3:21, main = "", 
++         xlab = "Index", ylab = "Eigen-value[i] - Eigen-value[i+1]")
+> 
+> num_pcs = 5; pcs = smart_df(pca_rr2$vectors[,1:num_pcs])
+> names(pcs) = paste0("PC",seq(num_pcs))
+> show_pc_color(pcs,submain = "")
+> 
+> dev.off()
+null device 
+          1 
+> 
+> pcs = pca_rr2$vectors[,1:20]
+> cor(pcs, dat$five_year_DSS)
+              [,1]
+ [1,]  0.008037382
+ [2,] -0.129048597
+ [3,] -0.089632902
+ [4,]  0.114571619
+ [5,] -0.007266457
+ [6,] -0.046006125
+ [7,]  0.036062682
+ [8,] -0.049432625
+ [9,] -0.066661090
+[10,] -0.034800146
+[11,]  0.020748312
+[12,] -0.027866086
+[13,]  0.006065136
+[14,] -0.042318841
+[15,]  0.032147280
+[16,]  0.119211773
+[17,] -0.031752165
+[18,] -0.126397671
+[19,] -0.037464318
+[20,] -0.075692022
+> 
+> # ----------------------------------------------------------------------
+> # SVA
+> # ----------------------------------------------------------------------
+> 
+> mod.terms = c("five_year_DSS", mod0.terms)
+> length(mod.terms)
+[1] 13
+> 
+> mod0 = model.matrix(as.formula(paste("~", paste(mod0.terms, collapse=" + "))), 
++                     data=dat)
+> mod  = model.matrix(as.formula(paste("~", paste(mod.terms, collapse=" + "))), 
++                     data=dat)
+> 
+> dim(mod0)
+[1] 173  18
+> mod0[1:2,]
+                 (Intercept) genderMALE scaled_age scaled_log_depth stageII
+TCGA.D3.A8GB.06A           1          1 -0.4479354       -0.8892329       0
+TCGA.ER.A2NF.01A           1          1 -0.1498861        0.1952321       0
+                 stageIII stageIV tss2 tss3 tss4 tss5 log_Bcells  log_CAFs
+TCGA.D3.A8GB.06A        1       0    0    0    0    0 -0.0160072 -10.40429
+TCGA.ER.A2NF.01A        1       0    0    0    0    0 -1.1450398 -10.96822
+                 log_CD4_Tcells log_CD8_Tcells log_Endothelial log_Macrophages
+TCGA.D3.A8GB.06A      -1.166141      -1.136919       -3.301425       -1.367850
+TCGA.ER.A2NF.01A      -2.412030      -2.796928       -3.035158       -1.641196
+                 log_NKcells
+TCGA.D3.A8GB.06A   -2.100088
+TCGA.ER.A2NF.01A   -4.299741
+> 
+> dim(mod)
+[1] 173  19
+> mod[1:2,]
+                 (Intercept) five_year_DSS genderMALE scaled_age
+TCGA.D3.A8GB.06A           1             0          1 -0.4479354
+TCGA.ER.A2NF.01A           1             0          1 -0.1498861
+                 scaled_log_depth stageII stageIII stageIV tss2 tss3 tss4 tss5
+TCGA.D3.A8GB.06A       -0.8892329       0        1       0    0    0    0    0
+TCGA.ER.A2NF.01A        0.1952321       0        1       0    0    0    0    0
+                 log_Bcells  log_CAFs log_CD4_Tcells log_CD8_Tcells
+TCGA.D3.A8GB.06A -0.0160072 -10.40429      -1.166141      -1.136919
+TCGA.ER.A2NF.01A -1.1450398 -10.96822      -2.412030      -2.796928
+                 log_Endothelial log_Macrophages log_NKcells
+TCGA.D3.A8GB.06A       -3.301425       -1.367850   -2.100088
+TCGA.ER.A2NF.01A       -3.035158       -1.641196   -4.299741
+> 
+> n.sv = num.sv(log(trec + 1), mod, method="leek")
+> print(n.sv)
+[1] 1
+> 
+> n.sv = num.sv(log(trec + 1), mod, method="be")
+> print(n.sv)
+[1] 27
+> 
+> sv4 = sva(log(trec + 1), mod, mod0, n.sv=4)
+Number of significant surrogate variables is:  4 
+Iteration (out of 5 ):1  2  3  4  5  > sv8 = sva(log(trec + 1), mod, mod0, n.sv=8)
+Number of significant surrogate variables is:  8 
+Iteration (out of 5 ):1  2  3  4  5  > 
+> 
+> # ----------------------------------------------------------------------
+> # check associatoin between PCs and svs
+> # ----------------------------------------------------------------------
+> 
+> pcs = pca_rr2$vectors[,1:8]
+> npc = 1:8
+> round(cor(sv4$sv, pcs), 2)
+      [,1]  [,2]  [,3]  [,4]  [,5]  [,6]  [,7]  [,8]
+[1,] -0.39  0.08 -0.07 -0.04  0.07 -0.02  0.07 -0.03
+[2,]  0.17 -0.12  0.27  0.38  0.13  0.02 -0.05 -0.19
+[3,] -0.70 -0.26  0.24  0.06 -0.11 -0.05 -0.08 -0.02
+[4,]  0.20 -0.75 -0.13 -0.22  0.13 -0.14  0.02  0.01
+> round(cor(sv8$sv, pcs), 2)
+      [,1]  [,2]  [,3]  [,4]  [,5]  [,6]  [,7]  [,8]
+[1,] -0.38  0.08 -0.06 -0.03  0.07 -0.02  0.07 -0.03
+[2,]  0.23 -0.11  0.25  0.37  0.13  0.02 -0.04 -0.18
+[3,] -0.70 -0.26  0.26  0.09 -0.10 -0.05 -0.08 -0.04
+[4,]  0.20 -0.75 -0.12 -0.22  0.13 -0.14  0.01  0.01
+[5,]  0.21  0.17  0.74 -0.44 -0.04 -0.14  0.06 -0.04
+[6,] -0.14  0.00  0.24 -0.04  0.68  0.29 -0.09  0.33
+[7,]  0.04  0.31 -0.14  0.12  0.31 -0.66 -0.34  0.00
+[8,] -0.09  0.10 -0.25 -0.50  0.24  0.26 -0.31 -0.55
+> round(cor(sv4$sv, sv8$sv), 2)
+      [,1]  [,2]  [,3]  [,4]  [,5] [,6]  [,7] [,8]
+[1,]  1.00 -0.02  0.01  0.00  0.00    0  0.00    0
+[2,]  0.02  1.00  0.07 -0.01  0.00    0  0.01    0
+[3,] -0.02 -0.07  1.00  0.01  0.00    0 -0.01    0
+[4,]  0.00  0.01 -0.01  1.00 -0.01    0  0.00    0
+> 
+> r2 = matrix(NA, nrow=8, ncol=length(npc))
+> for(k in 1:8){
++   svk = as.numeric(sv8$sv[,k])
++   for(m in 1:length(npc)){
++     lmk = summary(lm(svk ~ pcs[,1:npc[m]]))
++     r2[k,m] = lmk$r.squared
++   }
++ }
+> 
+> round(r2, 2)
+     [,1] [,2] [,3] [,4] [,5] [,6] [,7] [,8]
+[1,] 0.14 0.15 0.15 0.15 0.16 0.16 0.16 0.17
+[2,] 0.05 0.06 0.13 0.27 0.28 0.28 0.29 0.32
+[3,] 0.48 0.55 0.62 0.63 0.64 0.64 0.64 0.65
+[4,] 0.04 0.60 0.62 0.67 0.68 0.70 0.70 0.70
+[5,] 0.05 0.08 0.63 0.82 0.83 0.85 0.85 0.85
+[6,] 0.02 0.02 0.08 0.08 0.54 0.62 0.63 0.73
+[7,] 0.00 0.10 0.12 0.13 0.23 0.67 0.78 0.78
+[8,] 0.01 0.02 0.08 0.33 0.39 0.46 0.56 0.86
+> 
+> pdf(file.path("..","figures", "SKCM_svs_vs_pcs.pdf"),
++     height = 6,width = 6)
+> par(mar=c(5,4,1,1), bty="n")
+> for(i in 1:nrow(r2)){
++   if(i==1){
++     plot(npc, r2[1,], ylim=c(0,1), type="l", xlim=c(0,9), 
++          xlab="# of PCs", ylab="R2 of surrogate variables explained by PCs")
++   }else{
++     lines(npc, r2[i,])
++   }
++ }
+> abline(v=4, lty=2, col="darkred")
+> abline(v=8, lty=2, col="darkred")
+> text(rep(9,8), r2[,8], labels=1:8)
+> dev.off()
+null device 
+          1 
+> 
+> # ----------------------------------------------------------------------
+> # R squared vs. the number of surrogate variables to use
+> # ----------------------------------------------------------------------
+> 
+> colnames(sv8$sv) = paste0("sv", 1:8)
+> dat = cbind(dat, sv8$sv)
+> dim(dat)
+[1] 173  22
+> dat[1:2,]
+                 age_at_initial_pathologic_diagnosis gender stage five_year_DSS
+TCGA.D3.A8GB.06A                                  48   MALE   III             0
+TCGA.ER.A2NF.01A                                  53   MALE   III             0
+                 tss scaled_age scaled_log_depth log_Bcells  log_CAFs
+TCGA.D3.A8GB.06A   1 -0.4479354       -0.8892329 -0.0160072 -10.40429
+TCGA.ER.A2NF.01A   1 -0.1498861        0.1952321 -1.1450398 -10.96822
+                 log_CD4_Tcells log_CD8_Tcells log_Endothelial log_Macrophages
+TCGA.D3.A8GB.06A      -1.166141      -1.136919       -3.301425       -1.367850
+TCGA.ER.A2NF.01A      -2.412030      -2.796928       -3.035158       -1.641196
+                 log_NKcells        sv1        sv2        sv3         sv4
+TCGA.D3.A8GB.06A   -2.100088 0.01375672 0.09752514 0.01739172 -0.07289592
+TCGA.ER.A2NF.01A   -4.299741 0.01276627 0.06949249 0.09887901 -0.05994437
+                         sv5         sv6         sv7        sv8
+TCGA.D3.A8GB.06A 0.002028682 -0.06531461 0.002505316 -0.1243415
+TCGA.ER.A2NF.01A 0.121231276  0.07481746 0.013048498  0.1194979
+> 
+> log_trec = log(trec + 1)
+> final.mod0.terms = mod0.terms
+> final.mod0.str = paste(final.mod0.terms, collapse = " + ")
+> 
+> max_number_of_SV = 8
+> final.mod0.str.vector = rep(NA, max_number_of_SV + 1)
+> final.mod0.str.vector[1] = final.mod0.str
+> 
+> for (number_of_SV in (seq_len(max_number_of_SV))) {
++   final.mod0.str.vector[1 + number_of_SV] = 
++     sprintf("%s + sv%d", final.mod0.str.vector[number_of_SV], number_of_SV)
++ }
+> 
+> GG = nrow(log_trec); NN = ncol(log_trec)
+> rr = matrix(NA,GG,NN) # residual matrix
+> 
+> rsquared = matrix(NA, nrow = GG, ncol = 1 + max_number_of_SV)
+> for(gg in seq_len(GG)){
++   # gg = 1
++   if(gg %% 1e2 == 0) cat(".")
++   if(gg %% 2e3 == 0 || gg == GG) cat(sprintf("%s out of %s\n",gg,GG))
++   
++   log_trec.gg = log_trec[gg,]
++   
++   # starts from 0
++   for (number_of_SV in (-1 + seq_len(max_number_of_SV + 1))) {
++     lm_out = lm(formula(sprintf("log_trec.gg ~ %s", 
++                                 final.mod0.str.vector[1 + number_of_SV])), 
++                 data = dat)
++     rsquared[gg, 1 + number_of_SV] = summary(lm_out)$r.squared
++     rm(lm_out)
++   }
++ }
+....................2000 out of 19161
+....................4000 out of 19161
+....................6000 out of 19161
+....................8000 out of 19161
+....................10000 out of 19161
+....................12000 out of 19161
+....................14000 out of 19161
+....................16000 out of 19161
+....................18000 out of 19161
+...........19161 out of 19161
+> 
+> colnames(rsquared) = paste0("SV",  -1 + seq_len(max_number_of_SV + 1))
+> 
+> saveRDS(rsquared, file.path("..", "results", "SKCM_rsquared.rds"))
+> 
+> colMedians(rsquared, na.rm=TRUE)
+[1] 0.3631151 0.4307258 0.4453277 0.4740034 0.5059386 0.5320266 0.5537742
+[8] 0.5773129 0.5973873
+> colnames(rsquared) = sprintf("%s\n%.2f", 
++                              paste0("SV",  -1 + seq_len(max_number_of_SV + 1)), 
++                              colMedians(rsquared, na.rm=TRUE))
+> 
+> png(file.path("..", "figures", "SKCM_rsquared.png"),
++     width=9, height=5, units="in", res=400)
+> par(mar = c(6.5, 3.0, 0.5, 1.0))
+> boxplot(rsquared, sub = paste(strwrap(paste("log_trec ~", final.mod0.str), 110), 
++                               collapse = "\n"))
+> dev.off()
+null device 
+          1 
+> 
+> round(cor(sv8$sv, cell_fractions),2)
+    Bcells  CAFs CD4_Tcells CD8_Tcells Endothelial Macrophages NKcells
+sv1  -0.14  0.12      -0.03      -0.11        0.19       -0.14   -0.03
+sv2   0.61 -0.15      -0.10       0.50       -0.23        0.08    0.15
+sv3   0.10 -0.31      -0.27       0.20       -0.28       -0.22    0.04
+sv4  -0.13  0.00      -0.21      -0.04       -0.35       -0.24   -0.20
+sv5  -0.03 -0.11      -0.12      -0.12        0.00       -0.17   -0.11
+sv6   0.00 -0.01       0.05      -0.12       -0.16        0.14    0.01
+sv7   0.06  0.01       0.00       0.05       -0.16       -0.31    0.14
+sv8  -0.05  0.06      -0.11       0.01       -0.08        0.06    0.01
+    Cancer_cells
+sv1         0.20
+sv2        -0.70
+sv3         0.05
+sv4         0.35
+sv5         0.20
+sv6         0.01
+sv7         0.08
+sv8         0.05
+> 
+> # ----------------------------------------------------------------------
+> # save results
+> # ----------------------------------------------------------------------
+> 
+> mod[1:2,]
+                 (Intercept) five_year_DSS genderMALE scaled_age
+TCGA.D3.A8GB.06A           1             0          1 -0.4479354
+TCGA.ER.A2NF.01A           1             0          1 -0.1498861
+                 scaled_log_depth stageII stageIII stageIV tss2 tss3 tss4 tss5
+TCGA.D3.A8GB.06A       -0.8892329       0        1       0    0    0    0    0
+TCGA.ER.A2NF.01A        0.1952321       0        1       0    0    0    0    0
+                 log_Bcells  log_CAFs log_CD4_Tcells log_CD8_Tcells
+TCGA.D3.A8GB.06A -0.0160072 -10.40429      -1.166141      -1.136919
+TCGA.ER.A2NF.01A -1.1450398 -10.96822      -2.412030      -2.796928
+                 log_Endothelial log_Macrophages log_NKcells
+TCGA.D3.A8GB.06A       -3.301425       -1.367850   -2.100088
+TCGA.ER.A2NF.01A       -3.035158       -1.641196   -4.299741
+> colnames(mod)
+ [1] "(Intercept)"      "five_year_DSS"    "genderMALE"       "scaled_age"      
+ [5] "scaled_log_depth" "stageII"          "stageIII"         "stageIV"         
+ [9] "tss2"             "tss3"             "tss4"             "tss5"            
+[13] "log_Bcells"       "log_CAFs"         "log_CD4_Tcells"   "log_CD8_Tcells"  
+[17] "log_Endothelial"  "log_Macrophages"  "log_NKcells"     
+> 
+> modDat = cbind(mod[,2:12], sv8$sv)
+> colnames(modDat)[1:2] = c("five_year_DSS", "gender") 
+> colnames(modDat)[12:19] = paste0("sv", 1:8)
+> dim(modDat)
+[1] 173  19
+> modDat[1:2,]
+                 five_year_DSS gender scaled_age scaled_log_depth stageII
+TCGA.D3.A8GB.06A             0      1 -0.4479354       -0.8892329       0
+TCGA.ER.A2NF.01A             0      1 -0.1498861        0.1952321       0
+                 stageIII stageIV tss2 tss3 tss4 tss5        sv1        sv2
+TCGA.D3.A8GB.06A        1       0    0    0    0    0 0.01375672 0.09752514
+TCGA.ER.A2NF.01A        1       0    0    0    0    0 0.01276627 0.06949249
+                        sv3         sv4         sv5         sv6         sv7
+TCGA.D3.A8GB.06A 0.01739172 -0.07289592 0.002028682 -0.06531461 0.002505316
+TCGA.ER.A2NF.01A 0.09887901 -0.05994437 0.121231276  0.07481746 0.013048498
+                        sv8
+TCGA.D3.A8GB.06A -0.1243415
+TCGA.ER.A2NF.01A  0.1194979
+> 
+> # rescale PCs and SVs -- the names are still sv1, sv2, etc, 
+> # but they have been scaled:
+> covariates_to_scale = grep("sv|PC", colnames(modDat))
+> for (m in covariates_to_scale) {
++   modDat[, m] = scale(modDat[, m])
++ }
+> 
+> col_data = modDat
+> saveRDS(col_data, file=covariate_file_name)
+> 
+> 
+> # permuted disease label
+> set.seed(1234)
+> col_data = as.data.frame(col_data)
+> col_data$SurvivalP = CARseq:::permute_case_and_controls(col_data$five_year_DSS)
+> col_data$Survival  = factor(col_data$five_year_DSS)
+> table(col_data$Survival, col_data$SurvivalP)
+   
+     0  1
+  0 33 42
+  1 42 56
+> 
+> 
+> # CARseq, CIBERSORT, 0 SV
+> # permuted
+> date()
+[1] "Sat Jan 23 19:12:10 2021"
+> res_CARseq = run_CARseq(count_matrix = trec,
++                         cellular_proportions = cell_fractions,
++                         groups = col_data$SurvivalP,
++                         formula = ~ gender + scaled_age + scaled_log_depth + 
++                           stageII + stageIII + stageIV + tss,
++                         data = col_data,
++                         read_depth = 1,
++                         shrunken_lfc = TRUE,
++                         cores = 15, 
++                         fix_overdispersion = FALSE, 
++                         useSocket = FALSE
++ )
+
+Attaching package: ‘MASS’
+
+The following object is masked from ‘package:genefilter’:
+
+    area
+
+Gene 1000 of 19161 has been processed at 2021-01-23 19:13:42 [1st pass]
+Gene 2000 of 19161 has been processed at 2021-01-23 19:15:18 [1st pass]
+Gene 3000 of 19161 has been processed at 2021-01-23 19:15:19 [1st pass]
+Gene 4000 of 19161 has been processed at 2021-01-23 19:17:00 [1st pass]
+Gene 5000 of 19161 has been processed at 2021-01-23 19:18:28 [1st pass]
+Gene 6000 of 19161 has been processed at 2021-01-23 19:18:33 [1st pass]
+Gene 7000 of 19161 has been processed at 2021-01-23 19:20:17 [1st pass]
+Gene 8000 of 19161 has been processed at 2021-01-23 19:21:33 [1st pass]
+Gene 9000 of 19161 has been processed at 2021-01-23 19:21:36 [1st pass]
+Gene 10000 of 19161 has been processed at 2021-01-23 19:23:43 [1st pass]
+Gene 12000 of 19161 has been processed at 2021-01-23 19:25:09 [1st pass]
+Gene 11000 of 19161 has been processed at 2021-01-23 19:25:17 [1st pass]
+Gene 13000 of 19161 has been processed at 2021-01-23 19:26:48 [1st pass]
+Gene 14000 of 19161 has been processed at 2021-01-23 19:28:24 [1st pass]
+Gene 15000 of 19161 has been processed at 2021-01-23 19:28:25 [1st pass]
+Gene 16000 of 19161 has been processed at 2021-01-23 19:30:27 [1st pass]
+Gene 17000 of 19161 has been processed at 2021-01-23 19:32:04 [1st pass]
+Gene 18000 of 19161 has been processed at 2021-01-23 19:32:09 [1st pass]
+Gene 19000 of 19161 has been processed at 2021-01-23 19:33:31 [1st pass]
+Gene 19161 of 19161 has been processed at 2021-01-23 19:34:47 [1st pass]
+Gene 1000 of 19161 has been processed at 2021-01-23 19:35:04 [2nd pass for shrunken LFC]
+Gene 3000 of 19161 has been processed at 2021-01-23 19:35:22 [2nd pass for shrunken LFC]
+Gene 2000 of 19161 has been processed at 2021-01-23 19:35:23 [2nd pass for shrunken LFC]
+Gene 4000 of 19161 has been processed at 2021-01-23 19:35:40 [2nd pass for shrunken LFC]
+Gene 6000 of 19161 has been processed at 2021-01-23 19:35:59 [2nd pass for shrunken LFC]
+Gene 5000 of 19161 has been processed at 2021-01-23 19:36:01 [2nd pass for shrunken LFC]
+Gene 7000 of 19161 has been processed at 2021-01-23 19:36:21 [2nd pass for shrunken LFC]
+Gene 9000 of 19161 has been processed at 2021-01-23 19:36:38 [2nd pass for shrunken LFC]
+Gene 8000 of 19161 has been processed at 2021-01-23 19:36:41 [2nd pass for shrunken LFC]
+Gene 10000 of 19161 has been processed at 2021-01-23 19:37:01 [2nd pass for shrunken LFC]
+Gene 12000 of 19161 has been processed at 2021-01-23 19:37:17 [2nd pass for shrunken LFC]
+Gene 11000 of 19161 has been processed at 2021-01-23 19:37:21 [2nd pass for shrunken LFC]
+Gene 13000 of 19161 has been processed at 2021-01-23 19:37:39 [2nd pass for shrunken LFC]
+Gene 15000 of 19161 has been processed at 2021-01-23 19:37:57 [2nd pass for shrunken LFC]
+Gene 14000 of 19161 has been processed at 2021-01-23 19:37:59 [2nd pass for shrunken LFC]
+Gene 16000 of 19161 has been processed at 2021-01-23 19:38:20 [2nd pass for shrunken LFC]
+Gene 18000 of 19161 has been processed at 2021-01-23 19:38:39 [2nd pass for shrunken LFC]
+Gene 17000 of 19161 has been processed at 2021-01-23 19:38:40 [2nd pass for shrunken LFC]
+Gene 19000 of 19161 has been processed at 2021-01-23 19:38:58 [2nd pass for shrunken LFC]
+Gene 19161 of 19161 has been processed at 2021-01-23 19:39:04 [2nd pass for shrunken LFC]
+> date()
+[1] "Sat Jan 23 19:39:05 2021"
+> 
+> saveRDS(res_CARseq, "../results/SKCM_CARseq_CIBERSORT_permuted_SV0.rds")
+> pdf("../figures/SKCM_CARseq_CIBERSORT_permuted_SV0.pdf",
++     width=6, height=6)
+> par(mfrow=c(2,4), bty="n", mar=c(5,4,2,1))
+> for(k in seq_len(ncol(res_CARseq$p))) {
++   sk = sum(CARseq:::get_qvalues_one_inflated(res_CARseq$p[, k]) < 0.1, na.rm=TRUE)
++   hist(res_CARseq$p[,k], main=colnames(res_CARseq$p)[k], breaks=20,
++        xlab = paste0("p-value (", sk, " genes w/ q < 0.1)"))
++ }
+> dev.off()
+null device 
+          1 
+> 
+> 
+> 
+> # CARseq, CIBERSORT, 0 SV
+> # not permuted
+> date()
+[1] "Sat Jan 23 19:39:06 2021"
+> 
+> res_CARseq = run_CARseq(count_matrix = trec,
++                         cellular_proportions = cell_fractions,
++                         groups = col_data$Survival,
++                         formula = ~ gender + scaled_age + scaled_log_depth + 
++                           stageII + stageIII + stageIV + tss,
++                         data = col_data,
++                         read_depth = 1,
++                         shrunken_lfc = TRUE,
++                         cores = 15, 
++                         fix_overdispersion = FALSE,
++                         useSocket = FALSE
++ )
+Gene 1000 of 19161 has been processed at 2021-01-23 19:40:44 [1st pass]
+Gene 2000 of 19161 has been processed at 2021-01-23 19:42:25 [1st pass]
+Gene 3000 of 19161 has been processed at 2021-01-23 19:42:37 [1st pass]
+Gene 4000 of 19161 has been processed at 2021-01-23 19:44:20 [1st pass]
+Gene 5000 of 19161 has been processed at 2021-01-23 19:45:51 [1st pass]
+Gene 6000 of 19161 has been processed at 2021-01-23 19:46:02 [1st pass]
+Gene 7000 of 19161 has been processed at 2021-01-23 19:47:53 [1st pass]
+Gene 8000 of 19161 has been processed at 2021-01-23 19:49:08 [1st pass]
+Gene 9000 of 19161 has been processed at 2021-01-23 19:49:21 [1st pass]
+Gene 10000 of 19161 has been processed at 2021-01-23 19:51:24 [1st pass]
+Gene 11000 of 19161 has been processed at 2021-01-23 19:52:58 [1st pass]
+Gene 12000 of 19161 has been processed at 2021-01-23 19:53:08 [1st pass]
+Gene 13000 of 19161 has been processed at 2021-01-23 19:54:38 [1st pass]
+Gene 14000 of 19161 has been processed at 2021-01-23 19:56:11 [1st pass]
+Gene 15000 of 19161 has been processed at 2021-01-23 19:56:41 [1st pass]
+Gene 16000 of 19161 has been processed at 2021-01-23 19:58:18 [1st pass]
+Gene 17000 of 19161 has been processed at 2021-01-23 19:59:52 [1st pass]
+Gene 18000 of 19161 has been processed at 2021-01-23 20:00:13 [1st pass]
+Gene 19000 of 19161 has been processed at 2021-01-23 20:01:17 [1st pass]
+Gene 19161 of 19161 has been processed at 2021-01-23 20:02:39 [1st pass]
+Gene 1000 of 19161 has been processed at 2021-01-23 20:02:56 [2nd pass for shrunken LFC]
+Gene 2000 of 19161 has been processed at 2021-01-23 20:03:14 [2nd pass for shrunken LFC]
+Gene 3000 of 19161 has been processed at 2021-01-23 20:03:16 [2nd pass for shrunken LFC]
+Gene 4000 of 19161 has been processed at 2021-01-23 20:03:33 [2nd pass for shrunken LFC]
+Gene 5000 of 19161 has been processed at 2021-01-23 20:03:54 [2nd pass for shrunken LFC]
+Gene 6000 of 19161 has been processed at 2021-01-23 20:03:55 [2nd pass for shrunken LFC]
+Gene 7000 of 19161 has been processed at 2021-01-23 20:04:12 [2nd pass for shrunken LFC]
+Gene 8000 of 19161 has been processed at 2021-01-23 20:04:30 [2nd pass for shrunken LFC]
+Gene 9000 of 19161 has been processed at 2021-01-23 20:04:33 [2nd pass for shrunken LFC]
+Gene 10000 of 19161 has been processed at 2021-01-23 20:04:50 [2nd pass for shrunken LFC]
+Gene 11000 of 19161 has been processed at 2021-01-23 20:05:09 [2nd pass for shrunken LFC]
+Gene 12000 of 19161 has been processed at 2021-01-23 20:05:12 [2nd pass for shrunken LFC]
+Gene 13000 of 19161 has been processed at 2021-01-23 20:05:27 [2nd pass for shrunken LFC]
+Gene 14000 of 19161 has been processed at 2021-01-23 20:05:48 [2nd pass for shrunken LFC]
+Gene 15000 of 19161 has been processed at 2021-01-23 20:05:51 [2nd pass for shrunken LFC]
+Gene 16000 of 19161 has been processed at 2021-01-23 20:06:06 [2nd pass for shrunken LFC]
+Gene 17000 of 19161 has been processed at 2021-01-23 20:06:30 [2nd pass for shrunken LFC]
+Gene 18000 of 19161 has been processed at 2021-01-23 20:06:32 [2nd pass for shrunken LFC]
+Gene 19000 of 19161 has been processed at 2021-01-23 20:06:44 [2nd pass for shrunken LFC]
+Gene 19161 of 19161 has been processed at 2021-01-23 20:06:53 [2nd pass for shrunken LFC]
+> date()
+[1] "Sat Jan 23 20:06:53 2021"
+> 
+> saveRDS(res_CARseq, "../results/SKCM_CARseq_CIBERSORT_SV0.rds")
+> 
+> pdf("../figures/SKCM_CARseq_CIBERSORT_SV0.pdf", width=6, height=6)
+> par(mfrow=c(2,4), bty="n", mar=c(5,4,2,1))
+> for(k in seq_len(ncol(res_CARseq$p))) {
++   sk = sum(CARseq:::get_qvalues_one_inflated(res_CARseq$p[, k]) < 0.1, na.rm=TRUE)
++   hist(res_CARseq$p[,k], main=colnames(res_CARseq$p)[k], breaks=20,
++        xlab = paste0("p-value (", sk, " genes w/ q < 0.1)"))
++ }
+> dev.off()
+null device 
+          1 
+> 
+> 
+> # CARseq, CIBERSORT, 4 SV
+> # permuted
+> date()
+[1] "Sat Jan 23 20:06:55 2021"
+> 
+> res_CARseq = run_CARseq(count_matrix = trec,
++                         cellular_proportions = cell_fractions,
++                         groups = col_data$SurvivalP,
++                         formula = ~ gender + scaled_age + scaled_log_depth + 
++                           stageII + stageIII + stageIV + tss + 
++                           sv1 + sv2 + sv3 + sv4,
++                         data = col_data,
++                         read_depth = 1,
++                         shrunken_lfc = TRUE,
++                         cores = 15, 
++                         fix_overdispersion = FALSE,
++                         useSocket = FALSE
++ )
+Gene 1000 of 19161 has been processed at 2021-01-23 20:08:45 [1st pass]
+Gene 2000 of 19161 has been processed at 2021-01-23 20:10:30 [1st pass]
+Gene 3000 of 19161 has been processed at 2021-01-23 20:10:37 [1st pass]
+Gene 4000 of 19161 has been processed at 2021-01-23 20:12:34 [1st pass]
+Gene 5000 of 19161 has been processed at 2021-01-23 20:14:12 [1st pass]
+Gene 6000 of 19161 has been processed at 2021-01-23 20:14:37 [1st pass]
+Gene 7000 of 19161 has been processed at 2021-01-23 20:16:32 [1st pass]
+Gene 8000 of 19161 has been processed at 2021-01-23 20:17:40 [1st pass]
+Gene 9000 of 19161 has been processed at 2021-01-23 20:18:06 [1st pass]
+Gene 10000 of 19161 has been processed at 2021-01-23 20:20:41 [1st pass]
+Gene 12000 of 19161 has been processed at 2021-01-23 20:21:37 [1st pass]
+Gene 11000 of 19161 has been processed at 2021-01-23 20:21:45 [1st pass]
+Gene 13000 of 19161 has been processed at 2021-01-23 20:24:22 [1st pass]
+Gene 14000 of 19161 has been processed at 2021-01-23 20:25:44 [1st pass]
+Gene 15000 of 19161 has been processed at 2021-01-23 20:25:45 [1st pass]
+Gene 16000 of 19161 has been processed at 2021-01-23 20:28:55 [1st pass]
+Gene 18000 of 19161 has been processed at 2021-01-23 20:30:02 [1st pass]
+Gene 17000 of 19161 has been processed at 2021-01-23 20:30:22 [1st pass]
+Gene 19000 of 19161 has been processed at 2021-01-23 20:32:40 [1st pass]
+Gene 19161 of 19161 has been processed at 2021-01-23 20:32:50 [1st pass]
+Gene 1000 of 19161 has been processed at 2021-01-23 20:33:12 [2nd pass for shrunken LFC]
+Gene 2000 of 19161 has been processed at 2021-01-23 20:33:36 [2nd pass for shrunken LFC]
+Gene 3000 of 19161 has been processed at 2021-01-23 20:33:38 [2nd pass for shrunken LFC]
+Gene 4000 of 19161 has been processed at 2021-01-23 20:33:59 [2nd pass for shrunken LFC]
+Gene 5000 of 19161 has been processed at 2021-01-23 20:34:19 [2nd pass for shrunken LFC]
+Gene 6000 of 19161 has been processed at 2021-01-23 20:34:23 [2nd pass for shrunken LFC]
+Gene 7000 of 19161 has been processed at 2021-01-23 20:34:44 [2nd pass for shrunken LFC]
+Gene 8000 of 19161 has been processed at 2021-01-23 20:35:01 [2nd pass for shrunken LFC]
+Gene 9000 of 19161 has been processed at 2021-01-23 20:35:04 [2nd pass for shrunken LFC]
+Gene 10000 of 19161 has been processed at 2021-01-23 20:35:31 [2nd pass for shrunken LFC]
+Gene 12000 of 19161 has been processed at 2021-01-23 20:35:46 [2nd pass for shrunken LFC]
+Gene 11000 of 19161 has been processed at 2021-01-23 20:35:48 [2nd pass for shrunken LFC]
+Gene 13000 of 19161 has been processed at 2021-01-23 20:36:14 [2nd pass for shrunken LFC]
+Gene 15000 of 19161 has been processed at 2021-01-23 20:36:32 [2nd pass for shrunken LFC]
+Gene 14000 of 19161 has been processed at 2021-01-23 20:36:35 [2nd pass for shrunken LFC]
+Gene 16000 of 19161 has been processed at 2021-01-23 20:37:05 [2nd pass for shrunken LFC]
+Gene 18000 of 19161 has been processed at 2021-01-23 20:37:22 [2nd pass for shrunken LFC]
+Gene 17000 of 19161 has been processed at 2021-01-23 20:37:26 [2nd pass for shrunken LFC]
+Gene 19161 of 19161 has been processed at 2021-01-23 20:37:48 [2nd pass for shrunken LFC]
+Gene 19000 of 19161 has been processed at 2021-01-23 20:37:49 [2nd pass for shrunken LFC]
+> date()
+[1] "Sat Jan 23 20:37:51 2021"
+> 
+> saveRDS(res_CARseq, "../results/SKCM_CARseq_CIBERSORT_permuted_SV4.rds")
+> 
+> pdf("../figures/SKCM_CARseq_CIBERSORT_permuted_SV4.pdf", width=6, height=6)
+> par(mfrow=c(2,4), bty="n", mar=c(5,4,2,1))
+> for(k in seq_len(ncol(res_CARseq$p))) {
++   sk = sum(CARseq:::get_qvalues_one_inflated(res_CARseq$p[, k]) < 0.1, na.rm=TRUE)
++   hist(res_CARseq$p[,k], main=colnames(res_CARseq$p)[k], breaks=20,
++        xlab = paste0("p-value (", sk, " genes w/ q < 0.1)"))
++ }
+> dev.off()
+null device 
+          1 
+> 
+> 
+> # CARseq, CIBERSORT, 4 SV
+> # not permuted
+> date()
+[1] "Sat Jan 23 20:37:54 2021"
+> 
+> res_CARseq = run_CARseq(count_matrix = trec,
++                         cellular_proportions = cell_fractions,
++                         groups = col_data$Survival,
++                         formula = ~ gender + scaled_age + scaled_log_depth + 
++                           stageII + stageIII + stageIV + tss + 
++                           sv1 + sv2 + sv3 + sv4,
++                         data = col_data,
++                         read_depth = 1,
++                         shrunken_lfc = TRUE,
++                         cores = 15, 
++                         fix_overdispersion = FALSE,
++                         useSocket = FALSE
++ )
+Gene 1000 of 19161 has been processed at 2021-01-23 20:39:41 [1st pass]
+Gene 2000 of 19161 has been processed at 2021-01-23 20:41:38 [1st pass]
+Gene 3000 of 19161 has been processed at 2021-01-23 20:41:47 [1st pass]
+Gene 4000 of 19161 has been processed at 2021-01-23 20:43:35 [1st pass]
+Gene 5000 of 19161 has been processed at 2021-01-23 20:45:16 [1st pass]
+Gene 6000 of 19161 has been processed at 2021-01-23 20:45:42 [1st pass]
+Gene 7000 of 19161 has been processed at 2021-01-23 20:47:27 [1st pass]
+Gene 8000 of 19161 has been processed at 2021-01-23 20:48:48 [1st pass]
+Gene 9000 of 19161 has been processed at 2021-01-23 20:49:24 [1st pass]
+Gene 10000 of 19161 has been processed at 2021-01-23 20:51:47 [1st pass]
+Gene 12000 of 19161 has been processed at 2021-01-23 20:52:59 [1st pass]
+Gene 11000 of 19161 has been processed at 2021-01-23 20:53:07 [1st pass]
+Gene 13000 of 19161 has been processed at 2021-01-23 20:55:27 [1st pass]
+Gene 15000 of 19161 has been processed at 2021-01-23 20:56:55 [1st pass]
+Gene 14000 of 19161 has been processed at 2021-01-23 20:57:01 [1st pass]
+Gene 16000 of 19161 has been processed at 2021-01-23 20:59:52 [1st pass]
+Gene 18000 of 19161 has been processed at 2021-01-23 21:01:15 [1st pass]
+Gene 17000 of 19161 has been processed at 2021-01-23 21:01:44 [1st pass]
+Gene 19000 of 19161 has been processed at 2021-01-23 21:03:38 [1st pass]
+Gene 19161 of 19161 has been processed at 2021-01-23 21:03:43 [1st pass]
+Gene 1000 of 19161 has been processed at 2021-01-23 21:04:05 [2nd pass for shrunken LFC]
+Gene 3000 of 19161 has been processed at 2021-01-23 21:04:26 [2nd pass for shrunken LFC]
+Gene 2000 of 19161 has been processed at 2021-01-23 21:04:27 [2nd pass for shrunken LFC]
+Gene 4000 of 19161 has been processed at 2021-01-23 21:04:52 [2nd pass for shrunken LFC]
+Gene 5000 of 19161 has been processed at 2021-01-23 21:05:10 [2nd pass for shrunken LFC]
+Gene 6000 of 19161 has been processed at 2021-01-23 21:05:13 [2nd pass for shrunken LFC]
+Gene 7000 of 19161 has been processed at 2021-01-23 21:05:36 [2nd pass for shrunken LFC]
+Gene 8000 of 19161 has been processed at 2021-01-23 21:05:52 [2nd pass for shrunken LFC]
+Gene 9000 of 19161 has been processed at 2021-01-23 21:05:54 [2nd pass for shrunken LFC]
+Gene 10000 of 19161 has been processed at 2021-01-23 21:06:22 [2nd pass for shrunken LFC]
+Gene 12000 of 19161 has been processed at 2021-01-23 21:06:35 [2nd pass for shrunken LFC]
+Gene 11000 of 19161 has been processed at 2021-01-23 21:06:38 [2nd pass for shrunken LFC]
+Gene 13000 of 19161 has been processed at 2021-01-23 21:07:05 [2nd pass for shrunken LFC]
+Gene 15000 of 19161 has been processed at 2021-01-23 21:07:21 [2nd pass for shrunken LFC]
+Gene 14000 of 19161 has been processed at 2021-01-23 21:07:22 [2nd pass for shrunken LFC]
+Gene 16000 of 19161 has been processed at 2021-01-23 21:07:54 [2nd pass for shrunken LFC]
+Gene 18000 of 19161 has been processed at 2021-01-23 21:08:11 [2nd pass for shrunken LFC]
+Gene 17000 of 19161 has been processed at 2021-01-23 21:08:16 [2nd pass for shrunken LFC]
+Gene 19161 of 19161 has been processed at 2021-01-23 21:08:33 [2nd pass for shrunken LFC]
+Gene 19000 of 19161 has been processed at 2021-01-23 21:08:38 [2nd pass for shrunken LFC]
+> date()
+[1] "Sat Jan 23 21:08:39 2021"
+> 
+> saveRDS(res_CARseq, "../results/SKCM_CARseq_CIBERSORT_SV4.rds")
+> 
+> pdf("../figures/SKCM_CARseq_CIBERSORT_SV4.pdf", width=6, height=6)
+> par(mfrow=c(2,4), bty="n", mar=c(5,4,2,1))
+> for(k in seq_len(ncol(res_CARseq$p))) {
++   sk = sum(CARseq:::get_qvalues_one_inflated(res_CARseq$p[, k]) < 0.1, na.rm=TRUE)
++   hist(res_CARseq$p[,k], main=colnames(res_CARseq$p)[k], breaks=20,
++        xlab = paste0("p-value (", sk, " genes w/ q < 0.1)"))
++ }
+> dev.off()
+null device 
+          1 
+> 
+> 
+> 
+> 
+> # CARseq, CIBERSORT, 1 SV
+> # permuted
+> date()
+[1] "Sat Jan 23 21:08:41 2021"
+> 
+> res_CARseq = run_CARseq(count_matrix = trec,
++                         cellular_proportions = cell_fractions,
++                         groups = col_data$SurvivalP, 
++                         formula = ~ gender + scaled_age + scaled_log_depth + 
++                           stageII + stageIII + stageIV + tss + sv1, 
++                         data = col_data, 
++                         read_depth = 1, 
++                         shrunken_lfc = TRUE, 
++                         cores = 15, 
++                         fix_overdispersion = FALSE,
++                         useSocket = FALSE
++ )
+Gene 1000 of 19161 has been processed at 2021-01-23 21:10:24 [1st pass]
+Gene 2000 of 19161 has been processed at 2021-01-23 21:12:08 [1st pass]
+Gene 3000 of 19161 has been processed at 2021-01-23 21:12:21 [1st pass]
+Gene 4000 of 19161 has been processed at 2021-01-23 21:13:55 [1st pass]
+Gene 5000 of 19161 has been processed at 2021-01-23 21:15:36 [1st pass]
+Gene 6000 of 19161 has been processed at 2021-01-23 21:15:57 [1st pass]
+Gene 7000 of 19161 has been processed at 2021-01-23 21:17:45 [1st pass]
+Gene 8000 of 19161 has been processed at 2021-01-23 21:19:03 [1st pass]
+Gene 9000 of 19161 has been processed at 2021-01-23 21:19:22 [1st pass]
+Gene 10000 of 19161 has been processed at 2021-01-23 21:21:33 [1st pass]
+Gene 11000 of 19161 has been processed at 2021-01-23 21:23:15 [1st pass]
+Gene 12000 of 19161 has been processed at 2021-01-23 21:23:17 [1st pass]
+Gene 13000 of 19161 has been processed at 2021-01-23 21:24:50 [1st pass]
+Gene 14000 of 19161 has been processed at 2021-01-23 21:26:44 [1st pass]
+Gene 15000 of 19161 has been processed at 2021-01-23 21:26:50 [1st pass]
+Gene 16000 of 19161 has been processed at 2021-01-23 21:28:52 [1st pass]
+Gene 17000 of 19161 has been processed at 2021-01-23 21:30:38 [1st pass]
+Gene 18000 of 19161 has been processed at 2021-01-23 21:30:48 [1st pass]
+Gene 19000 of 19161 has been processed at 2021-01-23 21:32:07 [1st pass]
+Gene 19161 of 19161 has been processed at 2021-01-23 21:33:32 [1st pass]
+Gene 1000 of 19161 has been processed at 2021-01-23 21:33:52 [2nd pass for shrunken LFC]
+Gene 3000 of 19161 has been processed at 2021-01-23 21:34:10 [2nd pass for shrunken LFC]
+Gene 2000 of 19161 has been processed at 2021-01-23 21:34:11 [2nd pass for shrunken LFC]
+Gene 4000 of 19161 has been processed at 2021-01-23 21:34:31 [2nd pass for shrunken LFC]
+Gene 5000 of 19161 has been processed at 2021-01-23 21:34:49 [2nd pass for shrunken LFC]
+Gene 6000 of 19161 has been processed at 2021-01-23 21:34:50 [2nd pass for shrunken LFC]
+Gene 7000 of 19161 has been processed at 2021-01-23 21:35:13 [2nd pass for shrunken LFC]
+Gene 9000 of 19161 has been processed at 2021-01-23 21:35:28 [2nd pass for shrunken LFC]
+Gene 8000 of 19161 has been processed at 2021-01-23 21:35:30 [2nd pass for shrunken LFC]
+Gene 10000 of 19161 has been processed at 2021-01-23 21:35:52 [2nd pass for shrunken LFC]
+Gene 12000 of 19161 has been processed at 2021-01-23 21:36:10 [2nd pass for shrunken LFC]
+Gene 11000 of 19161 has been processed at 2021-01-23 21:36:13 [2nd pass for shrunken LFC]
+Gene 13000 of 19161 has been processed at 2021-01-23 21:36:30 [2nd pass for shrunken LFC]
+Gene 15000 of 19161 has been processed at 2021-01-23 21:36:48 [2nd pass for shrunken LFC]
+Gene 14000 of 19161 has been processed at 2021-01-23 21:36:52 [2nd pass for shrunken LFC]
+Gene 16000 of 19161 has been processed at 2021-01-23 21:37:13 [2nd pass for shrunken LFC]
+Gene 18000 of 19161 has been processed at 2021-01-23 21:37:32 [2nd pass for shrunken LFC]
+Gene 17000 of 19161 has been processed at 2021-01-23 21:37:33 [2nd pass for shrunken LFC]
+Gene 19000 of 19161 has been processed at 2021-01-23 21:37:50 [2nd pass for shrunken LFC]
+Gene 19161 of 19161 has been processed at 2021-01-23 21:37:56 [2nd pass for shrunken LFC]
+> date()
+[1] "Sat Jan 23 21:37:56 2021"
+> 
+> saveRDS(res_CARseq, "../results/SKCM_CARseq_CIBERSORT_permuted_sv1.rds")
+> 
+> pdf("../figures/SKCM_CARseq_CIBERSORT_permuted_sv1.pdf", width=6, height=6)
+> par(mfrow=c(2,4), bty="n", mar=c(5,4,2,1))
+> for(k in seq_len(ncol(res_CARseq$p))) {
++   sk = sum(CARseq:::get_qvalues_one_inflated(res_CARseq$p[, k]) < 0.1, na.rm=TRUE)
++   hist(res_CARseq$p[,k], main=colnames(res_CARseq$p)[k], breaks=20,
++        xlab = paste0("p-value (", sk, " genes w/ q<0.1)"))
++ }
+> dev.off()
+null device 
+          1 
+> 
+> 
+> # CARseq, CIBERSORT, 1 SV
+> # not permuted
+> date()
+[1] "Sat Jan 23 21:37:58 2021"
+> 
+> res_CARseq = run_CARseq(count_matrix = trec,
++                         cellular_proportions = cell_fractions,
++                         groups = col_data$Survival,
++                         formula = ~ gender + scaled_age + scaled_log_depth + 
++                           stageII + stageIII + stageIV + tss + sv1,
++                         data = col_data,
++                         read_depth = 1,
++                         shrunken_lfc = TRUE,
++                         cores = 15, 
++                         fix_overdispersion = FALSE,
++                         useSocket = FALSE
++ )
+Gene 1000 of 19161 has been processed at 2021-01-23 21:39:41 [1st pass]
+Gene 3000 of 19161 has been processed at 2021-01-23 21:41:26 [1st pass]
+Gene 2000 of 19161 has been processed at 2021-01-23 21:41:29 [1st pass]
+Gene 4000 of 19161 has been processed at 2021-01-23 21:43:25 [1st pass]
+Gene 6000 of 19161 has been processed at 2021-01-23 21:44:44 [1st pass]
+Gene 5000 of 19161 has been processed at 2021-01-23 21:44:59 [1st pass]
+Gene 7000 of 19161 has been processed at 2021-01-23 21:47:07 [1st pass]
+Gene 9000 of 19161 has been processed at 2021-01-23 21:48:07 [1st pass]
+Gene 8000 of 19161 has been processed at 2021-01-23 21:48:19 [1st pass]
+Gene 10000 of 19161 has been processed at 2021-01-23 21:50:46 [1st pass]
+Gene 12000 of 19161 has been processed at 2021-01-23 21:52:04 [1st pass]
+Gene 11000 of 19161 has been processed at 2021-01-23 21:52:22 [1st pass]
+Gene 13000 of 19161 has been processed at 2021-01-23 21:54:14 [1st pass]
+Gene 15000 of 19161 has been processed at 2021-01-23 21:55:48 [1st pass]
+Gene 14000 of 19161 has been processed at 2021-01-23 21:55:57 [1st pass]
+Gene 16000 of 19161 has been processed at 2021-01-23 21:58:14 [1st pass]
+Gene 17000 of 19161 has been processed at 2021-01-23 21:59:43 [1st pass]
+Gene 18000 of 19161 has been processed at 2021-01-23 21:59:44 [1st pass]
+Gene 19000 of 19161 has been processed at 2021-01-23 22:01:07 [1st pass]
+Gene 19161 of 19161 has been processed at 2021-01-23 22:02:24 [1st pass]
+Gene 1000 of 19161 has been processed at 2021-01-23 22:02:43 [2nd pass for shrunken LFC]
+Gene 3000 of 19161 has been processed at 2021-01-23 22:03:01 [2nd pass for shrunken LFC]
+Gene 2000 of 19161 has been processed at 2021-01-23 22:03:03 [2nd pass for shrunken LFC]
+Gene 4000 of 19161 has been processed at 2021-01-23 22:03:20 [2nd pass for shrunken LFC]
+Gene 6000 of 19161 has been processed at 2021-01-23 22:03:38 [2nd pass for shrunken LFC]
+Gene 5000 of 19161 has been processed at 2021-01-23 22:03:40 [2nd pass for shrunken LFC]
+Gene 7000 of 19161 has been processed at 2021-01-23 22:04:00 [2nd pass for shrunken LFC]
+Gene 9000 of 19161 has been processed at 2021-01-23 22:04:14 [2nd pass for shrunken LFC]
+Gene 8000 of 19161 has been processed at 2021-01-23 22:04:17 [2nd pass for shrunken LFC]
+Gene 10000 of 19161 has been processed at 2021-01-23 22:04:37 [2nd pass for shrunken LFC]
+Gene 12000 of 19161 has been processed at 2021-01-23 22:04:54 [2nd pass for shrunken LFC]
+Gene 11000 of 19161 has been processed at 2021-01-23 22:04:57 [2nd pass for shrunken LFC]
+Gene 13000 of 19161 has been processed at 2021-01-23 22:05:14 [2nd pass for shrunken LFC]
+Gene 15000 of 19161 has been processed at 2021-01-23 22:05:33 [2nd pass for shrunken LFC]
+Gene 14000 of 19161 has been processed at 2021-01-23 22:05:36 [2nd pass for shrunken LFC]
+Gene 16000 of 19161 has been processed at 2021-01-23 22:05:53 [2nd pass for shrunken LFC]
+Gene 18000 of 19161 has been processed at 2021-01-23 22:06:12 [2nd pass for shrunken LFC]
+Gene 17000 of 19161 has been processed at 2021-01-23 22:06:17 [2nd pass for shrunken LFC]
+Gene 19000 of 19161 has been processed at 2021-01-23 22:06:29 [2nd pass for shrunken LFC]
+Gene 19161 of 19161 has been processed at 2021-01-23 22:06:33 [2nd pass for shrunken LFC]
+> date()
+[1] "Sat Jan 23 22:06:35 2021"
+> 
+> saveRDS(res_CARseq, "../results/SKCM_CARseq_CIBERSORT_sv1.rds")
+> 
+> pdf("../figures/SKCM_CARseq_CIBERSORT_sv1.pdf", width=6, height=6)
+> par(mfrow=c(2,4), bty="n", mar=c(5,4,2,1))
+> for(k in seq_len(ncol(res_CARseq$p))) {
++   sk = sum(CARseq:::get_qvalues_one_inflated(res_CARseq$p[, k]) < 0.1, na.rm=TRUE)
++   hist(res_CARseq$p[,k], main=colnames(res_CARseq$p)[k], breaks=20,
++        xlab = paste0("p-value (", sk, " genes w/ q<0.1)"))
++ }
+> dev.off()
+null device 
+          1 
+> 
+> gc()
+           used  (Mb) gc trigger  (Mb) limit (Mb)  max used  (Mb)
+Ncells  4251607 227.1    7608817 406.4         NA   7608817 406.4
+Vcells 23748554 181.2   58878468 449.3      32768 114996940 877.4
+> 
+> sessionInfo()
+R version 4.0.3 (2020-10-10)
+Platform: x86_64-apple-darwin17.0 (64-bit)
+Running under: macOS Catalina 10.15.7
+
+Matrix products: default
+BLAS:   /Library/Frameworks/R.framework/Versions/4.0/Resources/lib/libRblas.dylib
+LAPACK: /Library/Frameworks/R.framework/Versions/4.0/Resources/lib/libRlapack.dylib
+
+locale:
+[1] en_US.UTF-8/en_US.UTF-8/en_US.UTF-8/C/en_US.UTF-8/en_US.UTF-8
+
+attached base packages:
+[1] parallel  stats     graphics  grDevices utils     datasets  methods  
+[8] base     
+
+other attached packages:
+ [1] MASS_7.3-53         ggplot2_3.3.3       tidyr_1.1.2        
+ [4] readxl_1.3.1        sva_3.38.0          BiocParallel_1.24.1
+ [7] genefilter_1.72.0   mgcv_1.8-33         nlme_3.1-151       
+[10] matrixStats_0.57.0  CARseq_0.0.0.9007  
+
+loaded via a namespace (and not attached):
+ [1] Rcpp_1.0.5           locfit_1.5-9.4       lattice_0.20-41     
+ [4] utf8_1.1.4           assertthat_0.2.1     digest_0.6.27       
+ [7] foreach_1.5.1        R6_2.5.0             cellranger_1.1.0    
+[10] stats4_4.0.3         RSQLite_2.2.1        httr_1.4.2          
+[13] pillar_1.4.7         rlang_0.4.10         scam_1.2-9          
+[16] annotate_1.68.0      nloptr_1.2.2.2       blob_1.2.1          
+[19] S4Vectors_0.28.1     Matrix_1.3-0         labeling_0.4.2      
+[22] splines_4.0.3        bit_4.0.4            munsell_0.5.0       
+[25] compiler_4.0.3       pkgconfig_2.0.3      bvls_1.4            
+[28] BiocGenerics_0.36.0  tidyselect_1.1.0     tibble_3.0.4        
+[31] edgeR_3.32.0         zetadiv_1.2.0        IRanges_2.24.1      
+[34] codetools_0.2-18     doMC_1.3.7           XML_3.99-0.5        
+[37] fansi_0.4.1          crayon_1.3.4         dplyr_1.0.2         
+[40] withr_2.3.0          grid_4.0.3           xtable_1.8-4        
+[43] gtable_0.3.0         lifecycle_0.2.0      DBI_1.1.0           
+[46] magrittr_2.0.1       scales_1.1.1         cli_2.2.0           
+[49] farver_2.0.3         doParallel_1.0.16    limma_3.46.0        
+[52] ellipsis_0.3.1       generics_0.1.0       vctrs_0.3.6         
+[55] tools_4.0.3          iterators_1.0.13     bit64_4.0.5         
+[58] Biobase_2.50.0       glue_1.4.2           purrr_0.3.4         
+[61] survival_3.2-7       AnnotationDbi_1.52.0 colorspace_2.0-0    
+[64] memoise_1.1.0       
+> q(save="no")
+> proc.time()
+      user     system    elapsed 
+145212.470   2260.056  11063.058 

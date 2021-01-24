@@ -109,3 +109,16 @@ fragment count across all the genes of one sample. Note that the genes are
 first filtered so that each gene is expressed at least 20 in at least 25% of 
 the samples in a slightly larger dataset that inlcuding these and ~50 other 
 samples. 
+
+
+------------------------------------------------------------------
+TCGA data
+------------------------------------------------------------------
+
+TCGA_SKCM_raw_counts.rds: Counts data downloaded from NCI GDC
+
+TCGA_mastercalls.abs_tables_JSedit.fixed.txt:
+	tumor purity data from TCTA Pancancer study
+TCGA-CDR-SupplementalTableS1.xlsx:
+	Clinical information from Pancancer study
+https://gdc.cancer.gov/about-data/publications/pancanatlas

@@ -7,7 +7,6 @@ library(ggpointdensity)
 theme_set(theme_classic2())
 library(ggcorrplot)
 library(qvalue)
-library(ggpointdensity)
 
 # ----------------------------------------------------------------------
 # read in p-values for ASD
