@@ -490,6 +490,9 @@ col_data$SurvivalP = CARseq:::permute_case_and_controls(col_data$five_year_DSS)
 col_data$Survival  = factor(col_data$five_year_DSS)
 table(col_data$Survival, col_data$SurvivalP)
 
+formula = ~ gender + scaled_age + scaled_log_depth + 
+  stageII + stageIII + stageIV + tss2 + tss3 + tss4 + tss5 
+other_variables = model.matrix(formula, data = as.data.frame(col_data))
 
 # CARseq, CIBERSORT, 0 SV
 # permuted
@@ -498,7 +501,7 @@ res_CARseq = run_CARseq(count_matrix = trec,
                         cellular_proportions = cell_fractions,
                         groups = col_data$SurvivalP,
                         formula = ~ gender + scaled_age + scaled_log_depth + 
-                          stageII + stageIII + stageIV + tss,
+                          stageII + stageIII + stageIV + tss2 + tss3 + tss4 + tss5,
                         data = col_data,
                         read_depth = 1,
                         shrunken_lfc = TRUE,
@@ -529,7 +532,7 @@ res_CARseq = run_CARseq(count_matrix = trec,
                         cellular_proportions = cell_fractions,
                         groups = col_data$Survival,
                         formula = ~ gender + scaled_age + scaled_log_depth + 
-                          stageII + stageIII + stageIV + tss,
+                          stageII + stageIII + stageIV + tss2 + tss3 + tss4 + tss5,
                         data = col_data,
                         read_depth = 1,
                         shrunken_lfc = TRUE,
@@ -550,71 +553,6 @@ for(k in seq_len(ncol(res_CARseq$p))) {
 }
 dev.off()
 
-
-# CARseq, CIBERSORT, 4 SV
-# permuted
-date()
-
-res_CARseq = run_CARseq(count_matrix = trec,
-                        cellular_proportions = cell_fractions,
-                        groups = col_data$SurvivalP,
-                        formula = ~ gender + scaled_age + scaled_log_depth + 
-                          stageII + stageIII + stageIV + tss + 
-                          sv1 + sv2 + sv3 + sv4,
-                        data = col_data,
-                        read_depth = 1,
-                        shrunken_lfc = TRUE,
-                        cores = 15, 
-                        fix_overdispersion = FALSE,
-                        useSocket = FALSE
-)
-date()
-
-saveRDS(res_CARseq, "../results/SKCM_CARseq_CIBERSORT_permuted_SV4.rds")
-
-pdf("../figures/SKCM_CARseq_CIBERSORT_permuted_SV4.pdf", width=6, height=6)
-par(mfrow=c(2,4), bty="n", mar=c(5,4,2,1))
-for(k in seq_len(ncol(res_CARseq$p))) {
-  sk = sum(CARseq:::get_qvalues_one_inflated(res_CARseq$p[, k]) < 0.1, na.rm=TRUE)
-  hist(res_CARseq$p[,k], main=colnames(res_CARseq$p)[k], breaks=20,
-       xlab = paste0("p-value (", sk, " genes w/ q < 0.1)"))
-}
-dev.off()
-
-
-# CARseq, CIBERSORT, 4 SV
-# not permuted
-date()
-
-res_CARseq = run_CARseq(count_matrix = trec,
-                        cellular_proportions = cell_fractions,
-                        groups = col_data$Survival,
-                        formula = ~ gender + scaled_age + scaled_log_depth + 
-                          stageII + stageIII + stageIV + tss + 
-                          sv1 + sv2 + sv3 + sv4,
-                        data = col_data,
-                        read_depth = 1,
-                        shrunken_lfc = TRUE,
-                        cores = 15, 
-                        fix_overdispersion = FALSE,
-                        useSocket = FALSE
-)
-date()
-
-saveRDS(res_CARseq, "../results/SKCM_CARseq_CIBERSORT_SV4.rds")
-
-pdf("../figures/SKCM_CARseq_CIBERSORT_SV4.pdf", width=6, height=6)
-par(mfrow=c(2,4), bty="n", mar=c(5,4,2,1))
-for(k in seq_len(ncol(res_CARseq$p))) {
-  sk = sum(CARseq:::get_qvalues_one_inflated(res_CARseq$p[, k]) < 0.1, na.rm=TRUE)
-  hist(res_CARseq$p[,k], main=colnames(res_CARseq$p)[k], breaks=20,
-       xlab = paste0("p-value (", sk, " genes w/ q < 0.1)"))
-}
-dev.off()
-
-
-
-
 # CARseq, CIBERSORT, 1 SV
 # permuted
 date()
@@ -623,7 +561,8 @@ res_CARseq = run_CARseq(count_matrix = trec,
                         cellular_proportions = cell_fractions,
                         groups = col_data$SurvivalP, 
                         formula = ~ gender + scaled_age + scaled_log_depth + 
-                          stageII + stageIII + stageIV + tss + sv1, 
+                          stageII + stageIII + stageIV + tss2 + tss3 + tss4 + 
+                          tss5 + sv1, 
                         data = col_data, 
                         read_depth = 1, 
                         shrunken_lfc = TRUE, 
@@ -633,9 +572,9 @@ res_CARseq = run_CARseq(count_matrix = trec,
 )
 date()
 
-saveRDS(res_CARseq, "../results/SKCM_CARseq_CIBERSORT_permuted_sv1.rds")
+saveRDS(res_CARseq, "../results/SKCM_CARseq_CIBERSORT_permuted_SV1.rds")
 
-pdf("../figures/SKCM_CARseq_CIBERSORT_permuted_sv1.pdf", width=6, height=6)
+pdf("../figures/SKCM_CARseq_CIBERSORT_permuted_SV1.pdf", width=6, height=6)
 par(mfrow=c(2,4), bty="n", mar=c(5,4,2,1))
 for(k in seq_len(ncol(res_CARseq$p))) {
   sk = sum(CARseq:::get_qvalues_one_inflated(res_CARseq$p[, k]) < 0.1, na.rm=TRUE)
@@ -653,7 +592,8 @@ res_CARseq = run_CARseq(count_matrix = trec,
                         cellular_proportions = cell_fractions,
                         groups = col_data$Survival,
                         formula = ~ gender + scaled_age + scaled_log_depth + 
-                          stageII + stageIII + stageIV + tss + sv1,
+                          stageII + stageIII + stageIV + tss2 + tss3 + tss4 + 
+                          tss5 + sv1,
                         data = col_data,
                         read_depth = 1,
                         shrunken_lfc = TRUE,
@@ -663,9 +603,9 @@ res_CARseq = run_CARseq(count_matrix = trec,
 )
 date()
 
-saveRDS(res_CARseq, "../results/SKCM_CARseq_CIBERSORT_sv1.rds")
+saveRDS(res_CARseq, "../results/SKCM_CARseq_CIBERSORT_SV1.rds")
 
-pdf("../figures/SKCM_CARseq_CIBERSORT_sv1.pdf", width=6, height=6)
+pdf("../figures/SKCM_CARseq_CIBERSORT_SV1.pdf", width=6, height=6)
 par(mfrow=c(2,4), bty="n", mar=c(5,4,2,1))
 for(k in seq_len(ncol(res_CARseq$p))) {
   sk = sum(CARseq:::get_qvalues_one_inflated(res_CARseq$p[, k]) < 0.1, na.rm=TRUE)
