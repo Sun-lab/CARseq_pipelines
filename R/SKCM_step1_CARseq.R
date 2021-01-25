@@ -254,7 +254,7 @@ table(cdat$tss, tss)
 # generate covariate data
 # ------------------------------------------------------------------------
 
-col_data = cdat[, c("age_at_initial_pathologic_diagnosis",
+col_data = cdat[, c("bcr_patient_barcode", "age_at_initial_pathologic_diagnosis",
                     "gender", "stage", "five_year_DSS", "tss")]
 
 col_data$scaled_age = scale(col_data$age_at_initial_pathologic_diagnosis)

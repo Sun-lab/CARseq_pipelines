@@ -1,8 +1,6 @@
 
 library(TOAST)
 
-library(data.table)
-
 # ------------------------------------------------------------------------
 # read in bulk RNA-seq data
 # ------------------------------------------------------------------------
@@ -47,7 +45,7 @@ rho_SKCM = readRDS("../data/SKCM_cell_fraction.rds")
 dim(rho_SKCM)
 rho_SKCM[1:2,]
 
-col_data = readRDS("../data/SKCM_dat_cavariates_with_svs.rds")
+col_data = readRDS("../data/SKCM_cavariates.rds")
 dim(col_data)
 col_data[1:2,]
 
