@@ -40,6 +40,10 @@ Loading required package: BiocParallel
 > theme_set(theme_bw())
 > source("base_functions_plittle.R")
 > 
+> # samples are from 8 Tissue Source Sites, after filtering.
+> # we can group them into 5 clusters or just use the TSS with 8 levels
+> cluster_tss = TRUE
+> 
 > # cell size factor
 > # here we use the cell size factors in github.com/GfellerLab/EPIC:
 > # data/mRNA_cell_default.rda:
@@ -475,19 +479,15 @@ null device
 D3 ER FR FS DA EE W3 GN 
  1  1  2  1  3  1  4  5 
 > 
-> table(tss)
-tss
-D3 DA EE ER FR FS GN W3 
-37 14 59 19  8 20  8  8 
-> 
-> cdat$tss = rep(NA, nrow(cdat))
-> for(k in 1:5){
-+   cdat$tss[which(tss %in% names(c1)[c1==k])] = k
+> if(cluster_tss){
++   cdat$tss = rep(NA, nrow(cdat))
++   for(k in 1:5){
++     cdat$tss[which(tss %in% names(c1)[c1==k])] = k
++   }
++ }else{
++   cdat$tss = tss
 + }
-> table(cdat$tss)
-
-  1   2   3   4   5 
-135   8  14   8   8 
+> cdat$tss = as.factor(cdat$tss)
 > table(cdat$tss, tss)
    tss
     D3 DA EE ER FR FS GN W3
@@ -496,7 +496,7 @@ D3 DA EE ER FR FS GN W3
   3  0 14  0  0  0  0  0  0
   4  0  0  0  0  0  0  0  8
   5  0  0  0  0  0  0  8  0
-> cdat$tss = as.factor(cdat$tss)
+> 
 > # if (!file.exists(covariate_file_name)) {
 > # ------------------------------------------------------------------------
 > # generate covariate data
@@ -920,9 +920,13 @@ TCGA.ER.A2NF.01A       -3.035158       -1.641196   -4.299741
 [13] "log_Bcells"       "log_CAFs"         "log_CD4_Tcells"   "log_CD8_Tcells"  
 [17] "log_Endothelial"  "log_Macrophages"  "log_NKcells"     
 > 
-> modDat = cbind(mod[,2:12], sv8$sv)
+> idx1 = which(colnames(mod) =="log_Bcells") - 1
+> idx1
+[1] 12
+> 
+> modDat = cbind(mod[,2:idx1], sv8$sv)
 > colnames(modDat)[1:2] = c("five_year_DSS", "gender") 
-> colnames(modDat)[12:19] = paste0("sv", 1:8)
+> colnames(modDat)[idx1:(idx1+7)] = paste0("sv", 1:8)
 > dim(modDat)
 [1] 173  19
 > modDat[1:2,]
@@ -961,19 +965,22 @@ TCGA.ER.A2NF.01A  0.1194979
   0 33 42
   1 42 56
 > 
-> formula = ~ gender + scaled_age + scaled_log_depth + 
-+   stageII + stageIII + stageIV + tss2 + tss3 + tss4 + tss5 
-> other_variables = model.matrix(formula, data = as.data.frame(col_data))
-> 
 > # CARseq, CIBERSORT, 0 SV
 > # permuted
 > date()
-[1] "Sun Jan 24 00:48:07 2021"
+[1] "Sun Jan 24 18:51:46 2021"
+> 
+> str1 = setdiff(colnames(modDat), c("five_year_DSS", paste0("sv", 1:8)))
+> str1 = paste(str1, collapse=" + ")
+> f1 = as.formula(paste("~", str1))
+> f1
+~gender + scaled_age + scaled_log_depth + stageII + stageIII + 
+    stageIV + tss2 + tss3 + tss4 + tss5
+> 
 > res_CARseq = run_CARseq(count_matrix = trec,
 +                         cellular_proportions = cell_fractions,
 +                         groups = col_data$SurvivalP,
-+                         formula = ~ gender + scaled_age + scaled_log_depth + 
-+                           stageII + stageIII + stageIV + tss2 + tss3 + tss4 + tss5,
++                         formula = f1, 
 +                         data = col_data,
 +                         read_depth = 1,
 +                         shrunken_lfc = TRUE,
@@ -988,48 +995,48 @@ The following object is masked from ‘package:genefilter’:
 
     area
 
-Gene 1000 of 19161 has been processed at 2021-01-24 00:49:30 [1st pass]
-Gene 2000 of 19161 has been processed at 2021-01-24 00:50:51 [1st pass]
-Gene 3000 of 19161 has been processed at 2021-01-24 00:50:53 [1st pass]
-Gene 4000 of 19161 has been processed at 2021-01-24 00:52:20 [1st pass]
-Gene 5000 of 19161 has been processed at 2021-01-24 00:53:31 [1st pass]
-Gene 6000 of 19161 has been processed at 2021-01-24 00:53:34 [1st pass]
-Gene 7000 of 19161 has been processed at 2021-01-24 00:55:12 [1st pass]
-Gene 8000 of 19161 has been processed at 2021-01-24 00:56:07 [1st pass]
-Gene 9000 of 19161 has been processed at 2021-01-24 00:56:08 [1st pass]
-Gene 10000 of 19161 has been processed at 2021-01-24 00:58:02 [1st pass]
-Gene 11000 of 19161 has been processed at 2021-01-24 00:58:59 [1st pass]
-Gene 12000 of 19161 has been processed at 2021-01-24 00:59:11 [1st pass]
-Gene 13000 of 19161 has been processed at 2021-01-24 01:00:39 [1st pass]
-Gene 14000 of 19161 has been processed at 2021-01-24 01:01:33 [1st pass]
-Gene 15000 of 19161 has been processed at 2021-01-24 01:01:53 [1st pass]
-Gene 16000 of 19161 has been processed at 2021-01-24 01:03:38 [1st pass]
-Gene 17000 of 19161 has been processed at 2021-01-24 01:04:34 [1st pass]
-Gene 18000 of 19161 has been processed at 2021-01-24 01:04:49 [1st pass]
-Gene 19000 of 19161 has been processed at 2021-01-24 01:05:57 [1st pass]
-Gene 19161 of 19161 has been processed at 2021-01-24 01:06:41 [1st pass]
-Gene 1000 of 19161 has been processed at 2021-01-24 01:06:58 [2nd pass for shrunken LFC]
-Gene 2000 of 19161 has been processed at 2021-01-24 01:07:12 [2nd pass for shrunken LFC]
-Gene 3000 of 19161 has been processed at 2021-01-24 01:07:13 [2nd pass for shrunken LFC]
-Gene 4000 of 19161 has been processed at 2021-01-24 01:07:30 [2nd pass for shrunken LFC]
-Gene 5000 of 19161 has been processed at 2021-01-24 01:07:43 [2nd pass for shrunken LFC]
-Gene 6000 of 19161 has been processed at 2021-01-24 01:07:44 [2nd pass for shrunken LFC]
-Gene 7000 of 19161 has been processed at 2021-01-24 01:08:02 [2nd pass for shrunken LFC]
-Gene 9000 of 19161 has been processed at 2021-01-24 01:08:16 [2nd pass for shrunken LFC]
-Gene 8000 of 19161 has been processed at 2021-01-24 01:08:16 [2nd pass for shrunken LFC]
-Gene 10000 of 19161 has been processed at 2021-01-24 01:08:34 [2nd pass for shrunken LFC]
-Gene 11000 of 19161 has been processed at 2021-01-24 01:08:50 [2nd pass for shrunken LFC]
-Gene 12000 of 19161 has been processed at 2021-01-24 01:08:51 [2nd pass for shrunken LFC]
-Gene 13000 of 19161 has been processed at 2021-01-24 01:09:05 [2nd pass for shrunken LFC]
-Gene 14000 of 19161 has been processed at 2021-01-24 01:09:23 [2nd pass for shrunken LFC]
-Gene 15000 of 19161 has been processed at 2021-01-24 01:09:24 [2nd pass for shrunken LFC]
-Gene 16000 of 19161 has been processed at 2021-01-24 01:09:40 [2nd pass for shrunken LFC]
-Gene 17000 of 19161 has been processed at 2021-01-24 01:09:57 [2nd pass for shrunken LFC]
-Gene 18000 of 19161 has been processed at 2021-01-24 01:09:59 [2nd pass for shrunken LFC]
-Gene 19000 of 19161 has been processed at 2021-01-24 01:10:11 [2nd pass for shrunken LFC]
-Gene 19161 of 19161 has been processed at 2021-01-24 01:10:16 [2nd pass for shrunken LFC]
+Gene 1000 of 19161 has been processed at 2021-01-24 18:53:08 [1st pass]
+Gene 2000 of 19161 has been processed at 2021-01-24 18:54:29 [1st pass]
+Gene 3000 of 19161 has been processed at 2021-01-24 18:54:29 [1st pass]
+Gene 4000 of 19161 has been processed at 2021-01-24 18:55:53 [1st pass]
+Gene 5000 of 19161 has been processed at 2021-01-24 18:57:08 [1st pass]
+Gene 6000 of 19161 has been processed at 2021-01-24 18:57:09 [1st pass]
+Gene 7000 of 19161 has been processed at 2021-01-24 18:58:45 [1st pass]
+Gene 9000 of 19161 has been processed at 2021-01-24 18:59:43 [1st pass]
+Gene 8000 of 19161 has been processed at 2021-01-24 18:59:45 [1st pass]
+Gene 10000 of 19161 has been processed at 2021-01-24 19:01:33 [1st pass]
+Gene 11000 of 19161 has been processed at 2021-01-24 19:02:32 [1st pass]
+Gene 12000 of 19161 has been processed at 2021-01-24 19:02:43 [1st pass]
+Gene 13000 of 19161 has been processed at 2021-01-24 19:04:05 [1st pass]
+Gene 14000 of 19161 has been processed at 2021-01-24 19:05:04 [1st pass]
+Gene 15000 of 19161 has been processed at 2021-01-24 19:05:23 [1st pass]
+Gene 16000 of 19161 has been processed at 2021-01-24 19:07:01 [1st pass]
+Gene 17000 of 19161 has been processed at 2021-01-24 19:08:03 [1st pass]
+Gene 18000 of 19161 has been processed at 2021-01-24 19:08:15 [1st pass]
+Gene 19000 of 19161 has been processed at 2021-01-24 19:09:25 [1st pass]
+Gene 19161 of 19161 has been processed at 2021-01-24 19:10:10 [1st pass]
+Gene 1000 of 19161 has been processed at 2021-01-24 19:10:26 [2nd pass for shrunken LFC]
+Gene 2000 of 19161 has been processed at 2021-01-24 19:10:41 [2nd pass for shrunken LFC]
+Gene 3000 of 19161 has been processed at 2021-01-24 19:10:42 [2nd pass for shrunken LFC]
+Gene 4000 of 19161 has been processed at 2021-01-24 19:10:57 [2nd pass for shrunken LFC]
+Gene 5000 of 19161 has been processed at 2021-01-24 19:11:12 [2nd pass for shrunken LFC]
+Gene 6000 of 19161 has been processed at 2021-01-24 19:11:13 [2nd pass for shrunken LFC]
+Gene 7000 of 19161 has been processed at 2021-01-24 19:11:31 [2nd pass for shrunken LFC]
+Gene 8000 of 19161 has been processed at 2021-01-24 19:11:46 [2nd pass for shrunken LFC]
+Gene 9000 of 19161 has been processed at 2021-01-24 19:11:46 [2nd pass for shrunken LFC]
+Gene 10000 of 19161 has been processed at 2021-01-24 19:12:03 [2nd pass for shrunken LFC]
+Gene 11000 of 19161 has been processed at 2021-01-24 19:12:19 [2nd pass for shrunken LFC]
+Gene 12000 of 19161 has been processed at 2021-01-24 19:12:20 [2nd pass for shrunken LFC]
+Gene 13000 of 19161 has been processed at 2021-01-24 19:12:35 [2nd pass for shrunken LFC]
+Gene 14000 of 19161 has been processed at 2021-01-24 19:12:52 [2nd pass for shrunken LFC]
+Gene 15000 of 19161 has been processed at 2021-01-24 19:12:54 [2nd pass for shrunken LFC]
+Gene 16000 of 19161 has been processed at 2021-01-24 19:13:09 [2nd pass for shrunken LFC]
+Gene 17000 of 19161 has been processed at 2021-01-24 19:13:27 [2nd pass for shrunken LFC]
+Gene 18000 of 19161 has been processed at 2021-01-24 19:13:29 [2nd pass for shrunken LFC]
+Gene 19000 of 19161 has been processed at 2021-01-24 19:13:42 [2nd pass for shrunken LFC]
+Gene 19161 of 19161 has been processed at 2021-01-24 19:13:47 [2nd pass for shrunken LFC]
 > date()
-[1] "Sun Jan 24 01:10:16 2021"
+[1] "Sun Jan 24 19:13:47 2021"
 > 
 > saveRDS(res_CARseq, "../results/SKCM_CARseq_CIBERSORT_permuted_SV0.rds")
 > pdf("../figures/SKCM_CARseq_CIBERSORT_permuted_SV0.pdf",
@@ -1049,13 +1056,12 @@ null device
 > # CARseq, CIBERSORT, 0 SV
 > # not permuted
 > date()
-[1] "Sun Jan 24 01:10:17 2021"
+[1] "Sun Jan 24 19:13:48 2021"
 > 
 > res_CARseq = run_CARseq(count_matrix = trec,
 +                         cellular_proportions = cell_fractions,
 +                         groups = col_data$Survival,
-+                         formula = ~ gender + scaled_age + scaled_log_depth + 
-+                           stageII + stageIII + stageIV + tss2 + tss3 + tss4 + tss5,
++                         formula = f1, 
 +                         data = col_data,
 +                         read_depth = 1,
 +                         shrunken_lfc = TRUE,
@@ -1063,48 +1069,48 @@ null device
 +                         fix_overdispersion = FALSE,
 +                         useSocket = FALSE
 + )
-Gene 1000 of 19161 has been processed at 2021-01-24 01:11:32 [1st pass]
-Gene 2000 of 19161 has been processed at 2021-01-24 01:12:52 [1st pass]
-Gene 3000 of 19161 has been processed at 2021-01-24 01:12:57 [1st pass]
-Gene 4000 of 19161 has been processed at 2021-01-24 01:14:20 [1st pass]
-Gene 5000 of 19161 has been processed at 2021-01-24 01:15:26 [1st pass]
-Gene 6000 of 19161 has been processed at 2021-01-24 01:15:33 [1st pass]
-Gene 7000 of 19161 has been processed at 2021-01-24 01:17:06 [1st pass]
-Gene 8000 of 19161 has been processed at 2021-01-24 01:18:02 [1st pass]
-Gene 9000 of 19161 has been processed at 2021-01-24 01:18:15 [1st pass]
-Gene 10000 of 19161 has been processed at 2021-01-24 01:19:48 [1st pass]
-Gene 11000 of 19161 has been processed at 2021-01-24 01:21:00 [1st pass]
-Gene 12000 of 19161 has been processed at 2021-01-24 01:21:14 [1st pass]
-Gene 13000 of 19161 has been processed at 2021-01-24 01:22:21 [1st pass]
-Gene 14000 of 19161 has been processed at 2021-01-24 01:23:28 [1st pass]
-Gene 15000 of 19161 has been processed at 2021-01-24 01:23:54 [1st pass]
-Gene 16000 of 19161 has been processed at 2021-01-24 01:25:11 [1st pass]
-Gene 17000 of 19161 has been processed at 2021-01-24 01:26:18 [1st pass]
-Gene 18000 of 19161 has been processed at 2021-01-24 01:26:49 [1st pass]
-Gene 19000 of 19161 has been processed at 2021-01-24 01:27:36 [1st pass]
-Gene 19161 of 19161 has been processed at 2021-01-24 01:28:36 [1st pass]
-Gene 1000 of 19161 has been processed at 2021-01-24 01:28:52 [2nd pass for shrunken LFC]
-Gene 2000 of 19161 has been processed at 2021-01-24 01:29:07 [2nd pass for shrunken LFC]
-Gene 3000 of 19161 has been processed at 2021-01-24 01:29:09 [2nd pass for shrunken LFC]
-Gene 4000 of 19161 has been processed at 2021-01-24 01:29:24 [2nd pass for shrunken LFC]
-Gene 5000 of 19161 has been processed at 2021-01-24 01:29:38 [2nd pass for shrunken LFC]
-Gene 6000 of 19161 has been processed at 2021-01-24 01:29:41 [2nd pass for shrunken LFC]
-Gene 7000 of 19161 has been processed at 2021-01-24 01:29:57 [2nd pass for shrunken LFC]
-Gene 8000 of 19161 has been processed at 2021-01-24 01:30:11 [2nd pass for shrunken LFC]
-Gene 9000 of 19161 has been processed at 2021-01-24 01:30:13 [2nd pass for shrunken LFC]
-Gene 10000 of 19161 has been processed at 2021-01-24 01:30:30 [2nd pass for shrunken LFC]
-Gene 11000 of 19161 has been processed at 2021-01-24 01:30:44 [2nd pass for shrunken LFC]
-Gene 12000 of 19161 has been processed at 2021-01-24 01:30:48 [2nd pass for shrunken LFC]
-Gene 13000 of 19161 has been processed at 2021-01-24 01:31:01 [2nd pass for shrunken LFC]
-Gene 14000 of 19161 has been processed at 2021-01-24 01:31:15 [2nd pass for shrunken LFC]
-Gene 15000 of 19161 has been processed at 2021-01-24 01:31:21 [2nd pass for shrunken LFC]
-Gene 16000 of 19161 has been processed at 2021-01-24 01:31:35 [2nd pass for shrunken LFC]
-Gene 17000 of 19161 has been processed at 2021-01-24 01:31:50 [2nd pass for shrunken LFC]
-Gene 18000 of 19161 has been processed at 2021-01-24 01:31:56 [2nd pass for shrunken LFC]
-Gene 19000 of 19161 has been processed at 2021-01-24 01:32:06 [2nd pass for shrunken LFC]
-Gene 19161 of 19161 has been processed at 2021-01-24 01:32:13 [2nd pass for shrunken LFC]
+Gene 1000 of 19161 has been processed at 2021-01-24 19:15:04 [1st pass]
+Gene 2000 of 19161 has been processed at 2021-01-24 19:16:27 [1st pass]
+Gene 3000 of 19161 has been processed at 2021-01-24 19:16:28 [1st pass]
+Gene 4000 of 19161 has been processed at 2021-01-24 19:17:57 [1st pass]
+Gene 5000 of 19161 has been processed at 2021-01-24 19:19:07 [1st pass]
+Gene 6000 of 19161 has been processed at 2021-01-24 19:19:11 [1st pass]
+Gene 7000 of 19161 has been processed at 2021-01-24 19:20:48 [1st pass]
+Gene 8000 of 19161 has been processed at 2021-01-24 19:21:47 [1st pass]
+Gene 9000 of 19161 has been processed at 2021-01-24 19:21:59 [1st pass]
+Gene 10000 of 19161 has been processed at 2021-01-24 19:23:33 [1st pass]
+Gene 11000 of 19161 has been processed at 2021-01-24 19:24:44 [1st pass]
+Gene 12000 of 19161 has been processed at 2021-01-24 19:25:06 [1st pass]
+Gene 13000 of 19161 has been processed at 2021-01-24 19:26:12 [1st pass]
+Gene 14000 of 19161 has been processed at 2021-01-24 19:27:20 [1st pass]
+Gene 15000 of 19161 has been processed at 2021-01-24 19:27:55 [1st pass]
+Gene 16000 of 19161 has been processed at 2021-01-24 19:29:07 [1st pass]
+Gene 17000 of 19161 has been processed at 2021-01-24 19:30:21 [1st pass]
+Gene 18000 of 19161 has been processed at 2021-01-24 19:30:55 [1st pass]
+Gene 19000 of 19161 has been processed at 2021-01-24 19:31:37 [1st pass]
+Gene 19161 of 19161 has been processed at 2021-01-24 19:32:36 [1st pass]
+Gene 1000 of 19161 has been processed at 2021-01-24 19:32:52 [2nd pass for shrunken LFC]
+Gene 2000 of 19161 has been processed at 2021-01-24 19:33:08 [2nd pass for shrunken LFC]
+Gene 3000 of 19161 has been processed at 2021-01-24 19:33:08 [2nd pass for shrunken LFC]
+Gene 4000 of 19161 has been processed at 2021-01-24 19:33:25 [2nd pass for shrunken LFC]
+Gene 5000 of 19161 has been processed at 2021-01-24 19:33:39 [2nd pass for shrunken LFC]
+Gene 6000 of 19161 has been processed at 2021-01-24 19:33:41 [2nd pass for shrunken LFC]
+Gene 7000 of 19161 has been processed at 2021-01-24 19:33:59 [2nd pass for shrunken LFC]
+Gene 8000 of 19161 has been processed at 2021-01-24 19:34:13 [2nd pass for shrunken LFC]
+Gene 9000 of 19161 has been processed at 2021-01-24 19:34:14 [2nd pass for shrunken LFC]
+Gene 10000 of 19161 has been processed at 2021-01-24 19:34:31 [2nd pass for shrunken LFC]
+Gene 11000 of 19161 has been processed at 2021-01-24 19:34:46 [2nd pass for shrunken LFC]
+Gene 12000 of 19161 has been processed at 2021-01-24 19:34:49 [2nd pass for shrunken LFC]
+Gene 13000 of 19161 has been processed at 2021-01-24 19:35:03 [2nd pass for shrunken LFC]
+Gene 14000 of 19161 has been processed at 2021-01-24 19:35:19 [2nd pass for shrunken LFC]
+Gene 15000 of 19161 has been processed at 2021-01-24 19:35:24 [2nd pass for shrunken LFC]
+Gene 16000 of 19161 has been processed at 2021-01-24 19:35:38 [2nd pass for shrunken LFC]
+Gene 17000 of 19161 has been processed at 2021-01-24 19:35:54 [2nd pass for shrunken LFC]
+Gene 18000 of 19161 has been processed at 2021-01-24 19:35:59 [2nd pass for shrunken LFC]
+Gene 19000 of 19161 has been processed at 2021-01-24 19:36:10 [2nd pass for shrunken LFC]
+Gene 19161 of 19161 has been processed at 2021-01-24 19:36:18 [2nd pass for shrunken LFC]
 > date()
-[1] "Sun Jan 24 01:32:13 2021"
+[1] "Sun Jan 24 19:36:18 2021"
 > 
 > saveRDS(res_CARseq, "../results/SKCM_CARseq_CIBERSORT_SV0.rds")
 > 
@@ -1119,17 +1125,19 @@ Gene 19161 of 19161 has been processed at 2021-01-24 01:32:13 [2nd pass for shru
 null device 
           1 
 > 
+> f1 = as.formula(paste("~", str1, " + sv1"))
+> f1
+~gender + scaled_age + scaled_log_depth + stageII + stageIII + 
+    stageIV + tss2 + tss3 + tss4 + tss5 + sv1
 > # CARseq, CIBERSORT, 1 SV
 > # permuted
 > date()
-[1] "Sun Jan 24 01:32:14 2021"
+[1] "Sun Jan 24 19:36:20 2021"
 > 
 > res_CARseq = run_CARseq(count_matrix = trec,
 +                         cellular_proportions = cell_fractions,
 +                         groups = col_data$SurvivalP, 
-+                         formula = ~ gender + scaled_age + scaled_log_depth + 
-+                           stageII + stageIII + stageIV + tss2 + tss3 + tss4 + 
-+                           tss5 + sv1, 
++                         formula = f1, 
 +                         data = col_data, 
 +                         read_depth = 1, 
 +                         shrunken_lfc = TRUE, 
@@ -1137,48 +1145,48 @@ null device
 +                         fix_overdispersion = FALSE,
 +                         useSocket = FALSE
 + )
-Gene 1000 of 19161 has been processed at 2021-01-24 01:33:40 [1st pass]
-Gene 2000 of 19161 has been processed at 2021-01-24 01:35:06 [1st pass]
-Gene 3000 of 19161 has been processed at 2021-01-24 01:35:08 [1st pass]
-Gene 4000 of 19161 has been processed at 2021-01-24 01:36:40 [1st pass]
-Gene 5000 of 19161 has been processed at 2021-01-24 01:37:55 [1st pass]
-Gene 6000 of 19161 has been processed at 2021-01-24 01:38:01 [1st pass]
-Gene 7000 of 19161 has been processed at 2021-01-24 01:39:53 [1st pass]
-Gene 8000 of 19161 has been processed at 2021-01-24 01:40:39 [1st pass]
-Gene 9000 of 19161 has been processed at 2021-01-24 01:40:51 [1st pass]
-Gene 10000 of 19161 has been processed at 2021-01-24 01:42:50 [1st pass]
-Gene 11000 of 19161 has been processed at 2021-01-24 01:43:45 [1st pass]
-Gene 12000 of 19161 has been processed at 2021-01-24 01:44:04 [1st pass]
-Gene 13000 of 19161 has been processed at 2021-01-24 01:45:39 [1st pass]
-Gene 14000 of 19161 has been processed at 2021-01-24 01:46:28 [1st pass]
-Gene 15000 of 19161 has been processed at 2021-01-24 01:46:51 [1st pass]
-Gene 16000 of 19161 has been processed at 2021-01-24 01:48:48 [1st pass]
-Gene 17000 of 19161 has been processed at 2021-01-24 01:49:35 [1st pass]
-Gene 18000 of 19161 has been processed at 2021-01-24 01:50:03 [1st pass]
-Gene 19000 of 19161 has been processed at 2021-01-24 01:51:17 [1st pass]
-Gene 19161 of 19161 has been processed at 2021-01-24 01:52:13 [1st pass]
-Gene 1000 of 19161 has been processed at 2021-01-24 01:52:33 [2nd pass for shrunken LFC]
-Gene 3000 of 19161 has been processed at 2021-01-24 01:52:50 [2nd pass for shrunken LFC]
-Gene 2000 of 19161 has been processed at 2021-01-24 01:52:50 [2nd pass for shrunken LFC]
-Gene 4000 of 19161 has been processed at 2021-01-24 01:53:06 [2nd pass for shrunken LFC]
-Gene 6000 of 19161 has been processed at 2021-01-24 01:53:24 [2nd pass for shrunken LFC]
-Gene 5000 of 19161 has been processed at 2021-01-24 01:53:24 [2nd pass for shrunken LFC]
-Gene 7000 of 19161 has been processed at 2021-01-24 01:53:43 [2nd pass for shrunken LFC]
-Gene 9000 of 19161 has been processed at 2021-01-24 01:53:56 [2nd pass for shrunken LFC]
-Gene 8000 of 19161 has been processed at 2021-01-24 01:53:57 [2nd pass for shrunken LFC]
-Gene 10000 of 19161 has been processed at 2021-01-24 01:54:15 [2nd pass for shrunken LFC]
-Gene 12000 of 19161 has been processed at 2021-01-24 01:54:31 [2nd pass for shrunken LFC]
-Gene 11000 of 19161 has been processed at 2021-01-24 01:54:32 [2nd pass for shrunken LFC]
-Gene 13000 of 19161 has been processed at 2021-01-24 01:54:47 [2nd pass for shrunken LFC]
-Gene 15000 of 19161 has been processed at 2021-01-24 01:55:04 [2nd pass for shrunken LFC]
-Gene 14000 of 19161 has been processed at 2021-01-24 01:55:05 [2nd pass for shrunken LFC]
-Gene 16000 of 19161 has been processed at 2021-01-24 01:55:22 [2nd pass for shrunken LFC]
-Gene 17000 of 19161 has been processed at 2021-01-24 01:55:41 [2nd pass for shrunken LFC]
-Gene 18000 of 19161 has been processed at 2021-01-24 01:55:42 [2nd pass for shrunken LFC]
-Gene 19000 of 19161 has been processed at 2021-01-24 01:55:55 [2nd pass for shrunken LFC]
-Gene 19161 of 19161 has been processed at 2021-01-24 01:56:00 [2nd pass for shrunken LFC]
+Gene 1000 of 19161 has been processed at 2021-01-24 19:37:47 [1st pass]
+Gene 2000 of 19161 has been processed at 2021-01-24 19:39:16 [1st pass]
+Gene 3000 of 19161 has been processed at 2021-01-24 19:39:17 [1st pass]
+Gene 4000 of 19161 has been processed at 2021-01-24 19:40:48 [1st pass]
+Gene 5000 of 19161 has been processed at 2021-01-24 19:42:08 [1st pass]
+Gene 6000 of 19161 has been processed at 2021-01-24 19:42:12 [1st pass]
+Gene 7000 of 19161 has been processed at 2021-01-24 19:44:07 [1st pass]
+Gene 8000 of 19161 has been processed at 2021-01-24 19:44:56 [1st pass]
+Gene 9000 of 19161 has been processed at 2021-01-24 19:45:05 [1st pass]
+Gene 10000 of 19161 has been processed at 2021-01-24 19:47:03 [1st pass]
+Gene 11000 of 19161 has been processed at 2021-01-24 19:48:06 [1st pass]
+Gene 12000 of 19161 has been processed at 2021-01-24 19:48:20 [1st pass]
+Gene 13000 of 19161 has been processed at 2021-01-24 19:49:53 [1st pass]
+Gene 14000 of 19161 has been processed at 2021-01-24 19:50:53 [1st pass]
+Gene 15000 of 19161 has been processed at 2021-01-24 19:51:10 [1st pass]
+Gene 16000 of 19161 has been processed at 2021-01-24 19:53:04 [1st pass]
+Gene 17000 of 19161 has been processed at 2021-01-24 19:54:04 [1st pass]
+Gene 18000 of 19161 has been processed at 2021-01-24 19:54:28 [1st pass]
+Gene 19000 of 19161 has been processed at 2021-01-24 19:55:41 [1st pass]
+Gene 19161 of 19161 has been processed at 2021-01-24 19:56:40 [1st pass]
+Gene 1000 of 19161 has been processed at 2021-01-24 19:56:59 [2nd pass for shrunken LFC]
+Gene 3000 of 19161 has been processed at 2021-01-24 19:57:15 [2nd pass for shrunken LFC]
+Gene 2000 of 19161 has been processed at 2021-01-24 19:57:18 [2nd pass for shrunken LFC]
+Gene 4000 of 19161 has been processed at 2021-01-24 19:57:33 [2nd pass for shrunken LFC]
+Gene 6000 of 19161 has been processed at 2021-01-24 19:57:51 [2nd pass for shrunken LFC]
+Gene 5000 of 19161 has been processed at 2021-01-24 19:57:52 [2nd pass for shrunken LFC]
+Gene 7000 of 19161 has been processed at 2021-01-24 19:58:10 [2nd pass for shrunken LFC]
+Gene 9000 of 19161 has been processed at 2021-01-24 19:58:25 [2nd pass for shrunken LFC]
+Gene 8000 of 19161 has been processed at 2021-01-24 19:58:27 [2nd pass for shrunken LFC]
+Gene 10000 of 19161 has been processed at 2021-01-24 19:58:44 [2nd pass for shrunken LFC]
+Gene 12000 of 19161 has been processed at 2021-01-24 19:59:02 [2nd pass for shrunken LFC]
+Gene 11000 of 19161 has been processed at 2021-01-24 19:59:03 [2nd pass for shrunken LFC]
+Gene 13000 of 19161 has been processed at 2021-01-24 19:59:17 [2nd pass for shrunken LFC]
+Gene 15000 of 19161 has been processed at 2021-01-24 19:59:36 [2nd pass for shrunken LFC]
+Gene 14000 of 19161 has been processed at 2021-01-24 19:59:37 [2nd pass for shrunken LFC]
+Gene 16000 of 19161 has been processed at 2021-01-24 19:59:53 [2nd pass for shrunken LFC]
+Gene 17000 of 19161 has been processed at 2021-01-24 20:00:14 [2nd pass for shrunken LFC]
+Gene 18000 of 19161 has been processed at 2021-01-24 20:00:15 [2nd pass for shrunken LFC]
+Gene 19000 of 19161 has been processed at 2021-01-24 20:00:27 [2nd pass for shrunken LFC]
+Gene 19161 of 19161 has been processed at 2021-01-24 20:00:34 [2nd pass for shrunken LFC]
 > date()
-[1] "Sun Jan 24 01:56:01 2021"
+[1] "Sun Jan 24 20:00:35 2021"
 > 
 > saveRDS(res_CARseq, "../results/SKCM_CARseq_CIBERSORT_permuted_SV1.rds")
 > 
@@ -1197,14 +1205,12 @@ null device
 > # CARseq, CIBERSORT, 1 SV
 > # not permuted
 > date()
-[1] "Sun Jan 24 01:56:02 2021"
+[1] "Sun Jan 24 20:00:36 2021"
 > 
 > res_CARseq = run_CARseq(count_matrix = trec,
 +                         cellular_proportions = cell_fractions,
 +                         groups = col_data$Survival,
-+                         formula = ~ gender + scaled_age + scaled_log_depth + 
-+                           stageII + stageIII + stageIV + tss2 + tss3 + tss4 + 
-+                           tss5 + sv1,
++                         formula = f1,
 +                         data = col_data,
 +                         read_depth = 1,
 +                         shrunken_lfc = TRUE,
@@ -1212,48 +1218,48 @@ null device
 +                         fix_overdispersion = FALSE,
 +                         useSocket = FALSE
 + )
-Gene 1000 of 19161 has been processed at 2021-01-24 01:57:30 [1st pass]
-Gene 3000 of 19161 has been processed at 2021-01-24 01:58:45 [1st pass]
-Gene 2000 of 19161 has been processed at 2021-01-24 01:58:54 [1st pass]
-Gene 4000 of 19161 has been processed at 2021-01-24 02:00:25 [1st pass]
-Gene 6000 of 19161 has been processed at 2021-01-24 02:01:30 [1st pass]
-Gene 5000 of 19161 has been processed at 2021-01-24 02:01:43 [1st pass]
-Gene 7000 of 19161 has been processed at 2021-01-24 02:03:33 [1st pass]
-Gene 9000 of 19161 has been processed at 2021-01-24 02:04:22 [1st pass]
-Gene 8000 of 19161 has been processed at 2021-01-24 02:04:26 [1st pass]
-Gene 10000 of 19161 has been processed at 2021-01-24 02:06:24 [1st pass]
-Gene 11000 of 19161 has been processed at 2021-01-24 02:07:26 [1st pass]
-Gene 12000 of 19161 has been processed at 2021-01-24 02:07:32 [1st pass]
-Gene 13000 of 19161 has been processed at 2021-01-24 02:09:09 [1st pass]
-Gene 14000 of 19161 has been processed at 2021-01-24 02:10:08 [1st pass]
-Gene 15000 of 19161 has been processed at 2021-01-24 02:10:21 [1st pass]
-Gene 16000 of 19161 has been processed at 2021-01-24 02:12:13 [1st pass]
-Gene 17000 of 19161 has been processed at 2021-01-24 02:13:16 [1st pass]
-Gene 18000 of 19161 has been processed at 2021-01-24 02:13:35 [1st pass]
-Gene 19000 of 19161 has been processed at 2021-01-24 02:14:46 [1st pass]
-Gene 19161 of 19161 has been processed at 2021-01-24 02:15:33 [1st pass]
-Gene 1000 of 19161 has been processed at 2021-01-24 02:15:51 [2nd pass for shrunken LFC]
-Gene 3000 of 19161 has been processed at 2021-01-24 02:16:06 [2nd pass for shrunken LFC]
-Gene 2000 of 19161 has been processed at 2021-01-24 02:16:10 [2nd pass for shrunken LFC]
-Gene 4000 of 19161 has been processed at 2021-01-24 02:16:26 [2nd pass for shrunken LFC]
-Gene 6000 of 19161 has been processed at 2021-01-24 02:16:39 [2nd pass for shrunken LFC]
-Gene 5000 of 19161 has been processed at 2021-01-24 02:16:42 [2nd pass for shrunken LFC]
-Gene 7000 of 19161 has been processed at 2021-01-24 02:17:01 [2nd pass for shrunken LFC]
-Gene 9000 of 19161 has been processed at 2021-01-24 02:17:12 [2nd pass for shrunken LFC]
-Gene 8000 of 19161 has been processed at 2021-01-24 02:17:16 [2nd pass for shrunken LFC]
-Gene 10000 of 19161 has been processed at 2021-01-24 02:17:35 [2nd pass for shrunken LFC]
-Gene 12000 of 19161 has been processed at 2021-01-24 02:17:47 [2nd pass for shrunken LFC]
-Gene 11000 of 19161 has been processed at 2021-01-24 02:17:50 [2nd pass for shrunken LFC]
-Gene 13000 of 19161 has been processed at 2021-01-24 02:18:07 [2nd pass for shrunken LFC]
-Gene 15000 of 19161 has been processed at 2021-01-24 02:18:21 [2nd pass for shrunken LFC]
-Gene 14000 of 19161 has been processed at 2021-01-24 02:18:23 [2nd pass for shrunken LFC]
-Gene 16000 of 19161 has been processed at 2021-01-24 02:18:41 [2nd pass for shrunken LFC]
-Gene 18000 of 19161 has been processed at 2021-01-24 02:18:57 [2nd pass for shrunken LFC]
-Gene 17000 of 19161 has been processed at 2021-01-24 02:18:59 [2nd pass for shrunken LFC]
-Gene 19000 of 19161 has been processed at 2021-01-24 02:19:13 [2nd pass for shrunken LFC]
-Gene 19161 of 19161 has been processed at 2021-01-24 02:19:17 [2nd pass for shrunken LFC]
+Gene 1000 of 19161 has been processed at 2021-01-24 20:02:09 [1st pass]
+Gene 3000 of 19161 has been processed at 2021-01-24 20:03:25 [1st pass]
+Gene 2000 of 19161 has been processed at 2021-01-24 20:03:34 [1st pass]
+Gene 4000 of 19161 has been processed at 2021-01-24 20:05:11 [1st pass]
+Gene 6000 of 19161 has been processed at 2021-01-24 20:06:17 [1st pass]
+Gene 5000 of 19161 has been processed at 2021-01-24 20:06:31 [1st pass]
+Gene 7000 of 19161 has been processed at 2021-01-24 20:08:29 [1st pass]
+Gene 9000 of 19161 has been processed at 2021-01-24 20:09:08 [1st pass]
+Gene 8000 of 19161 has been processed at 2021-01-24 20:09:17 [1st pass]
+Gene 10000 of 19161 has been processed at 2021-01-24 20:11:26 [1st pass]
+Gene 11000 of 19161 has been processed at 2021-01-24 20:12:24 [1st pass]
+Gene 12000 of 19161 has been processed at 2021-01-24 20:12:26 [1st pass]
+Gene 13000 of 19161 has been processed at 2021-01-24 20:14:18 [1st pass]
+Gene 14000 of 19161 has been processed at 2021-01-24 20:15:12 [1st pass]
+Gene 15000 of 19161 has been processed at 2021-01-24 20:15:19 [1st pass]
+Gene 16000 of 19161 has been processed at 2021-01-24 20:17:28 [1st pass]
+Gene 17000 of 19161 has been processed at 2021-01-24 20:18:25 [1st pass]
+Gene 18000 of 19161 has been processed at 2021-01-24 20:18:41 [1st pass]
+Gene 19000 of 19161 has been processed at 2021-01-24 20:20:01 [1st pass]
+Gene 19161 of 19161 has been processed at 2021-01-24 20:20:49 [1st pass]
+Gene 1000 of 19161 has been processed at 2021-01-24 20:21:08 [2nd pass for shrunken LFC]
+Gene 3000 of 19161 has been processed at 2021-01-24 20:21:23 [2nd pass for shrunken LFC]
+Gene 2000 of 19161 has been processed at 2021-01-24 20:21:24 [2nd pass for shrunken LFC]
+Gene 4000 of 19161 has been processed at 2021-01-24 20:21:44 [2nd pass for shrunken LFC]
+Gene 6000 of 19161 has been processed at 2021-01-24 20:21:59 [2nd pass for shrunken LFC]
+Gene 5000 of 19161 has been processed at 2021-01-24 20:22:01 [2nd pass for shrunken LFC]
+Gene 7000 of 19161 has been processed at 2021-01-24 20:22:21 [2nd pass for shrunken LFC]
+Gene 9000 of 19161 has been processed at 2021-01-24 20:22:34 [2nd pass for shrunken LFC]
+Gene 8000 of 19161 has been processed at 2021-01-24 20:22:35 [2nd pass for shrunken LFC]
+Gene 10000 of 19161 has been processed at 2021-01-24 20:22:55 [2nd pass for shrunken LFC]
+Gene 12000 of 19161 has been processed at 2021-01-24 20:23:10 [2nd pass for shrunken LFC]
+Gene 11000 of 19161 has been processed at 2021-01-24 20:23:10 [2nd pass for shrunken LFC]
+Gene 13000 of 19161 has been processed at 2021-01-24 20:23:29 [2nd pass for shrunken LFC]
+Gene 14000 of 19161 has been processed at 2021-01-24 20:23:44 [2nd pass for shrunken LFC]
+Gene 15000 of 19161 has been processed at 2021-01-24 20:23:45 [2nd pass for shrunken LFC]
+Gene 16000 of 19161 has been processed at 2021-01-24 20:24:03 [2nd pass for shrunken LFC]
+Gene 17000 of 19161 has been processed at 2021-01-24 20:24:21 [2nd pass for shrunken LFC]
+Gene 18000 of 19161 has been processed at 2021-01-24 20:24:22 [2nd pass for shrunken LFC]
+Gene 19000 of 19161 has been processed at 2021-01-24 20:24:37 [2nd pass for shrunken LFC]
+Gene 19161 of 19161 has been processed at 2021-01-24 20:24:41 [2nd pass for shrunken LFC]
 > date()
-[1] "Sun Jan 24 02:19:18 2021"
+[1] "Sun Jan 24 20:24:42 2021"
 > 
 > saveRDS(res_CARseq, "../results/SKCM_CARseq_CIBERSORT_SV1.rds")
 > 
@@ -1270,8 +1276,8 @@ null device
 > 
 > gc()
            used  (Mb) gc trigger  (Mb) limit (Mb)  max used  (Mb)
-Ncells  4251642 227.1    7608817 406.4         NA   7608817 406.4
-Vcells 23520703 179.5   58878468 449.3      32768 114996940 877.4
+Ncells  4251719 227.1    7608826 406.4         NA   7608826 406.4
+Vcells 23518788 179.5   58878470 449.3      32768 114995722 877.4
 > 
 > sessionInfo()
 R version 4.0.3 (2020-10-10)
@@ -1321,4 +1327,4 @@ loaded via a namespace (and not attached):
 > q(save="no")
 > proc.time()
      user    system   elapsed 
-75084.023  1617.138  6055.884 
+76750.338  1641.194  6166.869 

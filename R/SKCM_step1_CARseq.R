@@ -9,6 +9,10 @@ library(ggplot2)
 theme_set(theme_bw())
 source("base_functions_plittle.R")
 
+# samples are from 8 Tissue Source Sites, after filtering.
+# we can group them into 5 clusters or just use the TSS with 8 levels
+cluster_tss = TRUE
+
 # cell size factor
 # here we use the cell size factors in github.com/GfellerLab/EPIC:
 # data/mRNA_cell_default.rda:
@@ -235,15 +239,17 @@ dev.off()
 c1 = cutree(h1, k=5)
 c1
 
-table(tss)
-
-cdat$tss = rep(NA, nrow(cdat))
-for(k in 1:5){
-  cdat$tss[which(tss %in% names(c1)[c1==k])] = k
+if(cluster_tss){
+  cdat$tss = rep(NA, nrow(cdat))
+  for(k in 1:5){
+    cdat$tss[which(tss %in% names(c1)[c1==k])] = k
+  }
+}else{
+  cdat$tss = tss
 }
-table(cdat$tss)
-table(cdat$tss, tss)
 cdat$tss = as.factor(cdat$tss)
+table(cdat$tss, tss)
+
 # if (!file.exists(covariate_file_name)) {
 # ------------------------------------------------------------------------
 # generate covariate data
@@ -466,9 +472,12 @@ round(cor(sv8$sv, cell_fractions),2)
 mod[1:2,]
 colnames(mod)
 
-modDat = cbind(mod[,2:12], sv8$sv)
+idx1 = which(colnames(mod) =="log_Bcells") - 1
+idx1
+
+modDat = cbind(mod[,2:idx1], sv8$sv)
 colnames(modDat)[1:2] = c("five_year_DSS", "gender") 
-colnames(modDat)[12:19] = paste0("sv", 1:8)
+colnames(modDat)[idx1:(idx1+7)] = paste0("sv", 1:8)
 dim(modDat)
 modDat[1:2,]
 
@@ -490,18 +499,19 @@ col_data$SurvivalP = CARseq:::permute_case_and_controls(col_data$five_year_DSS)
 col_data$Survival  = factor(col_data$five_year_DSS)
 table(col_data$Survival, col_data$SurvivalP)
 
-formula = ~ gender + scaled_age + scaled_log_depth + 
-  stageII + stageIII + stageIV + tss2 + tss3 + tss4 + tss5 
-other_variables = model.matrix(formula, data = as.data.frame(col_data))
-
 # CARseq, CIBERSORT, 0 SV
 # permuted
 date()
+
+str1 = setdiff(colnames(modDat), c("five_year_DSS", paste0("sv", 1:8)))
+str1 = paste(str1, collapse=" + ")
+f1 = as.formula(paste("~", str1))
+f1
+
 res_CARseq = run_CARseq(count_matrix = trec,
                         cellular_proportions = cell_fractions,
                         groups = col_data$SurvivalP,
-                        formula = ~ gender + scaled_age + scaled_log_depth + 
-                          stageII + stageIII + stageIV + tss2 + tss3 + tss4 + tss5,
+                        formula = f1, 
                         data = col_data,
                         read_depth = 1,
                         shrunken_lfc = TRUE,
@@ -531,8 +541,7 @@ date()
 res_CARseq = run_CARseq(count_matrix = trec,
                         cellular_proportions = cell_fractions,
                         groups = col_data$Survival,
-                        formula = ~ gender + scaled_age + scaled_log_depth + 
-                          stageII + stageIII + stageIV + tss2 + tss3 + tss4 + tss5,
+                        formula = f1, 
                         data = col_data,
                         read_depth = 1,
                         shrunken_lfc = TRUE,
@@ -553,6 +562,8 @@ for(k in seq_len(ncol(res_CARseq$p))) {
 }
 dev.off()
 
+f1 = as.formula(paste("~", str1, " + sv1"))
+f1
 # CARseq, CIBERSORT, 1 SV
 # permuted
 date()
@@ -560,9 +571,7 @@ date()
 res_CARseq = run_CARseq(count_matrix = trec,
                         cellular_proportions = cell_fractions,
                         groups = col_data$SurvivalP, 
-                        formula = ~ gender + scaled_age + scaled_log_depth + 
-                          stageII + stageIII + stageIV + tss2 + tss3 + tss4 + 
-                          tss5 + sv1, 
+                        formula = f1, 
                         data = col_data, 
                         read_depth = 1, 
                         shrunken_lfc = TRUE, 
@@ -591,9 +600,7 @@ date()
 res_CARseq = run_CARseq(count_matrix = trec,
                         cellular_proportions = cell_fractions,
                         groups = col_data$Survival,
-                        formula = ~ gender + scaled_age + scaled_log_depth + 
-                          stageII + stageIII + stageIV + tss2 + tss3 + tss4 + 
-                          tss5 + sv1,
+                        formula = f1,
                         data = col_data,
                         read_depth = 1,
                         shrunken_lfc = TRUE,

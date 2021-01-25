@@ -1,5 +1,6 @@
 
 library(TOAST)
+
 library(data.table)
 
 # ------------------------------------------------------------------------
@@ -61,11 +62,20 @@ col_data = data.frame(col_data)
 dim(col_data)
 col_data[1:2,]
 
-design = model.matrix(~ gender + scaled_age + scaled_log_depth + 
-                        stageII + stageIII + stageIV + tss + sv1,
-                      col_data)[, -1]
-design_out = makeDesign(as.data.frame(design), rho_SKCM)
-fitted_model = fitModel(design_out, assays(rse_filtered)$TPM)
+str1 = setdiff(colnames(col_data), c("five_year_DSS", paste0("sv", 1:8)))
+str1 = paste(str1, collapse=" + ")
+f1 = as.formula(paste("~", str1))
+f1
+
+design = model.matrix(f1, col_data)[, -1]
+dim(design)
+design[1:2,1:4]
+
+Design_out = makeDesign(design, rho_SKCM)
+lapply(Design_out, function(x){if(is.vector(x)) length(x) else dim(x)})
+
+Y = SKCM_TPM
+fitted_model = fitModel(Design_out, Y)
 
 
 gc()
