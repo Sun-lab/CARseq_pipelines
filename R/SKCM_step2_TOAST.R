@@ -46,23 +46,19 @@ dim(rho_SKCM)
 rho_SKCM[1:2,]
 
 col_data = readRDS("../data/SKCM_cavariates.rds")
+class(col_data)
+
 dim(col_data)
 col_data[1:2,]
 
-table(rownames(rho_SKCM) == rownames(col_data))
+patient =  gsub(".", "-", substr(rownames(rho_SKCM), 1, 12), fixed = TRUE)
+table(patient == col_data$bcr_patient_barcode)
 table(rownames(rho_SKCM) %in% colnames(SKCM_TPM))
 SKCM_TPM = SKCM_TPM[,match(rownames(rho_SKCM), colnames(SKCM_TPM))]
 dim(SKCM_TPM)
 SKCM_TPM[1:2,1:3]
 
-class(col_data)
-col_data = data.frame(col_data)
-dim(col_data)
-col_data[1:2,]
-
-str1 = setdiff(colnames(col_data), c("five_year_DSS", paste0("sv", 1:8)))
-str1 = paste(str1, collapse=" + ")
-f1 = as.formula(paste("~", str1))
+f1 = ~ gender + scaled_age + scaled_log_depth + stage + tss
 f1
 
 design = model.matrix(f1, col_data)[, -1]

@@ -1,0 +1,176 @@
+
+R version 4.0.3 (2020-10-10) -- "Bunny-Wunnies Freak Out"
+Copyright (C) 2020 The R Foundation for Statistical Computing
+Platform: x86_64-apple-darwin17.0 (64-bit)
+
+R is free software and comes with ABSOLUTELY NO WARRANTY.
+You are welcome to redistribute it under certain conditions.
+Type 'license()' or 'licence()' for distribution details.
+
+  Natural language support but running in an English locale
+
+R is a collaborative project with many contributors.
+Type 'contributors()' for more information and
+'citation()' on how to cite R or R packages in publications.
+
+Type 'demo()' for some demos, 'help()' for on-line help, or
+'help.start()' for an HTML browser interface to help.
+Type 'q()' to quit R.
+
+> 
+> library(TOAST)
+Loading required package: RefFreeEWAS
+Loading required package: quadprog
+Loading required package: EpiDISH
+Loading required package: limma
+Loading required package: nnls
+> 
+> # ------------------------------------------------------------------------
+> # read in bulk RNA-seq data
+> # ------------------------------------------------------------------------
+> 
+> counts = readRDS("../data/TCGA_SKCM_raw_counts.rds")
+> dim(counts)
+[1] 60483   472
+> counts[1:2,1:5]
+                   TCGA.D3.A8GB.06A TCGA.WE.A8ZN.06A TCGA.ER.A2NF.01A
+ENSG00000000003.13             1049              835             2748
+ENSG00000000005.5                20               21                3
+                   TCGA.HR.A2OH.06A TCGA.WE.A8K6.06A
+ENSG00000000003.13              617             1391
+ENSG00000000005.5                 1                0
+> 
+> # remove genes with low read counts: 
+> # genes with 75% percentile of read counts rd75 < 20 are removed
+> rd75   = apply(counts, 1, function(x) quantile(x, 0.75))
+> counts = counts[rd75 >= 20, ]
+> counts = round(counts)
+> dim(counts)
+[1] 19161   472
+> counts[1:2,1:5]
+                   TCGA.D3.A8GB.06A TCGA.WE.A8ZN.06A TCGA.ER.A2NF.01A
+ENSG00000000003.13             1049              835             2748
+ENSG00000000419.11             1062              312             1212
+                   TCGA.HR.A2OH.06A TCGA.WE.A8K6.06A
+ENSG00000000003.13              617             1391
+ENSG00000000419.11             2013             1787
+> 
+> calculate_TPM = function(count, gene_length) {
++   if (nrow(count) != length(gene_length)) {
++     stop("Number of rows of the count matrix does not match gene lengths!")
++   }
++   TPM = count / gene_length
++   t(t(TPM)*1e6/colSums(TPM))
++ }
+> 
+> load("../data/Gene_Lengths.RData")
+> dim(GeneLengths.Mat)
+[1] 60483     3
+> GeneLengths.Mat[1:2,]
+          Gencode.ID Exonic      Ensembl.ID
+1 ENSG00000000003.13   4535 ENSG00000000003
+2  ENSG00000000005.5   1610 ENSG00000000005
+> 
+> table(rownames(counts) %in% GeneLengths.Mat$Gencode.ID)
+
+ TRUE 
+19161 
+> 
+> mat1 = match(rownames(counts), GeneLengths.Mat$Gencode.ID)
+> geneLength = GeneLengths.Mat$Exonic[mat1]
+> SKCM_TPM   = calculate_TPM(counts, geneLength) 
+> dim(SKCM_TPM)
+[1] 19161   472
+> SKCM_TPM[1:2,1:5]
+                   TCGA.D3.A8GB.06A TCGA.WE.A8ZN.06A TCGA.ER.A2NF.01A
+ENSG00000000003.13         9.276855         9.641004         24.15569
+ENSG00000000419.11        35.287414        13.535066         40.02906
+                   TCGA.HR.A2OH.06A TCGA.WE.A8K6.06A
+ENSG00000000003.13         7.403301         18.21597
+ENSG00000000419.11        90.751546         87.92650
+> 
+> # ------------------------------------------------------------------------
+> # read in cell type proportion and covariate data
+> # ------------------------------------------------------------------------
+> 
+> rho_SKCM = readRDS("../data/SKCM_cell_fraction.rds")
+> dim(rho_SKCM)
+[1] 173   8
+> rho_SKCM[1:2,]
+                    Bcells CAFs CD4_Tcells CD8_Tcells Endothelial Macrophages
+TCGA.D3.A8GB.06A 0.3247595    0 0.10281025 0.10585913  0.01214448  0.08402832
+TCGA.ER.A2NF.01A 0.1845557    0 0.05197813 0.03536896  0.02786938  0.11236588
+                     NKcells Cancer_cells
+TCGA.D3.A8GB.06A 0.040398296         0.33
+TCGA.ER.A2NF.01A 0.007861942         0.58
+> 
+> col_data = readRDS("../data/SKCM_cavariates.rds")
+> class(col_data)
+[1] "data.frame"
+> 
+> dim(col_data)
+[1] 173  10
+> col_data[1:2,]
+  bcr_patient_barcode age_at_initial_pathologic_diagnosis gender stage
+1        TCGA-D3-A8GB                                  48   MALE   III
+2        TCGA-ER-A2NF                                  53   MALE   III
+  five_year_DSS tss scaled_age scaled_log_depth SurvivalP Survival
+1             0   1 -0.4479354       -0.8892329         0        0
+2             0   1 -0.1498861        0.1952321         0        0
+> 
+> patient =  gsub(".", "-", substr(rownames(rho_SKCM), 1, 12), fixed = TRUE)
+> table(patient == col_data$bcr_patient_barcode)
+
+TRUE 
+ 173 
+> table(rownames(rho_SKCM) %in% colnames(SKCM_TPM))
+
+TRUE 
+ 173 
+> SKCM_TPM = SKCM_TPM[,match(rownames(rho_SKCM), colnames(SKCM_TPM))]
+> dim(SKCM_TPM)
+[1] 19161   173
+> SKCM_TPM[1:2,1:3]
+                   TCGA.D3.A8GB.06A TCGA.ER.A2NF.01A TCGA.D3.A1Q6.06A
+ENSG00000000003.13         9.276855         24.15569         12.28774
+ENSG00000000419.11        35.287414         40.02906        110.17517
+> 
+> f1 = ~ gender + scaled_age + scaled_log_depth + stage + tss
+> f1
+~gender + scaled_age + scaled_log_depth + stage + tss
+> 
+> design = model.matrix(f1, col_data)[, -1]
+> dim(design)
+[1] 173  10
+> design[1:2,1:4]
+  genderMALE scaled_age scaled_log_depth stageII
+1          1 -0.4479354       -0.8892329       0
+2          1 -0.1498861        0.1952321       0
+> 
+> Design_out = makeDesign(design, rho_SKCM)
+> lapply(Design_out, function(x){if(is.vector(x)) length(x) else dim(x)})
+$design_matrix
+[1] 173  88
+
+$Prop
+[1] 173   8
+
+$design
+[1] 173  10
+
+$all_coefs
+[1] 10
+
+$all_cell_types
+[1] 8
+
+$formula
+[1] 1
+
+> 
+> Y = SKCM_TPM
+> fitted_model = fitModel(Design_out, Y)
+Error in solve.default(t(W) %*% W) : 
+  system is computationally singular: reciprocal condition number = 1.55879e-22
+Calls: fitModel -> solve -> solve.default
+Execution halted
