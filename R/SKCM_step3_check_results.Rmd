@@ -1,0 +1,167 @@
+---
+title: "Check CARseq results from SKCM analysis"
+output:
+  html_document:
+  df_print: paged
+---
+
+# Load required library
+```{r warning=FALSE, echo = TRUE, results = 'hide', warning = FALSE, message = FALSE}
+library(data.table)
+library(ggcorrplot)
+library(ggpointdensity)
+library(CARseq)
+library(fgsea)
+theme_set(theme_bw())
+```
+
+
+# Load results 
+
+Read in gene expression, cell type proportion estimates, as well as covariates data
+
+```{r}
+res = readRDS("../results/SKCM_CARseq.rds")
+lapply(res, function(x){if(is.vector(x)) length(x) else dim(x)})
+
+res$p[1:2,]
+res$padj[1:2,]
+
+qval = apply(res$p, 2, get_qvalues_one_inflated)
+dim(qval)
+
+colSums(res$padj < 0.1, na.rm=TRUE)
+colSums(qval < 0.1, na.rm=TRUE)
+```
+
+
+# Read in gene annoations
+
+```{r}
+anno= fread("../data/gencode.v22.genes.txt")
+dim(anno)
+anno[1:2,]
+
+table(rownames(res$p) %in% anno$geneId)
+anno = anno[match(rownames(res$p), anno$geneId),]
+dim(anno)
+anno[1:2,]
+
+gmtfile_reactome = file.path("../data/c2.cp.reactome.v7.1.symbols.gmt")
+pathways_reactome = gmtPathways(gmtfile_reactome)
+```
+
+# gene set enrichment anlaysis
+
+```{r warning = FALSE}
+fgsea_all = NULL
+topP_list = list()
+
+cell_types = colnames(res$p)
+
+for(ct1 in cell_types){
+  cat(ct1, "\n")
+  stats = res$p[,ct1]
+  names(stats) = anno$hgnc_symbol
+  # deduplicate by taking the one with highest one of possible duplicated gene symbols
+  stats = na.omit(stats[unique(names(stats))])
+  
+  fgseaRes = fgseaMultilevel(pathways_reactome, stats, minSize=10, 
+                             maxSize=1000, gseaParam = 0, eps = 0)
+  
+  # genes that are enriched in small p-values
+  fgseaResPositive = fgseaRes[fgseaRes$NES > 0, ]
+  fgseaResPositive$pathway = gsub("^REACTOME_", "", 
+                                  fgseaResPositive$pathway, perl=TRUE)
+  
+  fgseaResPositive$cell_type = rep(ct1, nrow(fgseaResPositive))
+  fgsea_all = rbind(fgsea_all, fgseaResPositive)
+  
+  topPathways = fgseaResPositive[, c("pathway", "padj", "NES", "cell_type")]
+  topPathways = topPathways[which(topPathways$padj < 1e-5),]
+  topPathways = topPathways[order(topPathways$padj),]
+  
+  str1 = "ANTIGEN_ACTIVATES_B_CELL_RECEPTOR_BCR_LEADING_TO_GENERATION_OF_SECOND_MESSENGERS"
+  str1_short = "ANTIGEN_ACTIVATES_BCR_GENERATION_OF_SECOND_MESSENGERS"
+  topPathways$pathway[which(topPathways$pathway == str1)] = str1_short
+  
+  str1 = "IMMUNOREGULATORY_INTERACTIONS_BETWEEN_A_LYMPHOID_AND_A_NON_LYMPHOID_CELL"
+  str1_short = "IMMU_INTERACTIONS_LYMPHOID_VS_NON_LYMPHOID_CELL"
+  topPathways$pathway[which(topPathways$pathway == str1)] = str1_short
+
+  print(topPathways)
+  cat("\n")
+  
+  if(nrow(topPathways) > 0){
+    topP_list[[ct1]] = topPathways
+  }
+}
+```
+
+# summarize GSEA results
+```{r}
+sapply(topP_list, nrow)
+cbp1 = c("#D55E00","#E69F00", "#56B4E9", "#009E73",
+          "#F0E442", "#999999", "#0072B2",  "#CC79A7")
+names(cbp1) = cell_types
+```
+
+## B cell
+```{r fig.width = 8, fig.height = 2}
+  topPathways = topP_list[["Bcells"]]
+  ggplot(data=topPathways, aes(x=pathway, y=-log10(padj), fill=cell_type)) + 
+    geom_bar(stat="identity") + coord_flip() + 
+    scale_x_discrete(limits = rev(topPathways$pathway)) + 
+    scale_fill_manual(values=cbp1["Bcells"])
+```
+
+## CAFs
+```{r fig.width = 7, fig.height = 3}
+  topPathways = topP_list[["CAFs"]]
+  ggplot(data=topPathways, aes(x=pathway, y=-log10(padj), fill=cell_type)) + 
+    geom_bar(stat="identity") + coord_flip() + 
+    scale_x_discrete(limits = rev(topPathways$pathway)) + 
+    scale_fill_manual(values=cbp1["CAFs"])
+```
+
+## CD4_Tcells
+```{r fig.width = 8, fig.height = 4}
+  topPathways = topP_list[["CD4_Tcells"]]
+  ggplot(data=topPathways, aes(x=pathway, y=-log10(padj), fill=cell_type)) + 
+    geom_bar(stat="identity") + coord_flip() + 
+    scale_x_discrete(limits = rev(topPathways$pathway)) + 
+    scale_fill_manual(values=cbp1["CD4_Tcells"])
+```
+
+## CD8_Tcells
+```{r fig.width = 7, fig.height = 0.75}
+  topPathways = topP_list[["CD8_Tcells"]]
+  ggplot(data=topPathways, aes(x=pathway, y=-log10(padj), fill=cell_type)) + 
+    geom_bar(stat="identity") + coord_flip() + 
+    scale_x_discrete(limits = rev(topPathways$pathway)) + 
+    scale_fill_manual(values=cbp1["CD8_Tcells"])
+```
+
+## Endothelial
+```{r fig.width = 8, fig.height = 2.3}
+  topPathways = topP_list[["Endothelial"]]
+  ggplot(data=topPathways, aes(x=pathway, y=-log10(padj), fill=cell_type)) + 
+    geom_bar(stat="identity") + coord_flip() + 
+    scale_x_discrete(limits = rev(topPathways$pathway)) + 
+    scale_fill_manual(values=cbp1["Endothelial"])
+```
+
+## Cancer_cells
+```{r fig.width = 7, fig.height = 2.6}
+  topPathways = topP_list[["Cancer_cells"]]
+  ggplot(data=topPathways, aes(x=pathway, y=-log10(padj), fill=cell_type)) + 
+    geom_bar(stat="identity") + coord_flip() + 
+    scale_x_discrete(limits = rev(topPathways$pathway)) + 
+    scale_fill_manual(values=cbp1["Cancer_cells"])
+```
+
+```{r}
+gc()
+sessionInfo()
+```
+
