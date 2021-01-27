@@ -8,8 +8,9 @@ output:
 # Load required library
 ```{r warning=FALSE, echo = TRUE, results = 'hide', warning = FALSE, message = FALSE}
 library(data.table)
-library(ggcorrplot)
-library(ggpointdensity)
+library(ggplot2)
+library(ggrepel)
+
 library(CARseq)
 library(fgsea)
 theme_set(theme_bw())
@@ -29,6 +30,7 @@ res$padj[1:2,]
 
 qval = apply(res$p, 2, get_qvalues_one_inflated)
 dim(qval)
+rownames(qval) = rownames(res$p)
 
 colSums(res$padj < 0.1, na.rm=TRUE)
 colSums(qval < 0.1, na.rm=TRUE)
@@ -49,6 +51,65 @@ anno[1:2,]
 
 gmtfile_reactome = file.path("../data/c2.cp.reactome.v7.1.symbols.gmt")
 pathways_reactome = gmtPathways(gmtfile_reactome)
+```
+
+# valcano plot
+
+```{r warning = FALSE, fig.width = 5, fig.height = 4}
+qcut = 1e-6
+logFC_cut = 5
+
+cell_types = colnames(res$p)
+res$shrunken_lfc[1:2,]
+res$lfc[1:2,]
+
+qval[1:2,]
+table(rownames(qval) == rownames(res$shrunken_lfc))
+
+anno$gene_name = anno$hgnc_symbol
+table(anno$gene_name == "")
+ww1 = which(anno$gene_name == "")
+anno$gene_name[ww1] = anno$ensembl_gene_id[ww1]
+
+for(ct1 in cell_types){
+  cat(ct1, "\n")
+
+  ct2 = paste0("1_vs_0:", ct1)
+  df1 = data.frame(qvalue = qval[,ct1], logFC = res$shrunken_lfc[,ct2], 
+                   orig_logFC = res$lfc[,ct2], 
+                   gene = anno$gene_name, DE = rep(0, nrow(qval)))
+
+  if(! any(df1$qvalue < 0.1, na.rm=TRUE)){
+    cat("None of the genes have q-value < 0.1\n")
+    next
+  }
+  
+  df1[which(df1$qvalue < 0.1),]
+  
+  wwNA = which(is.na(df1$logFC))
+  df1$logFC[wwNA] = df1$orig_logFC[wwNA]
+  
+  df1$DE[which(df1$qvalue < 0.1 & df1$logFC > 0)] = 1
+  df1$DE[which(df1$qvalue < 0.1 & df1$logFC < 0)] = -1
+  df1$gene[which(df1$DE == 0)] = ""
+  df1$DE = as.factor(df1$DE)
+
+  df1$qvalue[which(df1$qvalue < qcut)] = qcut
+  df1$logFC[which(df1$logFC > logFC_cut)] = logFC_cut
+  df1$logFC[which(df1$logFC < -logFC_cut)] = -logFC_cut
+
+  g1 = ggplot(df1, aes(x=logFC, y=-log10(qvalue), col=DE)) +
+    geom_point(size = 0.4) + xlim(-4.6, 4.6) + 
+    scale_color_manual(values=c("#0072B2", "#CCCCCC", "#FC4E07")) +
+    theme(legend.position = "none") + ggtitle(ct1)
+  
+  g2 = g1 + geom_text_repel(aes(label = gene), size = 3.5, 
+                            min.segment.length = 0, 
+                            box.padding = unit(0.25, "lines"),
+                            point.padding = unit(0.25, "lines")) 
+  print(g2)
+}
+
 ```
 
 # gene set enrichment anlaysis
