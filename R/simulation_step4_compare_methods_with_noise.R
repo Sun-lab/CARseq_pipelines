@@ -1,4 +1,4 @@
-# This script compares csSAM, TOAST, CIBERSORTx, CARseq in one replicate.
+# This script compares csSAM, TOAST, CARseq with noise in the cell fractions.
 # FDR:
 #   sensitivity
 #   1-precision (false discovery rate)
@@ -21,7 +21,7 @@ compute_metrics_from_pval_matrix = function(res, method, config) {
   }
   pvalue_cutoff = 0.05
   fdr_cutoff = 0.1
-  H = 3  # number of cell types
+  H = 6  # number of cell types
   # Genes that are differentially expressed in cell type 1
   gene_indices_DE = 1:2000
   # Genes that are not differentially expressed in any cell type
@@ -35,7 +35,7 @@ compute_metrics_from_pval_matrix = function(res, method, config) {
     number_of_discoveries_list[[h]] = sum(padj < fdr_cutoff, na.rm=TRUE)
   }
   # Calculate total FDR and sensitivity across cell types
-  fold_changes = as.numeric(unlist(strsplit(gsub(".*_pattern_|_replicate_.*", "", config), "_")))
+  fold_changes = as.numeric(unlist(strsplit(gsub(".*_pattern_|_replicate_.*", "", config), "_")))[c(3, 1, 2, 3, 3, 3)]
   has_fold_changes = which(fold_changes != 1)
   fdr = 1 - sum(unlist(number_of_true_discoveries_list[has_fold_changes])) /
       sum(unlist(number_of_discoveries_list))
@@ -76,7 +76,7 @@ compute_metrics_from_fdr_matrix = function(res, method, config) {
   if (is.null(res)) return(NA)
   pvalue_cutoff = 0.05
   fdr_cutoff = 0.1
-  H = 3  # number of cell types
+  H = 6  # number of cell types
   # Genes that are differentially expressed in cell type 1
   gene_indices_DE = 1:2000
   # Genes that are not differentially expressed in any cell type
@@ -90,7 +90,7 @@ compute_metrics_from_fdr_matrix = function(res, method, config) {
     number_of_discoveries_list[[h]] = sum(padj < fdr_cutoff, na.rm=TRUE)
   }
   # Calculate total FDR and sensitivity across cell types
-  fold_changes = as.numeric(unlist(strsplit(gsub(".*_pattern_|_replicate_.*", "", config), "_")))
+  fold_changes = as.numeric(unlist(strsplit(gsub(".*_pattern_|_replicate_.*", "", config), "_")))[c(3, 1, 2, 3, 3, 3)]
   has_fold_changes = which(fold_changes != 1)
   fdr = 1 - sum(unlist(number_of_true_discoveries_list[has_fold_changes])) /
     sum(unlist(number_of_discoveries_list))
@@ -123,11 +123,11 @@ collect_evaluation_metrics = function(config) {
   TOAST_TPM_res = new.env()
   # CIBERSORTx_res = new.env()
   CARseq_res = new.env()
-  tryCatch(load(file=file.path(config, "csSAM_res.RData"), envir = csSAM_res), error=function(e) {print(e)})
+  tryCatch(load(file=file.path("..", "simulation", config, "csSAM_res.RData"), envir = csSAM_res), error=function(e) {print(e)})
   # tryCatch(load(file=file.path(config, "TOAST_res.RData"), envir = TOAST_res), error=function(e) {print(e)})
-  tryCatch(load(file=file.path(config, "TOAST_TPM_res.RData"), envir = TOAST_TPM_res), error=function(e) {print(e)})
+  tryCatch(load(file=file.path("..", "simulation", config, "TOAST_TPM_res.RData"), envir = TOAST_TPM_res), error=function(e) {print(e)})
   # tryCatch(load(file=file.path(config, "CIBERSORTx_res.RData"), envir = CIBERSORTx_res), error=function(e) {print(e)})
-  tryCatch(load(file=file.path(config, "CARseq_res.RData"), envir = CARseq_res), error=function(e) {print(e)})
+  tryCatch(load(file=file.path("..", "simulation", config, "CARseq_res.RData"), envir = CARseq_res), error=function(e) {print(e)})
 
   metrics_list = list()
   ############################################################
@@ -192,7 +192,8 @@ collect_evaluation_metrics = function(config) {
 
 collect_evaluation_metrics_with_params = function(n, DE_pattern, DE_pattern_index, replicate) {
   # Generate the RData file name
-  RDatafolder = sprintf("n_%s_DE_pattern_%s_replicate_%s",
+  RDatafolder = sprintf(
+                        "n_%s_DE_pattern_%s_replicate_%s",
                         n,
                         paste(DE_pattern, collapse="_"),
                         replicate)
@@ -304,7 +305,10 @@ library(ggplot2)
 metrics = read.csv(file = "../results/compare_methods_metrics_with_noise_0.1.csv", as.is = TRUE)
 metrics$fdr[(metrics$number_of_discoveries_ct1 +
                metrics$number_of_discoveries_ct2 +
-               metrics$number_of_discoveries_ct3) <= 10] = 0
+               metrics$number_of_discoveries_ct3 +
+               metrics$number_of_discoveries_ct4 +
+               metrics$number_of_discoveries_ct5 +
+               metrics$number_of_discoveries_ct6) <= 10] = 0
 
 names(metrics) = names(metrics) %>%
   gsub("power", "DEGenes__PositiveRate", x=.) %>%
@@ -397,26 +401,21 @@ dev.off()
 # show how much noise was incorporated in the examples
 envir1 = new.env()
 envir201 = new.env()
-load("n_50_DE_pattern_2_1_1_replicate_1/simulation.RData", envir=envir1)
-load("n_50_DE_pattern_2_1_1_replicate_201/simulation.RData", envir=envir201)
-pdf("cell_fraction_noise_in_simulation.pdf", width=5.5, height=2)
-opar = par(mfrow=c(1, 3), mar=c(6, 4.5, 1, 1))
-plot(envir1$rho[,1], envir201$rho[,1],
-     cex=0.25, col=rgb(0,0,0,0.5),
-     xlab="true cell fraction", ylab="cell fraction with noise",
-     sub="cell type 1", cex.sub=1.1)
-abline(0, 1, lty="dashed", col=rgb(0.7,0.7,0.7,0.5))
-plot(envir1$rho[,2], envir201$rho[,2],
-     cex=0.25, col=rgb(0,0,0,0.5),
-     xlab="true cell fraction", ylab="cell fraction with noise",
-     sub="cell type 2", cex.sub=1.1)
-abline(0, 1, lty="dashed", col=rgb(0.7,0.7,0.7,0.5))
-plot(envir1$rho[,3], envir201$rho[,3],
-     cex=0.25, col=rgb(0,0,0,0.5), 
-     xlab="true cell fraction", ylab="cell fraction with noise",
-     sub="cell type 3", cex.sub=1.1)
-abline(0, 1, lty="dashed", col=rgb(0.7,0.7,0.7,0.5))
+load("../simulation/n_50_DE_pattern_2_1_1_replicate_1/simulation.RData", envir=envir1)
+load("../simulation/n_50_DE_pattern_2_1_1_replicate_201/simulation.RData", envir=envir201)
+pdf("../figures/cell_fraction_noise_in_simulation.pdf", width=5.5, height=4)
+opar = par(mfrow=c(2, 3), mar=c(4.4, 4.2, 1, 0.8))
+H = 6
+# y axis: cell fraction from ICeD-T adjusted by "empirical" cell size factors
+for (h in 1:H) {
+  plot(envir1$rho[,h], envir201$rho[,h],
+       cex=0.25, col=rgb(0,0,0,0.5),
+       xlab="true cell fraction", ylab="cell fraction with noise",
+       main=paste("cell type", h), cex.main=1)
+  abline(0, 1, lty="dashed", col=rgb(0.7,0.7,0.7,0.5))
+}
 dev.off()
+
 
 ############################################################
 # generate plots (replicates 401..410, size_factor 1.2)
@@ -426,7 +425,10 @@ library(ggplot2)
 metrics = read.csv(file = "../results/compare_methods_metrics_size_factor_1.2.csv", as.is = TRUE)
 metrics$fdr[(metrics$number_of_discoveries_ct1 +
                metrics$number_of_discoveries_ct2 +
-               metrics$number_of_discoveries_ct3) <= 10] = 0
+               metrics$number_of_discoveries_ct3 +
+               metrics$number_of_discoveries_ct4 +
+               metrics$number_of_discoveries_ct5 +
+               metrics$number_of_discoveries_ct6) <= 10] = 0
 
 names(metrics) = names(metrics) %>%
   gsub("power", "DEGenes__PositiveRate", x=.) %>%
@@ -528,7 +530,10 @@ library(ggplot2)
 metrics = read.csv(file = "../results/compare_methods_metrics_size_factor_2.csv", as.is = TRUE)
 metrics$fdr[(metrics$number_of_discoveries_ct1 +
                metrics$number_of_discoveries_ct2 +
-               metrics$number_of_discoveries_ct3) <= 10] = 0
+               metrics$number_of_discoveries_ct3 +
+               metrics$number_of_discoveries_ct4 +
+               metrics$number_of_discoveries_ct5 +
+               metrics$number_of_discoveries_ct6) <= 10] = 0
 
 names(metrics) = names(metrics) %>%
   gsub("power", "DEGenes__PositiveRate", x=.) %>%

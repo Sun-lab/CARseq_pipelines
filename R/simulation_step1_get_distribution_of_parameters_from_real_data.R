@@ -46,9 +46,11 @@ stopifnot(as.numeric(R.version$minor) >= 6.0)  # R < 3.6.0 has a different RNG
 set.seed(1234)
 
 # proportion estimates from ICeDT
-prop = as.data.frame(readRDS("../MTG/prop_MTG.rds")$ICeDT)
-prop$Other = rowSums(prop[, c("Astro", "Micro", "Oligo", "OPC")])
-prop = as.matrix(prop[, c("Other", "Exc", "Inh")])
+# 6 cell types in the current simulation setup 
+prop = as.matrix(readRDS("../MTG/prop_MTG.rds")$ICeDT)
+# 3 cell types in the old simulation setup
+# prop$Other = rowSums(prop[, c("Astro", "Micro", "Oligo", "OPC")])
+# prop = as.matrix(prop[, c("Other", "Exc", "Inh")])
 
 # differential expression
 d = exp(CMC_clinical_merged2$log_depth)
@@ -66,7 +68,9 @@ rd75 = apply(CMC_count, 1, function(x) quantile(x, 0.75))
 # specify design matrix
 cell_type_specific_variables_simulation = array(1, dim=c(n_B, H, 1))
 
-# H cell types, 1 clinical variable, 1 overdispersion parameter,
+# The number of parameters refers to the triple of
+# (1 joint coefficient for H cell types, 1 coefficient for 1 clinical variable,
+#  1 overdispersion parameter).
 number_of_parameters = 3
 estimates_mat = matrix(nrow=batchsize, ncol=number_of_parameters)
 # Start hypothesis testing

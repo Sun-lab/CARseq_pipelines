@@ -44,10 +44,8 @@ CMC_count = CMC_count[, match(CMC_clinical_merged2$RNAseq.Sample_RNA_ID, colname
 stopifnot(as.numeric(R.version$minor) >= 6.0)  # R < 3.6.0 has a different RNG
 set.seed(1234)
 
-# proportion estimates from ICeDT
-prop = as.data.frame(readRDS("../MTG/prop_MTG.rds")$ICeDT)
-prop$Other = rowSums(prop[, c("Astro", "Micro", "Oligo", "OPC")])
-prop = as.matrix(prop[, c("Other", "Exc", "Inh")])
+# six cell types in proportion estimates from ICeDT
+prop = readRDS("../MTG/prop_MTG.rds")$ICeDT
 
 # differential expression
 d = exp(CMC_clinical_merged2$log_depth)
@@ -92,22 +90,23 @@ MTG_statistics = readRDS("../MTG/all_genes_MTG.rds")
 multivariate_gaussian_model = mclust::mvn(modelName = "Ellipsoidal", estimates[,1:3])
 multivariate_gaussian_model$parameters$mean
 multivariate_gaussian_model$parameters$variance$Sigma
-# Three cell types, RIN effect, overdispersion, and gene length
-param_mean = c(rep(multivariate_gaussian_model$parameters$mean[1], 3),
+# Six cell types, RIN effect, overdispersion, and gene length
+param_mean = c(rep(multivariate_gaussian_model$parameters$mean[1], H),
                multivariate_gaussian_model$parameters$mean[2:3],
                MTG_statistics$mean_log_gene_length)
 
-# Three cell types, RIN effect, overdispersion, and gene length
-param_sigma = matrix(0, nrow=6, ncol=6)
-param_sigma[3:5, 3:5] = multivariate_gaussian_model$parameters$variance$Sigma
-param_sigma[1:2, 5] = param_sigma[5, 1:2] = param_sigma[3, 5]  # overdispersion and cell type expr
-param_sigma[1:2, 4] = param_sigma[4, 1:2] = param_sigma[3, 4]  # RIN effect and cell type expr
-param_sigma[2:3, 1] = param_sigma[1, 2:3] = 
-  param_sigma[3, 2] = param_sigma[2, 3] = 
-  MTG_statistics$cor_between_cell_types * param_sigma[3, 3]
-param_sigma[1, 1] = param_sigma[2, 2] = param_sigma[3, 3]
-param_sigma[1:3, 6] = param_sigma[6, 1:3] = MTG_statistics$cor_between_cell_type_and_gene_length
-param_sigma[6, 6] = (MTG_statistics$sd_log_gene_length)^2
+# TODO: may need to change the order of cell types (or just 1 is minor, 2 is major)
+# 9 dims for six cell types, RIN effect, overdispersion, and gene length
+param_sigma = matrix(0, nrow=H+3, ncol=H+3)
+param_sigma[H:(H+2), H:(H+2)] = multivariate_gaussian_model$parameters$variance$Sigma  # Cov of last cell type, RIN effect, and overdispersion
+param_sigma[1:(H-1), H+2] = param_sigma[H+2, 1:(H-1)] = param_sigma[H, H+2]  # Cov of overdispersion and cell type expr
+param_sigma[1:(H-1), H+1] = param_sigma[H+1, 1:(H-1)] = param_sigma[H, H+1]  # RIN effect and cell type expr
+param_sigma[1:H, 1:H][upper.tri(param_sigma[1:H, 1:H])] = MTG_statistics$cor_between_cell_types * param_sigma[H, H]
+param_sigma[1:H, 1:H][lower.tri(param_sigma[1:H, 1:H])] = MTG_statistics$cor_between_cell_types * param_sigma[H, H]
+
+diag(param_sigma)[1:(H-1)] = diag(param_sigma)[H]
+param_sigma[1:H, H+3] = param_sigma[H+3, 1:H] = MTG_statistics$cor_between_cell_type_and_gene_length
+param_sigma[H+3, H+3] = (MTG_statistics$sd_log_gene_length)^2
 
 # We will simulate cell type-specific expression using:
 # Rfast::rmvnorm(1, param_mean, param_sigma)
@@ -131,12 +130,15 @@ RIN_sd = sqrt(RIN_model$parameters$variance$sigmasq)
 # Function to generate data. This is not a standalone function as it needs the help from
 # parameters that we have just fitted.
 simulate_data = function(n = 100, DE_pattern = c(2, 1, 1), replicate = 1) {
+  # Recast the triple "DE_pattern" (Exc, Inh, Other) into 
+  # a six dimension vector of (Astro, Exc, Inh, Micro, Oligo, OPC):
+  DE_pattern_full = DE_pattern[c(3, 1, 2, 3, 3, 3)]
   # Generate the RData file name
-  RDatafolder = sprintf("../data/n_%s_DE_pattern_%s_replicate_%s",
+  RDatafolder = sprintf("n_%s_DE_pattern_%s_replicate_%s",
                         n,
                         paste(DE_pattern, collapse="_"),
                         replicate)
-  dir.create(RDatafolder, showWarnings = FALSE, recursive = TRUE)
+  dir.create(file.path("../simulation", RDatafolder), showWarnings = FALSE, recursive = TRUE)
   # Compute a deterministic seed from the RData file name
   # md5 is overkill but it works
   seed_from_config = strtoi(substr(openssl::md5(RDatafolder), 1, 7), 16L)
@@ -150,8 +152,8 @@ simulate_data = function(n = 100, DE_pattern = c(2, 1, 1), replicate = 1) {
   # generate cell type-specific expression
   # Three cell types, RIN effect, overdispersion, and gene length
   cell_type_specific_expression = Rfast::rmvnorm(G, param_mean, param_sigma)
-  cell_type_specific_expression[, c(1:3, 5:6)] = exp(cell_type_specific_expression[, c(1:3, 5:6)])
-  colnames(cell_type_specific_expression) = c("Exc", "Inh", "Other", "RIN", "overdispersion", "gene_lengths")
+  cell_type_specific_expression[, c(1:H, (H+2):(H+3))] = exp(cell_type_specific_expression[, c(1:H, (H+2):(H+3))])
+  colnames(cell_type_specific_expression) = c(colnames(rho), "RIN", "overdispersion", "gene_lengths")
   clinical_variables_effect_size = cell_type_specific_expression[,"RIN", drop=FALSE]
   
   
@@ -161,10 +163,10 @@ simulate_data = function(n = 100, DE_pattern = c(2, 1, 1), replicate = 1) {
   
   # pick the signature genes by computing log fold change from 
   # cell type-specific mean among the genes without differential expression
-  fold_change_among_non_DE_genes = matrix(0, nrow=G, ncol=3)
-  fold_change_among_non_DE_genes[, 1] = cell_type_specific_expression[, 1] / rowSums(cell_type_specific_expression[, 2:3])
-  fold_change_among_non_DE_genes[, 2] = cell_type_specific_expression[, 2] / rowSums(cell_type_specific_expression[, c(1,3)])
-  fold_change_among_non_DE_genes[, 3] = cell_type_specific_expression[, 3] / rowSums(cell_type_specific_expression[, 1:2])
+  fold_change_among_non_DE_genes = matrix(0, nrow=G, ncol=H)
+  for (h in 1:H) {
+    fold_change_among_non_DE_genes[, h] = cell_type_specific_expression[, h] / rowSums(cell_type_specific_expression[, 1:H][, -h])
+  }
   signature_gene_list = list()
   for (h in seq_len(ncol(fold_change_among_non_DE_genes))) {
     # need to exclude the DE genes at the top of the table
@@ -175,9 +177,10 @@ simulate_data = function(n = 100, DE_pattern = c(2, 1, 1), replicate = 1) {
   signature_gene_unique_indices = unlist(signature_gene_list)
   signature_gene_unique_indices = signature_gene_unique_indices[!duplicated(signature_gene_unique_indices)]
   
-  
   # generate gene lengths
-  gene_lengths = cell_type_specific_expression[, 5]
+  # To make the gene lengths more realistic, they should be rounded.
+  # However, not rounding will not make much difference in the simulation since the gene lengths are quite large. 
+  gene_lengths = round(cell_type_specific_expression[, "gene_lengths"])
   
   # generate read depth
   d = round(exp(rnorm(n, log_read_depth_mean, log_read_depth_sd)))
@@ -192,30 +195,30 @@ simulate_data = function(n = 100, DE_pattern = c(2, 1, 1), replicate = 1) {
   expected_mean_expression = array(0, dim=c(G, n, 2))
   gene_indices = 1:round(0.5 * prop_of_DE_genes * G)
   expected_mean_expression[gene_indices, , 1] = 
-    cell_type_specific_expression[gene_indices, 1:3] %*%
-    (t(rho) * DE_pattern) %*%
+    cell_type_specific_expression[gene_indices, 1:H] %*%
+    (t(rho) * DE_pattern_full) %*%
     diag(d) *
     exp(tcrossprod(clinical_variables_effect_size[gene_indices,], clinical_variables))
   expected_mean_expression[gene_indices, , 2] = 
-    cell_type_specific_expression[gene_indices, 1:3] %*%
+    cell_type_specific_expression[gene_indices, 1:H] %*%
     t(rho) %*%
     diag(d) *
     exp(tcrossprod(clinical_variables_effect_size[gene_indices,], clinical_variables))
   gene_indices = (1+round(0.5 * prop_of_DE_genes * G)):round(prop_of_DE_genes * G)
   expected_mean_expression[gene_indices, , 1] = 
-    cell_type_specific_expression[gene_indices, 1:3] %*%
+    cell_type_specific_expression[gene_indices, 1:H] %*%
     t(rho) %*%
     diag(d) *
     exp(tcrossprod(clinical_variables_effect_size[gene_indices,], clinical_variables))
   expected_mean_expression[gene_indices, , 2] =   
-    cell_type_specific_expression[gene_indices, 1:3] %*%
-    (t(rho) * DE_pattern) %*%
+    cell_type_specific_expression[gene_indices, 1:H] %*%
+    (t(rho) * DE_pattern_full) %*%
     diag(d) *
     exp(tcrossprod(clinical_variables_effect_size[gene_indices,], clinical_variables))
   gene_indices = (1+round(prop_of_DE_genes * G)):G
   expected_mean_expression[gene_indices, , 1] =  
       expected_mean_expression[gene_indices, , 2] = 
-    cell_type_specific_expression[gene_indices, 1:3] %*%
+    cell_type_specific_expression[gene_indices, 1:H] %*%
     t(rho) %*%
     diag(d) *
     exp(tcrossprod(clinical_variables_effect_size[gene_indices,], clinical_variables))
@@ -260,19 +263,19 @@ simulate_data = function(n = 100, DE_pattern = c(2, 1, 1), replicate = 1) {
   observed_TPM = tpm3(observed_read_count, gene_lengths)
   
   # TPM of signature matrix
-  signature_gene_TPM = tpm3(cell_type_specific_expression[, 1:3], gene_lengths)[signature_gene_unique_indices, ]
+  signature_gene_TPM = tpm3(cell_type_specific_expression[, 1:H], gene_lengths)[signature_gene_unique_indices, ]
   
   # TPM of signature matrix after adjustment by considering the batch effect RIN.
   # The adjustment is needed because there is no "centering" after the batch effect RIN is added.
   # After the adjustment, the mixture TPM will be roughly weighted sum of reference cell type-specific TPM.
   # We multiply the reference cell type-specific expression by mean of effects stemming from batch effect RIN.
   # Note that we did not consider that there is differential expression between case/control samples.
-  adjusted_cell_type_specific_expression = cell_type_specific_expression[,1:3] * colMeans(exp(tcrossprod(clinical_variables, clinical_variables_effect_size)))
+  adjusted_cell_type_specific_expression = cell_type_specific_expression[,1:H] * colMeans(exp(tcrossprod(clinical_variables, clinical_variables_effect_size)))
   # The result is similar to:
-  # adjusted_cell_type_specific_expression = cell_type_specific_expression[,1:3] * as.numeric(exp(mean(clinical_variables) * clinical_variables_effect_size))
-  adjusted_signature_gene_TPM = tpm3(adjusted_cell_type_specific_expression, gene_lengths)[signature_gene_unique_indices, 1:3]
-  # Well, we actually only wanted cell type-specific expression (the first 3 columns) in cell_type_specific_expression:
-  cell_type_specific_expression = cell_type_specific_expression[, 1:3]
+  # adjusted_cell_type_specific_expression = cell_type_specific_expression[,1:H] * as.numeric(exp(mean(clinical_variables) * clinical_variables_effect_size))
+  adjusted_signature_gene_TPM = tpm3(adjusted_cell_type_specific_expression, gene_lengths)[signature_gene_unique_indices, 1:H]
+  # Well, we actually only wanted cell type-specific expression (the first H columns) in cell_type_specific_expression:
+  cell_type_specific_expression = cell_type_specific_expression[, 1:H]
   
   # Add gene ID
   rownames(observed_read_count) = rownames(observed_TPM) = paste0("gene", 1:10000)
@@ -285,20 +288,21 @@ simulate_data = function(n = 100, DE_pattern = c(2, 1, 1), replicate = 1) {
   colnames(geneSymbol_and_signature_gene_TPM) = c("geneSymbol", colnames(adjusted_signature_gene_TPM))
   # generate matrices as input for CIBERSORTx online
   write.table(geneSymbol_and_observed_TPM,
-              file = file.path(RDatafolder, sprintf("CIBERSORTx_input_observed_TPM_%s.txt", RDatafolder)),
+              file = file.path("../simulation", RDatafolder, sprintf("CIBERSORTx_input_observed_TPM_%s.txt", RDatafolder)),
               quote = FALSE,
               row.names = FALSE,
               sep="\t")
   write.table(geneSymbol_and_signature_gene_TPM,
-              file = file.path(RDatafolder, sprintf("CIBERSORTx_input_signature_gene_TPM_%s.txt", RDatafolder)),
+              file = file.path("../simulation", RDatafolder, sprintf("CIBERSORTx_input_signature_gene_TPM_%s.txt", RDatafolder)),
               quote = FALSE,
               row.names = FALSE,
               sep="\t")
   write(paste0("gene", 1:10000),
-        file = file.path(RDatafolder, sprintf("CIBERSORTx_input_gene_subset_1_10000_%s.txt", RDatafolder)))
+        file = file.path("../simulation", RDatafolder, sprintf("CIBERSORTx_input_gene_subset_1_10000_%s.txt", RDatafolder)))
   
   
   # save them into RData
+  fold_change = max(DE_pattern)  # probably not used
   save(list = c(
     "fold_change",
     "n",
@@ -318,7 +322,7 @@ simulate_data = function(n = 100, DE_pattern = c(2, 1, 1), replicate = 1) {
     "adjusted_signature_gene_TPM",
     "rho_from_TPM"
     ),
-    file = file.path(RDatafolder, "simulation.RData")
+    file = file.path("../simulation", RDatafolder, "simulation.RData")
   )
   # return the configuration
   RDatafolder
