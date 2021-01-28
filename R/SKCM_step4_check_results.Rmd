@@ -13,11 +13,14 @@ library(ggrepel)
 
 library(CARseq)
 library(fgsea)
+library(DESeq2)
 theme_set(theme_bw())
 ```
 
 
-# Load results 
+# CARseq results
+
+## Load results 
 
 Read in gene expression, cell type proportion estimates, as well as covariates data
 
@@ -37,7 +40,7 @@ colSums(qval < 0.1, na.rm=TRUE)
 ```
 
 
-# Read in gene annoations
+## Read in gene annoations
 
 ```{r}
 anno= fread("../data/gencode.v22.genes.txt")
@@ -49,11 +52,16 @@ anno = anno[match(rownames(res$p), anno$geneId),]
 dim(anno)
 anno[1:2,]
 
+anno$gene_name = anno$hgnc_symbol
+table(anno$gene_name == "")
+ww1 = which(anno$gene_name == "")
+anno$gene_name[ww1] = anno$ensembl_gene_id[ww1]
+
 gmtfile_reactome = file.path("../data/c2.cp.reactome.v7.1.symbols.gmt")
 pathways_reactome = gmtPathways(gmtfile_reactome)
 ```
 
-# valcano plot
+## valcano plot
 
 ```{r warning = FALSE, fig.width = 5, fig.height = 4}
 qcut = 1e-6
@@ -65,11 +73,6 @@ res$lfc[1:2,]
 
 qval[1:2,]
 table(rownames(qval) == rownames(res$shrunken_lfc))
-
-anno$gene_name = anno$hgnc_symbol
-table(anno$gene_name == "")
-ww1 = which(anno$gene_name == "")
-anno$gene_name[ww1] = anno$ensembl_gene_id[ww1]
 
 for(ct1 in cell_types){
   cat(ct1, "\n")
@@ -92,7 +95,9 @@ for(ct1 in cell_types){
   df1$DE[which(df1$qvalue < 0.1 & df1$logFC > 0)] = 1
   df1$DE[which(df1$qvalue < 0.1 & df1$logFC < 0)] = -1
   df1$gene[which(df1$DE == 0)] = ""
+
   df1$DE = as.factor(df1$DE)
+
 
   df1$qvalue[which(df1$qvalue < qcut)] = qcut
   df1$logFC[which(df1$logFC > logFC_cut)] = logFC_cut
@@ -112,7 +117,7 @@ for(ct1 in cell_types){
 
 ```
 
-# gene set enrichment anlaysis
+## gene set enrichment anlaysis
 
 ```{r warning = FALSE}
 fgsea_all = NULL
@@ -120,11 +125,13 @@ topP_list = list()
 
 cell_types = colnames(res$p)
 
+set.seed(1234)
+
 for(ct1 in cell_types){
   cat(ct1, "\n")
-  stats = res$p[,ct1]
+  stats = -log10(res$p[,ct1])
   names(stats) = anno$hgnc_symbol
-  # deduplicate by taking the one with highest one of possible duplicated gene symbols
+  # deduplicate by taking the one with highest -log10 p-value
   stats = na.omit(stats[unique(names(stats))])
   
   fgseaRes = fgseaMultilevel(pathways_reactome, stats, minSize=10, 
@@ -134,92 +141,143 @@ for(ct1 in cell_types){
   fgseaResPositive = fgseaRes[fgseaRes$NES > 0, ]
   fgseaResPositive$pathway = gsub("^REACTOME_", "", 
                                   fgseaResPositive$pathway, perl=TRUE)
+  fgseaResPositive = fgseaResPositive[order(fgseaResPositive$padj),]
   
   fgseaResPositive$cell_type = rep(ct1, nrow(fgseaResPositive))
   fgsea_all = rbind(fgsea_all, fgseaResPositive)
   
   topPathways = fgseaResPositive[, c("pathway", "padj", "NES", "cell_type")]
-  topPathways = topPathways[which(topPathways$padj < 1e-5),]
+  w2kp = which(topPathways$padj < 0.01)
+  
+  if(length(w2kp) == 0){ 
+    next
+  } else if(length(w2kp) > 10){ 
+    w2kp = w2kp[1:10]
+  }
+  
+  topPathways = topPathways[w2kp,]
   topPathways = topPathways[order(topPathways$padj),]
   
-  str1 = "ANTIGEN_ACTIVATES_B_CELL_RECEPTOR_BCR_LEADING_TO_GENERATION_OF_SECOND_MESSENGERS"
-  str1_short = "ANTIGEN_ACTIVATES_BCR_GENERATION_OF_SECOND_MESSENGERS"
-  topPathways$pathway[which(topPathways$pathway == str1)] = str1_short
-  
-  str1 = "IMMUNOREGULATORY_INTERACTIONS_BETWEEN_A_LYMPHOID_AND_A_NON_LYMPHOID_CELL"
-  str1_short = "IMMU_INTERACTIONS_LYMPHOID_VS_NON_LYMPHOID_CELL"
-  topPathways$pathway[which(topPathways$pathway == str1)] = str1_short
+  topPathways$pathway = substr(topPathways$pathway, 1,60)
 
-  print(topPathways)
+  print(topPathways[,-c("cell_type")])
   cat("\n")
   
   if(nrow(topPathways) > 0){
     topP_list[[ct1]] = topPathways
   }
+  
 }
 ```
 
-# summarize GSEA results
+## summarize GSEA results
 ```{r}
 sapply(topP_list, nrow)
 cbp1 = c("#D55E00","#E69F00", "#56B4E9", "#009E73",
           "#F0E442", "#999999", "#0072B2",  "#CC79A7")
 names(cbp1) = cell_types
-```
 
-## B cell
-```{r fig.width = 8, fig.height = 2}
-  topPathways = topP_list[["Bcells"]]
+gp1 <- function(topPathways, color1){
   ggplot(data=topPathways, aes(x=pathway, y=-log10(padj), fill=cell_type)) + 
     geom_bar(stat="identity") + coord_flip() + 
     scale_x_discrete(limits = rev(topPathways$pathway)) + 
-    scale_fill_manual(values=cbp1["Bcells"])
+    scale_fill_manual(values=color1)
+}
 ```
 
-## CAFs
-```{r fig.width = 7, fig.height = 3}
-  topPathways = topP_list[["CAFs"]]
-  ggplot(data=topPathways, aes(x=pathway, y=-log10(padj), fill=cell_type)) + 
-    geom_bar(stat="identity") + coord_flip() + 
-    scale_x_discrete(limits = rev(topPathways$pathway)) + 
-    scale_fill_manual(values=cbp1["CAFs"])
+
+### CAFs
+```{r fig.width = 9, fig.height = 3}
+ct1 = "CAFs"
+gp1(topP_list[[ct1]], cbp1[ct1])
 ```
 
-## CD4_Tcells
-```{r fig.width = 8, fig.height = 4}
-  topPathways = topP_list[["CD4_Tcells"]]
-  ggplot(data=topPathways, aes(x=pathway, y=-log10(padj), fill=cell_type)) + 
-    geom_bar(stat="identity") + coord_flip() + 
-    scale_x_discrete(limits = rev(topPathways$pathway)) + 
-    scale_fill_manual(values=cbp1["CD4_Tcells"])
+### CD4_Tcells
+```{r fig.width = 9, fig.height = 2.1}
+ct1 = "CD4_Tcells"
+gp1(topP_list[[ct1]], cbp1[ct1])
 ```
 
-## CD8_Tcells
-```{r fig.width = 7, fig.height = 0.75}
-  topPathways = topP_list[["CD8_Tcells"]]
-  ggplot(data=topPathways, aes(x=pathway, y=-log10(padj), fill=cell_type)) + 
-    geom_bar(stat="identity") + coord_flip() + 
-    scale_x_discrete(limits = rev(topPathways$pathway)) + 
-    scale_fill_manual(values=cbp1["CD8_Tcells"])
+### Endothelial
+```{r fig.width = 10, fig.height = 3}
+ct1 = "Endothelial"
+gp1(topP_list[[ct1]], cbp1[ct1])
 ```
 
-## Endothelial
-```{r fig.width = 8, fig.height = 2.3}
-  topPathways = topP_list[["Endothelial"]]
-  ggplot(data=topPathways, aes(x=pathway, y=-log10(padj), fill=cell_type)) + 
-    geom_bar(stat="identity") + coord_flip() + 
-    scale_x_discrete(limits = rev(topPathways$pathway)) + 
-    scale_fill_manual(values=cbp1["Endothelial"])
+### Macrophages
+```{r fig.width = 6, fig.height = 1}
+ct1 = "Macrophages"
+gp1(topP_list[[ct1]], cbp1[ct1])
 ```
 
-## Cancer_cells
-```{r fig.width = 7, fig.height = 2.6}
-  topPathways = topP_list[["Cancer_cells"]]
-  ggplot(data=topPathways, aes(x=pathway, y=-log10(padj), fill=cell_type)) + 
-    geom_bar(stat="identity") + coord_flip() + 
-    scale_x_discrete(limits = rev(topPathways$pathway)) + 
-    scale_fill_manual(values=cbp1["Cancer_cells"])
+### NKcells
+```{r fig.width = 9, fig.height = 3}
+ct1 = "NKcells"
+gp1(topP_list[[ct1]], cbp1[ct1])
 ```
+
+
+# DESeq2 results
+
+## Load results 
+
+Read in gene expression, cell type proportion estimates, as well as covariates data
+
+```{r}
+resD = readRDS("../results/SKCM_DESeq2.rds")
+dim(resD)
+resD[1:2,]
+
+table(rownames(resD) == anno$geneId)
+resD$gene = anno$gene_name
+
+resD$DE = rep(0, nrow(resD))
+resD$DE[which(resD$padj < 0.1 & resD$log2FoldChange > 0)] = 1
+resD$DE[which(resD$padj < 0.1 & resD$log2FoldChange < 0)] = -1
+resD$gene[which(resD$DE == 0)] = ""
+resD$DE = as.factor(resD$DE)
+
+table(resD$padj < 0.1, resD$DE, useNA = "ifany")
+
+dim(resD)
+resD[1:2,]
+```
+
+## valcano plot
+```{r warning = FALSE, fig.width = 5, fig.height = 4}
+resD.df = as.data.frame(resD)
+g1 = ggplot(resD.df, aes(x=log2FoldChange, y=-log10(padj), col=DE)) +
+  geom_point(size = 0.4) + xlim(-4.6, 4.6) + 
+  scale_color_manual(values=c("#0072B2", "#CCCCCC", "#FC4E07")) +
+  theme(legend.position = "none") + 
+  geom_text_repel(aes(label = gene), size = 3.5, 
+                  min.segment.length = 0, 
+                  box.padding = unit(0.25, "lines"),
+                  point.padding = unit(0.25, "lines")) 
+g1
+```
+
+## gene set enrichment anlaysis
+
+```{r warning = FALSE}
+stats = -log10(resD$pvalue)
+names(stats) = anno$hgnc_symbol
+stats = na.omit(stats[unique(names(stats))])
+
+fgseaRes = fgseaMultilevel(pathways_reactome, stats, minSize=10, 
+                           maxSize=1000, gseaParam = 0, eps = 0)
+
+# genes that are enriched in small p-values
+fgseaResPositive = fgseaRes[fgseaRes$NES > 0, ]
+fgseaResPositive$pathway = gsub("^REACTOME_", "", 
+                                fgseaResPositive$pathway, perl=TRUE)
+
+topPathways = fgseaResPositive[, c("pathway", "padj", "NES")]
+topPathways = topPathways[order(topPathways$padj),]
+
+topPathways[1:10,]
+```
+
 
 ```{r}
 gc()

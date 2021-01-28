@@ -1,0 +1,317 @@
+
+R version 4.0.3 (2020-10-10) -- "Bunny-Wunnies Freak Out"
+Copyright (C) 2020 The R Foundation for Statistical Computing
+Platform: x86_64-apple-darwin17.0 (64-bit)
+
+R is free software and comes with ABSOLUTELY NO WARRANTY.
+You are welcome to redistribute it under certain conditions.
+Type 'license()' or 'licence()' for distribution details.
+
+  Natural language support but running in an English locale
+
+R is a collaborative project with many contributors.
+Type 'contributors()' for more information and
+'citation()' on how to cite R or R packages in publications.
+
+Type 'demo()' for some demos, 'help()' for on-line help, or
+'help.start()' for an HTML browser interface to help.
+Type 'q()' to quit R.
+
+> 
+> library(DESeq2)
+Loading required package: S4Vectors
+Loading required package: stats4
+Loading required package: BiocGenerics
+Loading required package: parallel
+
+Attaching package: ‘BiocGenerics’
+
+The following objects are masked from ‘package:parallel’:
+
+    clusterApply, clusterApplyLB, clusterCall, clusterEvalQ,
+    clusterExport, clusterMap, parApply, parCapply, parLapply,
+    parLapplyLB, parRapply, parSapply, parSapplyLB
+
+The following objects are masked from ‘package:stats’:
+
+    IQR, mad, sd, var, xtabs
+
+The following objects are masked from ‘package:base’:
+
+    anyDuplicated, append, as.data.frame, basename, cbind, colnames,
+    dirname, do.call, duplicated, eval, evalq, Filter, Find, get, grep,
+    grepl, intersect, is.unsorted, lapply, Map, mapply, match, mget,
+    order, paste, pmax, pmax.int, pmin, pmin.int, Position, rank,
+    rbind, Reduce, rownames, sapply, setdiff, sort, table, tapply,
+    union, unique, unsplit, which.max, which.min
+
+
+Attaching package: ‘S4Vectors’
+
+The following object is masked from ‘package:base’:
+
+    expand.grid
+
+Loading required package: IRanges
+Loading required package: GenomicRanges
+Loading required package: GenomeInfoDb
+Loading required package: SummarizedExperiment
+Loading required package: MatrixGenerics
+Loading required package: matrixStats
+
+Attaching package: ‘MatrixGenerics’
+
+The following objects are masked from ‘package:matrixStats’:
+
+    colAlls, colAnyNAs, colAnys, colAvgsPerRowSet, colCollapse,
+    colCounts, colCummaxs, colCummins, colCumprods, colCumsums,
+    colDiffs, colIQRDiffs, colIQRs, colLogSumExps, colMadDiffs,
+    colMads, colMaxs, colMeans2, colMedians, colMins, colOrderStats,
+    colProds, colQuantiles, colRanges, colRanks, colSdDiffs, colSds,
+    colSums2, colTabulates, colVarDiffs, colVars, colWeightedMads,
+    colWeightedMeans, colWeightedMedians, colWeightedSds,
+    colWeightedVars, rowAlls, rowAnyNAs, rowAnys, rowAvgsPerColSet,
+    rowCollapse, rowCounts, rowCummaxs, rowCummins, rowCumprods,
+    rowCumsums, rowDiffs, rowIQRDiffs, rowIQRs, rowLogSumExps,
+    rowMadDiffs, rowMads, rowMaxs, rowMeans2, rowMedians, rowMins,
+    rowOrderStats, rowProds, rowQuantiles, rowRanges, rowRanks,
+    rowSdDiffs, rowSds, rowSums2, rowTabulates, rowVarDiffs, rowVars,
+    rowWeightedMads, rowWeightedMeans, rowWeightedMedians,
+    rowWeightedSds, rowWeightedVars
+
+Loading required package: Biobase
+Welcome to Bioconductor
+
+    Vignettes contain introductory material; view with
+    'browseVignettes()'. To cite Bioconductor, see
+    'citation("Biobase")', and for packages 'citation("pkgname")'.
+
+
+Attaching package: ‘Biobase’
+
+The following object is masked from ‘package:MatrixGenerics’:
+
+    rowMedians
+
+The following objects are masked from ‘package:matrixStats’:
+
+    anyMissing, rowMedians
+
+> 
+> # ------------------------------------------------------------------------
+> # read in bulk RNA-seq data
+> # ------------------------------------------------------------------------
+> 
+> counts = readRDS("../data/TCGA_SKCM_raw_counts.rds")
+> dim(counts)
+[1] 60483   472
+> counts[1:2,1:5]
+                   TCGA.D3.A8GB.06A TCGA.WE.A8ZN.06A TCGA.ER.A2NF.01A
+ENSG00000000003.13             1049              835             2748
+ENSG00000000005.5                20               21                3
+                   TCGA.HR.A2OH.06A TCGA.WE.A8K6.06A
+ENSG00000000003.13              617             1391
+ENSG00000000005.5                 1                0
+> 
+> # remove genes with low read counts: 
+> # genes with 75% percentile of read counts rd75 < 20 are removed
+> rd75   = apply(counts, 1, function(x) quantile(x, 0.75))
+> counts = counts[rd75 >= 20, ]
+> counts = round(counts)
+> 
+> dim(counts)
+[1] 19161   472
+> counts[1:2,1:5]
+                   TCGA.D3.A8GB.06A TCGA.WE.A8ZN.06A TCGA.ER.A2NF.01A
+ENSG00000000003.13             1049              835             2748
+ENSG00000000419.11             1062              312             1212
+                   TCGA.HR.A2OH.06A TCGA.WE.A8K6.06A
+ENSG00000000003.13              617             1391
+ENSG00000000419.11             2013             1787
+> 
+> # ------------------------------------------------------------------------
+> # read in covariate data
+> # ------------------------------------------------------------------------
+> 
+> col_data = readRDS("../data/SKCM_cavariates.rds")
+> class(col_data)
+[1] "data.frame"
+> 
+> dim(col_data)
+[1] 173  10
+> col_data[1:2,]
+  bcr_patient_barcode age_at_initial_pathologic_diagnosis gender stage
+1        TCGA-D3-A8GB                                  48   MALE   III
+2        TCGA-ER-A2NF                                  53   MALE   III
+  five_year_DSS tss scaled_age scaled_log_depth SurvivalP Survival
+1             0   1 -0.4479354       -0.8892329         0        0
+2             0   1 -0.1498861        0.1952321         0        0
+> 
+> is.factor(col_data$tss)
+[1] TRUE
+> 
+> colData = col_data
+> for(i in 1:ncol(colData)){
++   if(is.character(colData[[i]])){
++     colData[[i]] = as.factor(colData[[i]])
++   }
++ }
+> dim(colData)
+[1] 173  10
+> colData[1:2,]
+  bcr_patient_barcode age_at_initial_pathologic_diagnosis gender stage
+1        TCGA-D3-A8GB                                  48   MALE   III
+2        TCGA-ER-A2NF                                  53   MALE   III
+  five_year_DSS tss scaled_age scaled_log_depth SurvivalP Survival
+1             0   1 -0.4479354       -0.8892329         0        0
+2             0   1 -0.1498861        0.1952321         0        0
+> summary(colData)
+   bcr_patient_barcode age_at_initial_pathologic_diagnosis    gender   
+ TCGA-ER-A2NF:  2      Min.   :15.00                       FEMALE: 59  
+ TCGA-D3-A1Q3:  1      1st Qu.:44.00                       MALE  :114  
+ TCGA-D3-A1Q4:  1      Median :55.00                                   
+ TCGA-D3-A1Q6:  1      Mean   :55.51                                   
+ TCGA-D3-A1Q7:  1      3rd Qu.:68.00                                   
+ TCGA-D3-A1Q8:  1      Max.   :90.00                                   
+ (Other)     :166                                                      
+ stage    five_year_DSS    tss        scaled_age.V1     scaled_log_depth.V1
+ I  :54   Min.   :0.0000   1:135   Min.   :-2.4150610   Min.   :-7.219198  
+ II :44   1st Qu.:0.0000   2:  8   1st Qu.:-0.6863749   1st Qu.:-0.285315  
+ III:67   Median :1.0000   3: 14   Median :-0.0306663   Median : 0.156233  
+ IV : 8   Mean   :0.5665   4:  8   Mean   : 0.0000000   Mean   : 0.000000  
+          3rd Qu.:1.0000   5:  8   3rd Qu.: 0.7442619   3rd Qu.: 0.594213  
+          Max.   :1.0000           Max.   : 2.0556790   Max.   : 1.988353  
+                                                                           
+ SurvivalP Survival
+ 0:75      0:75    
+ 1:98      1:98    
+                   
+                   
+                   
+                   
+                   
+> 
+> # ------------------------------------------------------------------------
+> # Run DESeq2
+> # ------------------------------------------------------------------------
+> 
+> countData = counts
+> colnames(countData) = gsub(".", "-", substr(colnames(counts), 1, 12), fixed=T)
+> dim(countData)
+[1] 19161   472
+> countData[1:2,1:3]
+                   TCGA-D3-A8GB TCGA-WE-A8ZN TCGA-ER-A2NF
+ENSG00000000003.13         1049          835         2748
+ENSG00000000419.11         1062          312         1212
+> countData = countData[,match(colData$bcr_patient_barcode, colnames(countData))]
+> dim(countData)
+[1] 19161   173
+> 
+> dds = DESeqDataSetFromMatrix(countData = countData, 
++                              colData = colData,
++                              design = ~ gender + scaled_age + 
++                                scaled_log_depth + stage + tss + Survival)
+converting counts to integer mode
+> dds = DESeq(dds)
+estimating size factors
+estimating dispersions
+gene-wise dispersion estimates
+mean-dispersion relationship
+final dispersion estimates
+fitting model and testing
+> 
+> res = results(dds)
+> dim(res)
+[1] 19161     6
+> head(res)
+log2 fold change (MLE): Survival 1 vs 0 
+Wald test p-value: Survival 1 vs 0 
+DataFrame with 6 rows and 6 columns
+                    baseMean log2FoldChange     lfcSE       stat    pvalue
+                   <numeric>      <numeric> <numeric>  <numeric> <numeric>
+ENSG00000000003.13  2265.968    -0.04300412 0.1441685 -0.2982907  0.765481
+ENSG00000000419.11  1753.305     0.00579854 0.0838646  0.0691417  0.944877
+ENSG00000000457.12   854.198     0.14619076 0.0878568  1.6639669  0.096119
+ENSG00000000460.15   681.885    -0.21474162 0.1076192 -1.9953841  0.046001
+ENSG00000000938.11   689.598     0.21617402 0.1921053  1.1252893  0.260466
+ENSG00000000971.14  4230.211    -0.19869556 0.2616325 -0.7594453  0.447586
+                        padj
+                   <numeric>
+ENSG00000000003.13  0.913375
+ENSG00000000419.11  0.980292
+ENSG00000000457.12  0.382260
+ENSG00000000460.15  0.275806
+ENSG00000000938.11  0.589867
+ENSG00000000971.14  0.745771
+> summary(res)
+
+out of 19161 with nonzero total read count
+adjusted p-value < 0.1
+LFC > 0 (up)       : 486, 2.5%
+LFC < 0 (down)     : 344, 1.8%
+outliers [1]       : 0, 0%
+low counts [2]     : 372, 1.9%
+(mean count < 18)
+[1] see 'cooksCutoff' argument of ?results
+[2] see 'independentFiltering' argument of ?results
+
+> 
+> pdf("SKCM_pval_hist.pdf", width=3, height=3)
+> par(mar=c(5,4,1,1), bty="n")
+> hist(res$pvalue, main="", xlab="p-value")
+> dev.off()
+null device 
+          1 
+> 
+> saveRDS(res, file="../results/SKCM_DESeq2.rds")
+> 
+> gc()
+           used  (Mb) gc trigger  (Mb) limit (Mb)  max used  (Mb)
+Ncells  6119542 326.9   10931334 583.8         NA  10931334 583.8
+Vcells 33024929 252.0   96228281 734.2      32768 120285322 917.8
+> 
+> sessionInfo()
+R version 4.0.3 (2020-10-10)
+Platform: x86_64-apple-darwin17.0 (64-bit)
+Running under: macOS Catalina 10.15.7
+
+Matrix products: default
+BLAS:   /Library/Frameworks/R.framework/Versions/4.0/Resources/lib/libRblas.dylib
+LAPACK: /Library/Frameworks/R.framework/Versions/4.0/Resources/lib/libRlapack.dylib
+
+locale:
+[1] en_US.UTF-8/en_US.UTF-8/en_US.UTF-8/C/en_US.UTF-8/en_US.UTF-8
+
+attached base packages:
+[1] parallel  stats4    stats     graphics  grDevices utils     datasets 
+[8] methods   base     
+
+other attached packages:
+ [1] DESeq2_1.30.0               SummarizedExperiment_1.20.0
+ [3] Biobase_2.50.0              MatrixGenerics_1.2.0       
+ [5] matrixStats_0.57.0          GenomicRanges_1.42.0       
+ [7] GenomeInfoDb_1.26.2         IRanges_2.24.1             
+ [9] S4Vectors_0.28.1            BiocGenerics_0.36.0        
+
+loaded via a namespace (and not attached):
+ [1] genefilter_1.72.0      locfit_1.5-9.4         tidyselect_1.1.0      
+ [4] purrr_0.3.4            splines_4.0.3          lattice_0.20-41       
+ [7] colorspace_2.0-0       vctrs_0.3.6            generics_0.1.0        
+[10] blob_1.2.1             survival_3.2-7         XML_3.99-0.5          
+[13] rlang_0.4.10           pillar_1.4.7           glue_1.4.2            
+[16] DBI_1.1.0              BiocParallel_1.24.1    bit64_4.0.5           
+[19] RColorBrewer_1.1-2     GenomeInfoDbData_1.2.4 lifecycle_0.2.0       
+[22] zlibbioc_1.36.0        munsell_0.5.0          gtable_0.3.0          
+[25] memoise_1.1.0          geneplotter_1.68.0     AnnotationDbi_1.52.0  
+[28] Rcpp_1.0.5             xtable_1.8-4           scales_1.1.1          
+[31] DelayedArray_0.16.0    annotate_1.68.0        XVector_0.30.0        
+[34] bit_4.0.4              ggplot2_3.3.3          digest_0.6.27         
+[37] dplyr_1.0.2            grid_4.0.3             tools_4.0.3           
+[40] bitops_1.0-6           magrittr_2.0.1         RCurl_1.98-1.2        
+[43] RSQLite_2.2.1          tibble_3.0.4           crayon_1.3.4          
+[46] pkgconfig_2.0.3        ellipsis_0.3.1         Matrix_1.3-0          
+[49] httr_1.4.2             R6_2.5.0               compiler_4.0.3        
+> q(save="no")
+> proc.time()
+   user  system elapsed 
+169.442   2.301 172.276 
