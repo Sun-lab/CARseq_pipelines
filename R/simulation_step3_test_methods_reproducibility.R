@@ -2,15 +2,19 @@
 # source("test_TOAST_TPM.R")
 library(TOAST)
 library(CARseq)
+library(ggplot2)
+library(ggpointdensity)
+library(magrittr)
 
 n_list = c(50, 100, 200)
 
+label_data_frame = effect_sizes = NULL
+
 for (n in n_list) {
-  config = sprintf("../data/n_%d_DE_pattern_2_1_1_replicate_1", n)
-  RData_file = sprintf("../results/replicability_n_%d_DE_pattern_2_1_1_replicate_1.RData", n)
+  config = sprintf("../simulation/n_%d_DE_pattern_2_1_1_replicate_1", n)
+  RData_file = sprintf("../results/reproducibility_n_%d_DE_pattern_2_1_1_replicate_1.RData", n)
   
   if (!file.exists(RData_file)) {
-    load(RData_file)
   
     # partition samples into two halves and compare them:
     first_half = seq(1, n-1, by = 2)
@@ -91,7 +95,7 @@ for (n in n_list) {
     # CARseq (w/ and w/o clinical variables)
     # Input: read counts; cellular frequencies.
 
-    H = 3
+    H = 6
     n_B = n
     M = 2
     K = 1
@@ -126,38 +130,140 @@ for (n in n_list) {
     load(RData_file)
   }
     
+  # library(patchwork)
   # plot
-  pdf(sprintf("../figures/replicability_n_%d_DE_pattern_2_1_1_replicate_1.pdf", n), width=6.5, height=2.2)  # 5, 2
-  opar = par(mfrow=c(1,4), mar=c(6,2,1,1))
+  # opar = par(mfrow=c(1,4), mar=c(6,2,1,1))
   # opar = par(mfrow=c(3,4), mar=c(3,2,1,1))
   
   # create a color palette to use in smoothed scatterplot
   # https://rstudio-pubs-static.s3.amazonaws.com/151690_ac65a180e03641e2adc3cb2ecf6306c3.html
   # library(RColorBrewer)
   
-  smoothScatter(CARseq_first_half$lfc[1:2000,1], CARseq_second_half$lfc[1:2000,1],
-                xlab = "CARseq LFC", ylab = "", xlim=c(-5,5), ylim=c(-5,5), pch = 15, cex = .1)
-  abline(h=0, v=0, col=rgb(0.7,0.7,0.7,0.5), lty="dotted", lwd = 0.75)
-  abline(h=c(-log(2), log(2)), v=c(-log(2), log(2)), col=rgb(0.7,0.7,0.7,0.5), lty="dashed", lwd = 0.75)
-  legend("topright", bty="n", legend=sprintf("cor=%.3f", cor(CARseq_first_half$lfc[1:2000,1], CARseq_second_half$lfc[1:2000,1], method="spearman", use = "complete.obs")))
+  h = 2  # the cell type having DE
   
-  smoothScatter(CARseq_first_half$shrunken_lfc[1:2000,1], CARseq_second_half$shrunken_lfc[1:2000,1],
-                xlab = "CARseq shrunken LFC", ylab = "", xlim=c(-5,5), ylim=c(-5,5), pch = 15, cex = .1)
-  abline(h=0, v=0, col=rgb(0.7,0.7,0.7,0.5), lty="dotted", lwd = 0.75)
-  abline(h=c(-log(2), log(2)), v=c(-log(2), log(2)), col=rgb(0.7,0.7,0.7,0.5), lty="dashed", lwd = 0.75)
-  legend("topright", bty="n", legend=sprintf("cor=%.3f", cor(CARseq_first_half$shrunken_lfc[1:2000,1], CARseq_second_half$shrunken_lfc[1:2000,1], method="spearman", use = "complete.obs")))
+  frac_of_correct_direction_in_both_reps = rep(NA, 4)   # fraction of genes that are in the same direction of DE in both half of samples
+  CARseq_lfc = data.frame(first_half = CARseq_first_half$lfc[1:2000,h],
+                          second_half = CARseq_second_half$lfc[1:2000,h],
+                          method = "CARseq_LFC",
+                          n = sprintf("Total sample size in a half = %d", n * 0.5))
+  frac_of_correct_direction_in_both_reps[1] = (sum(CARseq_first_half$lfc[1:1000,h] < 0 & CARseq_second_half$lfc[1:1000,h] < 0, na.rm = TRUE) +
+                                               sum(CARseq_first_half$lfc[1001:2000,h] > 0 & CARseq_second_half$lfc[1001:2000,h] > 0, na.rm = TRUE)) / 2000
   
-  smoothScatter(TOAST_first_half$lfc[1:2000,1], TOAST_second_half$lfc[1:2000,1],
-                xlab = "TOAST LFC", ylab = "", xlim=c(-5,5), ylim=c(-5,5), pch = 15, cex = .1)
-  abline(h=0, v=0, col=rgb(0.7,0.7,0.7,0.5), lty="dotted", lwd = 0.75)
-  abline(h=c(-log(2), log(2)), v=c(-log(2), log(2)), col=rgb(0.7,0.7,0.7,0.5), lty="dashed", lwd = 0.75)
-  legend("topright", bty="n",  legend=sprintf("cor=%.3f", cor(TOAST_first_half$lfc[1:2000,1], TOAST_second_half$lfc[1:2000,1], method="spearman", use = "complete.obs")))
+  CARseq_shrunken_lfc = data.frame(first_half = CARseq_first_half$shrunken_lfc[1:2000,h],
+                                   second_half = CARseq_second_half$shrunken_lfc[1:2000,h],
+                                   method = "CARseq_shrunken_LFC",
+                                   n = sprintf("Total sample size in a half = %d", n * 0.5))
+  frac_of_correct_direction_in_both_reps[2] = (sum(CARseq_first_half$shrunken_lfc[1:1000,h] < 0 & CARseq_second_half$shrunken_lfc[1:1000,h] < 0, na.rm = TRUE) +
+                                               sum(CARseq_first_half$shrunken_lfc[1001:2000,h] > 0 & CARseq_second_half$shrunken_lfc[1001:2000,h] > 0, na.rm = TRUE)) / 2000
   
-  smoothScatter(TOAST_first_half$effect_size[1:2000,1], TOAST_second_half$effect_size[1:2000,1],
-                xlab = "TOAST effect size", ylab = "", xlim=c(-5,5), ylim=c(-5,5), pch = 15, cex = .1)
-  abline(h=0, v=0, col=rgb(0.7,0.7,0.7,0.5), lty="dotted", lwd = 0.75)
-  legend("topright", bty="n", legend=sprintf("cor=%.3f", cor(TOAST_first_half$effect_size[1:2000,1], TOAST_second_half$effect_size[1:2000,1], method="spearman", use = "complete.obs")))
+  TOAST_lfc = data.frame(first_half = TOAST_first_half$lfc[1:2000,h],
+                         second_half = TOAST_second_half$lfc[1:2000,h],
+                         method = "TOAST_LFC",
+                         n = sprintf("Total sample size in a half = %d", n * 0.5))
+  frac_of_correct_direction_in_both_reps[3] = (sum(TOAST_first_half$lfc[1:1000,h] < 0 & TOAST_second_half$lfc[1:1000,h] < 0, na.rm = TRUE) +
+                                               sum(TOAST_first_half$lfc[1001:2000,h] > 0 & TOAST_second_half$lfc[1001:2000,h] > 0, na.rm = TRUE)) / 2000
   
-  par(opar)
-  dev.off()
+  TOAST_effect_size = data.frame(first_half = TOAST_first_half$effect_size[1:2000,h],
+                                 second_half = TOAST_second_half$effect_size[1:2000,h],
+                                 method = "TOAST_effect_size",
+                                 n = sprintf("Total sample size in a half = %d", n * 0.5))
+  frac_of_correct_direction_in_both_reps[4] = (sum(TOAST_first_half$effect_size[1:1000,h] < 0 & TOAST_second_half$effect_size[1:1000,h] < 0, na.rm = TRUE) +
+                                               sum(TOAST_first_half$effect_size[1001:2000,h] > 0 & TOAST_second_half$effect_size[1001:2000,h] > 0, na.rm = TRUE)) / 2000
+  
+  effect_sizes = effect_sizes %>%
+    rbind(CARseq_lfc) %>%
+    rbind(CARseq_shrunken_lfc) %>%
+    rbind(TOAST_lfc) %>%
+    rbind(TOAST_effect_size)
+  label_data_frame = label_data_frame %>% rbind(data.frame(
+      label = sprintf("%.1f%% correct", 100 * frac_of_correct_direction_in_both_reps),
+      method = c("CARseq_LFC", "CARseq_shrunken_LFC", "TOAST_LFC", "TOAST_effect_size"),
+      n = sprintf("Total sample size in a half = %d", n * 0.5)
+    ))
+  
+  # h = 2
+  # 
+  # cor_between_estimates = rep(NA, 4)
+  # CARseq_lfc = data.frame(first_half = CARseq_first_half$lfc[1:2000,h],
+  #                         second_half = CARseq_second_half$lfc[1:2000,h],
+  #                         method = "CARseq_LFC",
+  #                         n = sprintf("Total sample size in a half = %d", n * 0.5))
+  # cor_between_estimates[1] = cor(CARseq_first_half$lfc[1:2000,h], CARseq_second_half$lfc[1:2000,h], method="spearman", use = "complete.obs")
+  # 
+  # CARseq_shrunken_lfc = data.frame(first_half = CARseq_first_half$shrunken_lfc[1:2000,h],
+  #                                  second_half = CARseq_second_half$shrunken_lfc[1:2000,h],
+  #                                  method = "CARseq_shrunken_LFC",
+  #                                  n = sprintf("Total sample size in a half = %d", n * 0.5))
+  # cor_between_estimates[2] = cor(CARseq_first_half$shrunken_lfc[1:2000,h], CARseq_second_half$shrunken_lfc[1:2000,h], method="spearman", use = "complete.obs")
+  # 
+  # TOAST_lfc = data.frame(first_half = TOAST_first_half$lfc[1:2000,h],
+  #                        second_half = TOAST_second_half$lfc[1:2000,h],
+  #                        method = "TOAST_LFC",
+  #                        n = sprintf("Total sample size in a half = %d", n * 0.5))
+  # cor_between_estimates[3] = cor(TOAST_first_half$lfc[1:2000,h], TOAST_second_half$lfc[1:2000,h], method="spearman", use = "complete.obs")
+  # 
+  # TOAST_effect_size = data.frame(first_half = TOAST_first_half$effect_size[1:2000,h],
+  #                                second_half = TOAST_second_half$effect_size[1:2000,h],
+  #                                method = "TOAST_effect_size",
+  #                                n = sprintf("Total sample size in a half = %d", n * 0.5))
+  # cor_between_estimates[4] = cor(TOAST_first_half$effect_size[1:2000,h], TOAST_second_half$effect_size[1:2000,h], method="spearman", use = "complete.obs")
+  # 
+  # effect_sizes = effect_sizes %>%
+  #   rbind(CARseq_lfc) %>%
+  #   rbind(CARseq_shrunken_lfc) %>%
+  #   rbind(TOAST_lfc) %>%
+  #   rbind(TOAST_effect_size)
+  # label_data_frame = label_data_frame %>% rbind(data.frame(
+  #   label = sprintf("cor=%.3f", cor_between_estimates),
+  #   method = c("CARseq_LFC", "CARseq_shrunken_LFC", "TOAST_LFC", "TOAST_effect_size"),
+  #   n = sprintf("Total sample size in a half = %d", n * 0.5)
+  # ))
+  
+  
+  # # obsolete code of smoothScatter
+  # smoothScatter(CARseq_first_half$lfc[1:2000,h], CARseq_second_half$lfc[1:2000,h],
+  #               xlab = "CARseq LFC", ylab = "", xlim=c(-5,5), ylim=c(-5,5), pch = 15, cex = .1)
+  # abline(h=0, v=0, col=rgb(0.7,0.7,0.7,0.5), lty="dotted", lwd = 0.75)
+  # abline(h=c(-log(2), log(2)), v=c(-log(2), log(2)), col=rgb(0.7,0.7,0.7,0.5), lty="dashed", lwd = 0.75)
+  # legend("topright", bty="n", legend=sprintf("cor=%.3f", cor(CARseq_first_half$lfc[1:2000,h], CARseq_second_half$lfc[1:2000,h], method="spearman", use = "complete.obs")))
+  # 
+  # smoothScatter(CARseq_first_half$shrunken_lfc[1:2000,h], CARseq_second_half$shrunken_lfc[1:2000,h],
+  #               xlab = "CARseq shrunken LFC", ylab = "", xlim=c(-5,5), ylim=c(-5,5), pch = 15, cex = .1)
+  # abline(h=0, v=0, col=rgb(0.7,0.7,0.7,0.5), lty="dotted", lwd = 0.75)
+  # abline(h=c(-log(2), log(2)), v=c(-log(2), log(2)), col=rgb(0.7,0.7,0.7,0.5), lty="dashed", lwd = 0.75)
+  # legend("topright", bty="n", legend=sprintf("cor=%.3f", cor(CARseq_first_half$shrunken_lfc[1:2000,h], CARseq_second_half$shrunken_lfc[1:2000,h], method="spearman", use = "complete.obs")))
+  # 
+  # smoothScatter(TOAST_first_half$lfc[1:2000,h], TOAST_second_half$lfc[1:2000,h],
+  #               xlab = "TOAST LFC", ylab = "", xlim=c(-5,5), ylim=c(-5,5), pch = 15, cex = .1)
+  # abline(h=0, v=0, col=rgb(0.7,0.7,0.7,0.5), lty="dotted", lwd = 0.75)
+  # abline(h=c(-log(2), log(2)), v=c(-log(2), log(2)), col=rgb(0.7,0.7,0.7,0.5), lty="dashed", lwd = 0.75)
+  # legend("topright", bty="n",  legend=sprintf("cor=%.3f", cor(TOAST_first_half$lfc[1:2000,h], TOAST_second_half$lfc[1:2000,h], method="spearman", use = "complete.obs")))
+  # 
+  # smoothScatter(TOAST_first_half$effect_size[1:2000,h], TOAST_second_half$effect_size[1:2000,h],
+  #               xlab = "TOAST effect size", ylab = "", xlim=c(-5,5), ylim=c(-5,5), pch = 15, cex = .1)
+  # abline(h=0, v=0, col=rgb(0.7,0.7,0.7,0.5), lty="dotted", lwd = 0.75)
+  # legend("topright", bty="n", legend=sprintf("cor=%.3f", cor(TOAST_first_half$effect_size[1:2000,h], TOAST_second_half$effect_size[1:2000,h], method="spearman", use = "complete.obs")))
+
 }
+
+effect_sizes$method = gsub("_", " ", effect_sizes$method)
+label_data_frame$method = gsub("_", " ", label_data_frame$method)
+pdf(sprintf("../figures/reproducibility_DE_pattern_2_1_1_replicate_1.pdf", n), width=8.5, height=7.2)  # 6.5, 2.2
+ggplot(effect_sizes, aes(x=first_half, y=second_half)) +
+  geom_pointdensity(size = .25) + scale_color_viridis_c() +
+  facet_grid(n ~ method) +
+  xlab("First half of samples") + ylab("Second half of samples") +
+  xlim(c(-5,5)) + ylim(c(-5,5)) +
+  geom_hline(yintercept = c(-log(2), log(2)), lty="dashed", lwd = 0.5, col=rgb(0.7,0.7,0.7,0.5)) +
+  geom_hline(yintercept = 0, lty="dotted", lwd = 0.5, col=rgb(0.7,0.7,0.7,0.5)) +
+  geom_vline(xintercept = c(-log(2), log(2)), lty="dashed", lwd = 0.5, col=rgb(0.7,0.7,0.7,0.5)) +
+  geom_vline(xintercept = 0, lty="dotted", lwd = 0.5, col=rgb(0.7,0.7,0.7,0.5)) +
+  # theme_bw() +
+  theme(axis.line = element_line(colour = "black"),
+        panel.grid.major = element_blank(),
+        panel.grid.minor = element_blank(),
+        panel.background = element_blank(),
+        plot.margin = margin(t = .35, r = .1, b = 0, l = .1, unit = "in"),
+        legend.position = "bottom") +
+  geom_text(data = label_data_frame, mapping = aes(x = -2.6, y = 4.9, label = label))
+dev.off()
