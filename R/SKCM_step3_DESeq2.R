@@ -62,7 +62,7 @@ dim(res)
 head(res)
 summary(res)
 
-pdf("SKCM_pval_hist.pdf", width=3, height=3)
+pdf("../figures/SKCM_DESeq2_pval_hist.pdf", width=3, height=3)
 par(mar=c(5,4,1,1), bty="n")
 hist(res$pvalue, main="", xlab="p-value")
 dev.off()
