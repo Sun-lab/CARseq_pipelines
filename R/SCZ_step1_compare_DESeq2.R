@@ -321,7 +321,7 @@ ttl = "while accounting for cell type prop."
 g1 = ggplot(subset(res.df, grp %in% c("01", "11")), 
             aes(x=-log10(qvalue.wCT), color=group)) + 
   geom_density() + theme(legend.position=c(0.55,0.8)) + xlim(1,5) + 
-  xlab("-log10(qvalue for ASD association \n given cell type prop.)") + 
+  xlab("-log10(qvalue for SCZ association \n given cell type prop.)") + 
   ggtitle(paste0("SCZ-associated genes (q < 0.1) \n ", ttl)) + 
   labs(color = "q-value without accounting \n for cell type prop.")
 

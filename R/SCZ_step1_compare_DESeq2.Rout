@@ -1,7 +1,7 @@
 
-R version 3.6.2 (2019-12-12) -- "Dark and Stormy Night"
-Copyright (C) 2019 The R Foundation for Statistical Computing
-Platform: x86_64-apple-darwin15.6.0 (64-bit)
+R version 4.0.3 (2020-10-10) -- "Bunny-Wunnies Freak Out"
+Copyright (C) 2020 The R Foundation for Statistical Computing
+Platform: x86_64-apple-darwin17.0 (64-bit)
 
 R is free software and comes with ABSOLUTELY NO WARRANTY.
 You are welcome to redistribute it under certain conditions.
@@ -51,7 +51,7 @@ The following objects are masked from ‘package:base’:
     grepl, intersect, is.unsorted, lapply, Map, mapply, match, mget,
     order, paste, pmax, pmax.int, pmin, pmin.int, Position, rank,
     rbind, Reduce, rownames, sapply, setdiff, sort, table, tapply,
-    union, unique, unsplit, which, which.max, which.min
+    union, unique, unsplit, which.max, which.min
 
 
 Attaching package: ‘S4Vectors’
@@ -75,6 +75,29 @@ The following object is masked from ‘package:data.table’:
 Loading required package: GenomicRanges
 Loading required package: GenomeInfoDb
 Loading required package: SummarizedExperiment
+Loading required package: MatrixGenerics
+Loading required package: matrixStats
+
+Attaching package: ‘MatrixGenerics’
+
+The following objects are masked from ‘package:matrixStats’:
+
+    colAlls, colAnyNAs, colAnys, colAvgsPerRowSet, colCollapse,
+    colCounts, colCummaxs, colCummins, colCumprods, colCumsums,
+    colDiffs, colIQRDiffs, colIQRs, colLogSumExps, colMadDiffs,
+    colMads, colMaxs, colMeans2, colMedians, colMins, colOrderStats,
+    colProds, colQuantiles, colRanges, colRanks, colSdDiffs, colSds,
+    colSums2, colTabulates, colVarDiffs, colVars, colWeightedMads,
+    colWeightedMeans, colWeightedMedians, colWeightedSds,
+    colWeightedVars, rowAlls, rowAnyNAs, rowAnys, rowAvgsPerColSet,
+    rowCollapse, rowCounts, rowCummaxs, rowCummins, rowCumprods,
+    rowCumsums, rowDiffs, rowIQRDiffs, rowIQRs, rowLogSumExps,
+    rowMadDiffs, rowMads, rowMaxs, rowMeans2, rowMedians, rowMins,
+    rowOrderStats, rowProds, rowQuantiles, rowRanges, rowRanks,
+    rowSdDiffs, rowSds, rowSums2, rowTabulates, rowVarDiffs, rowVars,
+    rowWeightedMads, rowWeightedMeans, rowWeightedMedians,
+    rowWeightedSds, rowWeightedVars
+
 Loading required package: Biobase
 Welcome to Bioconductor
 
@@ -82,26 +105,16 @@ Welcome to Bioconductor
     'browseVignettes()'. To cite Bioconductor, see
     'citation("Biobase")', and for packages 'citation("pkgname")'.
 
-Loading required package: DelayedArray
-Loading required package: matrixStats
 
-Attaching package: ‘matrixStats’
+Attaching package: ‘Biobase’
 
-The following objects are masked from ‘package:Biobase’:
+The following object is masked from ‘package:MatrixGenerics’:
 
-    anyMissing, rowMedians
-
-Loading required package: BiocParallel
-
-Attaching package: ‘DelayedArray’
+    rowMedians
 
 The following objects are masked from ‘package:matrixStats’:
 
-    colMaxs, colMins, colRanges, rowMaxs, rowMins, rowRanges
-
-The following objects are masked from ‘package:base’:
-
-    aperm, apply, rowsum
+    anyMissing, rowMedians
 
 > theme_set(theme_classic())
 > library(SummarizedExperiment)
@@ -605,7 +618,7 @@ null device
 > g1 = ggplot(subset(res.df, grp %in% c("01", "11")), 
 +             aes(x=-log10(qvalue.wCT), color=group)) + 
 +   geom_density() + theme(legend.position=c(0.55,0.8)) + xlim(1,5) + 
-+   xlab("-log10(qvalue for ASD association \n given cell type prop.)") + 
++   xlab("-log10(qvalue for SCZ association \n given cell type prop.)") + 
 +   ggtitle(paste0("SCZ-associated genes (q < 0.1) \n ", ttl)) + 
 +   labs(color = "q-value without accounting \n for cell type prop.")
 > 
@@ -673,12 +686,12 @@ MSSM_RNA_PFC_10 -2.957191
 +                                genoPC1 + genoPC2 + libclustB + libclustbase + 
 +                                libclustC + libclustD + libclustE + libclustF + 
 +                                libclustG + Exc + sv1 + sv2 + Diagnosis)
-  the design formula contains a numeric variable with integer values,
+  the design formula contains one or more numeric variables with integer values,
   specifying a model with increasing fold change for higher values.
   did you mean for this to be a factor? if so, first convert
   this variable to a factor using the factor() function
 > date()
-[1] "Tue Dec 15 00:52:06 2020"
+[1] "Sat Jan 30 00:39:46 2021"
 > dd3 = DESeq(dd3, parallel=TRUE)
 estimating size factors
 estimating dispersions
@@ -686,7 +699,7 @@ gene-wise dispersion estimates: 15 workers
 mean-dispersion relationship
 final dispersion estimates, fitting model and testing: 15 workers
 > date()
-[1] "Tue Dec 15 01:48:07 2020"
+[1] "Sat Jan 30 00:41:13 2021"
 > 
 > res3 = results(dd3)
 > dim(res3)
@@ -695,14 +708,14 @@ final dispersion estimates, fitting model and testing: 15 workers
 log2 fold change (MLE): Diagnosis SCZ vs Control 
 Wald test p-value: Diagnosis SCZ vs Control 
 DataFrame with 2 rows and 6 columns
-                        baseMean     log2FoldChange              lfcSE
-                       <numeric>          <numeric>          <numeric>
-ENSG00000000003 209.040585742587 -0.022568050435334 0.0288927765984443
-ENSG00000000419 662.013774163891  -0.02222450583342 0.0190925454570818
-                              stat            pvalue              padj
-                         <numeric>         <numeric>         <numeric>
-ENSG00000000003 -0.781096630101972 0.434745663778212 0.745533759906599
-ENSG00000000419   -1.1640410066525 0.244407394027271 0.589747610047973
+                 baseMean log2FoldChange     lfcSE      stat    pvalue
+                <numeric>      <numeric> <numeric> <numeric> <numeric>
+ENSG00000000003   209.041     -0.0225681 0.0288928 -0.781096  0.434746
+ENSG00000000419   662.014     -0.0222245 0.0190926 -1.164039  0.244408
+                     padj
+                <numeric>
+ENSG00000000003  0.745534
+ENSG00000000419  0.589748
 > 
 > res3 = as.data.frame(res3)
 > 
@@ -724,12 +737,12 @@ ENSG00000000419   -1.1640410066525 0.244407394027271 0.589747610047973
 +                                genoPC1 + genoPC2 + libclustB + libclustbase + 
 +                                libclustC + libclustD + libclustE + libclustF + 
 +                                libclustG + Inh + sv1 + sv2 + Diagnosis)
-  the design formula contains a numeric variable with integer values,
+  the design formula contains one or more numeric variables with integer values,
   specifying a model with increasing fold change for higher values.
   did you mean for this to be a factor? if so, first convert
   this variable to a factor using the factor() function
 > date()
-[1] "Tue Dec 15 01:48:08 2020"
+[1] "Sat Jan 30 00:41:14 2021"
 > dd4 = DESeq(dd4, parallel=TRUE)
 estimating size factors
 estimating dispersions
@@ -737,7 +750,7 @@ gene-wise dispersion estimates: 15 workers
 mean-dispersion relationship
 final dispersion estimates, fitting model and testing: 15 workers
 > date()
-[1] "Tue Dec 15 02:39:15 2020"
+[1] "Sat Jan 30 00:42:42 2021"
 > 
 > res4 = results(dd4)
 > dim(res4)
@@ -746,14 +759,14 @@ final dispersion estimates, fitting model and testing: 15 workers
 log2 fold change (MLE): Diagnosis SCZ vs Control 
 Wald test p-value: Diagnosis SCZ vs Control 
 DataFrame with 2 rows and 6 columns
-                        baseMean      log2FoldChange              lfcSE
-                       <numeric>           <numeric>          <numeric>
-ENSG00000000003 209.040585742587  0.0309341968624571 0.0298941417161885
-ENSG00000000419 662.013774163891 -0.0105979999860521 0.0191634654870863
-                              stat            pvalue              padj
-                         <numeric>         <numeric>         <numeric>
-ENSG00000000003   1.03479126967895  0.30076640094761 0.562744372700487
-ENSG00000000419 -0.553031495957441 0.580241843377849 0.785035303621134
+                 baseMean log2FoldChange     lfcSE      stat    pvalue
+                <numeric>      <numeric> <numeric> <numeric> <numeric>
+ENSG00000000003   209.041      0.0309342 0.0298941  1.034791  0.300766
+ENSG00000000419   662.014     -0.0105980 0.0191634 -0.553033  0.580241
+                     padj
+                <numeric>
+ENSG00000000003  0.562746
+ENSG00000000419  0.785034
 > 
 > res4 = as.data.frame(res4)
 > 
@@ -821,17 +834,17 @@ FALSE  TRUE
 > 
 > gc()
             used  (Mb) gc trigger   (Mb) limit (Mb)  max used   (Mb)
-Ncells   5958278 318.3   10871448  580.6         NA  10871448  580.6
-Vcells 109722877 837.2  197512696 1507.0      32768 197512695 1507.0
+Ncells   6564090 350.6   11893821  635.2         NA  11893821  635.2
+Vcells 110629925 844.1  201867053 1540.2      32768 198238185 1512.5
 > 
 > sessionInfo()
-R version 3.6.2 (2019-12-12)
-Platform: x86_64-apple-darwin15.6.0 (64-bit)
+R version 4.0.3 (2020-10-10)
+Platform: x86_64-apple-darwin17.0 (64-bit)
 Running under: macOS Catalina 10.15.7
 
 Matrix products: default
-BLAS:   /Library/Frameworks/R.framework/Versions/3.6/Resources/lib/libRblas.0.dylib
-LAPACK: /Library/Frameworks/R.framework/Versions/3.6/Resources/lib/libRlapack.dylib
+BLAS:   /Library/Frameworks/R.framework/Versions/4.0/Resources/lib/libRblas.dylib
+LAPACK: /Library/Frameworks/R.framework/Versions/4.0/Resources/lib/libRlapack.dylib
 
 locale:
 [1] en_US.UTF-8/en_US.UTF-8/en_US.UTF-8/C/en_US.UTF-8/en_US.UTF-8
@@ -841,52 +854,46 @@ attached base packages:
 [8] methods   base     
 
 other attached packages:
- [1] doParallel_1.0.15           iterators_1.0.12           
- [3] foreach_1.4.7               DESeq2_1.24.0              
- [5] SummarizedExperiment_1.14.1 DelayedArray_0.10.0        
- [7] BiocParallel_1.18.1         matrixStats_0.55.0         
- [9] Biobase_2.44.0              GenomicRanges_1.36.1       
-[11] GenomeInfoDb_1.20.0         IRanges_2.18.3             
-[13] S4Vectors_0.22.1            BiocGenerics_0.30.0        
-[15] CARseq_0.0.0.9007           ggpointdensity_0.1.0       
-[17] ggpubr_0.4.0.999            ggplot2_3.3.1              
-[19] data.table_1.12.8          
+ [1] doParallel_1.0.16           iterators_1.0.13           
+ [3] foreach_1.5.1               DESeq2_1.30.0              
+ [5] SummarizedExperiment_1.20.0 Biobase_2.50.0             
+ [7] MatrixGenerics_1.2.0        matrixStats_0.57.0         
+ [9] GenomicRanges_1.42.0        GenomeInfoDb_1.26.2        
+[11] IRanges_2.24.1              S4Vectors_0.28.1           
+[13] BiocGenerics_0.36.0         CARseq_0.0.0.9007          
+[15] ggpointdensity_0.1.0        ggpubr_0.4.0               
+[17] ggplot2_3.3.3               data.table_1.13.6          
 
 loaded via a namespace (and not attached):
- [1] colorspace_1.4-1       ggsignif_0.6.0         ellipsis_0.3.0        
- [4] rio_0.5.16             htmlTable_1.13.3       XVector_0.24.0        
- [7] base64enc_0.1-3        rstudioapi_0.11        farver_2.0.3          
-[10] bit64_0.9-7            AnnotationDbi_1.46.1   codetools_0.2-16      
-[13] splines_3.6.2          geneplotter_1.62.0     knitr_1.28            
-[16] Formula_1.2-3          nloptr_1.2.1           doMC_1.3.6            
-[19] broom_0.5.6            annotate_1.62.0        cluster_2.1.0         
-[22] png_0.1-7              compiler_3.6.2         backports_1.1.5       
-[25] assertthat_0.2.1       Matrix_1.2-18          acepack_1.4.1         
-[28] htmltools_0.4.0        tools_3.6.2            gtable_0.3.0          
-[31] glue_1.3.1             GenomeInfoDbData_1.2.1 dplyr_0.8.4           
-[34] Rcpp_1.0.3             carData_3.0-4          cellranger_1.1.0      
-[37] vctrs_0.3.0            nlme_3.1-144           xfun_0.12             
-[40] stringr_1.4.0          openxlsx_4.1.5         lifecycle_0.2.0       
-[43] rstatix_0.6.0          XML_3.99-0.3           scam_1.2-6            
-[46] zlibbioc_1.30.0        MASS_7.3-51.5          scales_1.1.0          
-[49] hms_0.5.3              RColorBrewer_1.1-2     curl_4.3              
-[52] memoise_1.1.0          gridExtra_2.3          rpart_4.1-15          
-[55] latticeExtra_0.6-29    stringi_1.4.5          RSQLite_2.2.0         
-[58] genefilter_1.66.0      zetadiv_1.1.1          checkmate_2.0.0       
-[61] zip_2.0.4              bvls_1.4               rlang_0.4.6           
-[64] pkgconfig_2.0.3        bitops_1.0-6           lattice_0.20-38       
-[67] purrr_0.3.3            labeling_0.3           htmlwidgets_1.5.1     
-[70] bit_1.1-15.2           tidyselect_1.0.0       magrittr_1.5          
-[73] R6_2.4.1               generics_0.0.2         Hmisc_4.4-0           
-[76] DBI_1.1.0              pillar_1.4.3           haven_2.3.0           
-[79] foreign_0.8-75         withr_2.1.2            mgcv_1.8-31           
-[82] survival_3.1-8         abind_1.4-5            RCurl_1.98-1.1        
-[85] nnet_7.3-12            tibble_3.0.1           crayon_1.3.4          
-[88] car_3.0-8              jpeg_0.1-8.1           locfit_1.5-9.4        
-[91] grid_3.6.2             readxl_1.3.1           blob_1.2.1            
-[94] forcats_0.5.0          digest_0.6.23          xtable_1.8-4          
-[97] tidyr_1.0.2            munsell_0.5.0          viridisLite_0.3.0     
+ [1] nlme_3.1-151           bitops_1.0-6           doMC_1.3.7            
+ [4] zetadiv_1.2.0          bit64_4.0.5            RColorBrewer_1.1-2    
+ [7] httr_1.4.2             tools_4.0.3            backports_1.2.1       
+[10] R6_2.5.0               DBI_1.1.0              mgcv_1.8-33           
+[13] colorspace_2.0-0       withr_2.3.0            tidyselect_1.1.0      
+[16] bit_4.0.4              curl_4.3               compiler_4.0.3        
+[19] DelayedArray_0.16.0    labeling_0.4.2         scales_1.1.1          
+[22] genefilter_1.72.0      digest_0.6.27          foreign_0.8-81        
+[25] rio_0.5.16             XVector_0.30.0         pkgconfig_2.0.3       
+[28] rlang_0.4.10           readxl_1.3.1           RSQLite_2.2.1         
+[31] farver_2.0.3           generics_0.1.0         BiocParallel_1.24.1   
+[34] dplyr_1.0.2            zip_2.1.1              car_3.0-10            
+[37] RCurl_1.98-1.2         magrittr_2.0.1         GenomeInfoDbData_1.2.4
+[40] scam_1.2-9             Matrix_1.3-0           Rcpp_1.0.5            
+[43] munsell_0.5.0          abind_1.4-5            lifecycle_0.2.0       
+[46] stringi_1.5.3          carData_3.0-4          MASS_7.3-53           
+[49] zlibbioc_1.36.0        grid_4.0.3             blob_1.2.1            
+[52] forcats_0.5.0          crayon_1.3.4           lattice_0.20-41       
+[55] haven_2.3.1            splines_4.0.3          annotate_1.68.0       
+[58] hms_0.5.3              locfit_1.5-9.4         bvls_1.4              
+[61] pillar_1.4.7           ggsignif_0.6.0         geneplotter_1.68.0    
+[64] codetools_0.2-18       XML_3.99-0.5           glue_1.4.2            
+[67] vctrs_0.3.6            nloptr_1.2.2.2         cellranger_1.1.0      
+[70] gtable_0.3.0           purrr_0.3.4            tidyr_1.1.2           
+[73] openxlsx_4.2.3         xtable_1.8-4           broom_0.7.3           
+[76] rstatix_0.6.0          survival_3.2-7         viridisLite_0.3.0     
+[79] tibble_3.0.4           AnnotationDbi_1.52.0   memoise_1.1.0         
+[82] ellipsis_0.3.1        
 > q(save="no")
 > proc.time()
-     user    system   elapsed 
-92118.555   982.035  6470.719 
+    user   system  elapsed 
+2556.389   84.986  223.722 
