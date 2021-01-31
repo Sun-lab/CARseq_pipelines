@@ -1,0 +1,272 @@
+
+R version 4.0.3 (2020-10-10) -- "Bunny-Wunnies Freak Out"
+Copyright (C) 2020 The R Foundation for Statistical Computing
+Platform: x86_64-apple-darwin17.0 (64-bit)
+
+R is free software and comes with ABSOLUTELY NO WARRANTY.
+You are welcome to redistribute it under certain conditions.
+Type 'license()' or 'licence()' for distribution details.
+
+  Natural language support but running in an English locale
+
+R is a collaborative project with many contributors.
+Type 'contributors()' for more information and
+'citation()' on how to cite R or R packages in publications.
+
+Type 'demo()' for some demos, 'help()' for on-line help, or
+'help.start()' for an HTML browser interface to help.
+Type 'q()' to quit R.
+
+> # estimate cell type proportion of SKCM samples
+> 
+> library(data.table)
+> 
+> # ------------------------------------------------------------------------
+> # read in bulk RNA-seq data
+> # ------------------------------------------------------------------------
+> 
+> counts = readRDS("../data/TCGA_SKCM_raw_counts.rds")
+> dim(counts)
+[1] 60483   472
+> counts[1:2,1:5]
+                   TCGA.D3.A8GB.06A TCGA.WE.A8ZN.06A TCGA.ER.A2NF.01A
+ENSG00000000003.13             1049              835             2748
+ENSG00000000005.5                20               21                3
+                   TCGA.HR.A2OH.06A TCGA.WE.A8K6.06A
+ENSG00000000003.13              617             1391
+ENSG00000000005.5                 1                0
+> 
+> calculate_TPM = function(count, gene_length) {
++   if (nrow(count) != length(gene_length)) {
++     stop("Number of rows of the count matrix does not match gene lengths!")
++   }
++   TPM = count / gene_length
++   t(t(TPM)*1e6/colSums(TPM))
++ }
+> 
+> load("../data/Gene_Lengths.RData")
+> dim(GeneLengths.Mat)
+[1] 60483     3
+> GeneLengths.Mat[1:2,]
+          Gencode.ID Exonic      Ensembl.ID
+1 ENSG00000000003.13   4535 ENSG00000000003
+2  ENSG00000000005.5   1610 ENSG00000000005
+> 
+> table(GeneLengths.Mat$Gencode.ID == rownames(counts))
+
+ TRUE 
+60483 
+> 
+> geneLength = GeneLengths.Mat$Exonic
+> SKCM_TPM   = calculate_TPM(counts, geneLength) 
+> dim(SKCM_TPM)
+[1] 60483   472
+> SKCM_TPM[1:2,1:5]
+                   TCGA.D3.A8GB.06A TCGA.WE.A8ZN.06A TCGA.ER.A2NF.01A
+ENSG00000000003.13        9.2150115        9.6065721      23.98204657
+ENSG00000000005.5         0.4948822        0.6805385       0.07374663
+                   TCGA.HR.A2OH.06A TCGA.WE.A8K6.06A
+ENSG00000000003.13       7.35348808         18.08781
+ENSG00000000005.5        0.03357064          0.00000
+> 
+> geneinfo = fread("../data/gencode.v22.genes.txt", header = TRUE, 
++                  sep = "\t", drop = 8, na.strings = c("NA", ""))
+> head(geneinfo)
+               geneId   chr strand     start       end ensembl_gene_id
+1: ENSG00000000003.13  chrX      - 100627109 100639991 ENSG00000000003
+2:  ENSG00000000005.5  chrX      + 100584802 100599885 ENSG00000000005
+3: ENSG00000000419.11 chr20      -  50934867  50958555 ENSG00000000419
+4: ENSG00000000457.12  chr1      - 169849631 169894267 ENSG00000000457
+5: ENSG00000000460.15  chr1      + 169662007 169854080 ENSG00000000460
+6: ENSG00000000938.11  chr1      -  27612064  27635277 ENSG00000000938
+   hgnc_symbol
+1:      TSPAN6
+2:        TNMD
+3:        DPM1
+4:       SCYL3
+5:    C1orf112
+6:         FGR
+> 
+> # ------------------------------------------------------------------------
+> # filter genes based on gene annoation
+> # ------------------------------------------------------------------------
+> 
+> missing.id = which(is.na(geneinfo$hgnc_symbol))
+> length(missing.id)
+[1] 25167
+> geneinfo.nomissing = geneinfo[-missing.id,]
+> 
+> # Some ensembl IDs have duplicated hgnc symbols
+> duplicated.id = which(duplicated(geneinfo.nomissing$hgnc_symbol))
+> length(duplicated.id)
+[1] 21
+> geneinfo.filtered = geneinfo.nomissing[-duplicated.id,]
+> rm(geneinfo.nomissing)
+> 
+> dim(geneinfo.filtered)
+[1] 35295     7
+> geneinfo.filtered[1:2.]
+               geneId  chr strand     start       end ensembl_gene_id
+1: ENSG00000000003.13 chrX      - 100627109 100639991 ENSG00000000003
+2:  ENSG00000000005.5 chrX      + 100584802 100599885 ENSG00000000005
+   hgnc_symbol
+1:      TSPAN6
+2:        TNMD
+> table(geneinfo.filtered$geneId %in% row.names(SKCM_TPM))
+
+ TRUE 
+35295 
+> 
+> # Update SKCM_TPM to only genes with 1-1 mapping between 
+> # their ensembl ID and hgnc symbols, 35295 genes remained in the end. 
+> w2match = match(geneinfo.filtered$geneId, row.names(SKCM_TPM))
+> SKCM_TPM_filtered = data.frame(geneSymbol = geneinfo.filtered$hgnc_symbol) 
+> SKCM_TPM_filtered = cbind(SKCM_TPM_filtered, SKCM_TPM[w2match,])
+> dim(SKCM_TPM_filtered)
+[1] 35295   473
+> SKCM_TPM_filtered[1:5,1:5]
+                   geneSymbol TCGA.D3.A8GB.06A TCGA.WE.A8ZN.06A
+ENSG00000000003.13     TSPAN6        9.2150115        9.6065721
+ENSG00000000005.5        TNMD        0.4948822        0.6805385
+ENSG00000000419.11       DPM1       35.0521718       13.4867276
+ENSG00000000457.12      SCYL3        2.1473054        1.0763905
+ENSG00000000460.15   C1orf112        1.3152487        1.0142878
+                   TCGA.ER.A2NF.01A TCGA.HR.A2OH.06A
+ENSG00000000003.13      23.98204657       7.35348808
+ENSG00000000005.5        0.07374663       0.03357064
+ENSG00000000419.11      39.74130780      90.14092805
+ENSG00000000457.12       6.86551882       8.68486111
+ENSG00000000460.15       3.48880352       7.32787418
+> 
+> rm(SKCM_TPM)
+> 
+> # ------------------------------------------------------------------------
+> # read in reference
+> # ------------------------------------------------------------------------
+> 
+> load("../../EPIC/data/TRef.rda")
+> length(TRef)
+[1] 3
+> lapply(TRef, function(x){if(is.vector(x)) length(x) else dim(x)})
+$refProfiles
+[1] 23686     7
+
+$refProfiles.var
+[1] 23686     7
+
+$sigGenes
+[1] 98
+
+> TRef$refProfiles[1:2,1:4]
+            Bcells      CAFs CD4_Tcells CD8_Tcells
+A1BG     7.7521472  4.478934   4.670194   5.019973
+A1BG-AS1 0.2727164 28.987678   6.747079  11.764314
+> TRef$sigGenes[1:3]
+[1] "PAX5"  "MS4A1" "BANK1"
+> 
+> table(TRef$sigGenes %in% rownames(TRef$refProfiles))
+
+TRUE 
+  98 
+> EPIC_ref = TRef$refProfiles[match(TRef$sigGenes, rownames(TRef$refProfiles)),]
+> dim(EPIC_ref)
+[1] 98  7
+> EPIC_ref[1:2,]
+         Bcells      CAFs CD4_Tcells  CD8_Tcells Endothelial Macrophages
+PAX5   103.9573 0.0000000  0.1775816  0.08245734           0  0.00000000
+MS4A1 1384.8772 0.1524954 11.1786113 31.01209638           0  0.00170738
+          NKcells
+PAX5   0.04774281
+MS4A1 21.88245506
+> 
+> EPIC_sigmat = data.frame(geneSymbol = rownames(EPIC_ref))
+> EPIC_sigmat = cbind(EPIC_sigmat, EPIC_ref)
+> dim(EPIC_sigmat)
+[1] 98  8
+> EPIC_sigmat[1:2,]
+      geneSymbol    Bcells      CAFs CD4_Tcells  CD8_Tcells Endothelial
+PAX5        PAX5  103.9573 0.0000000  0.1775816  0.08245734           0
+MS4A1      MS4A1 1384.8772 0.1524954 11.1786113 31.01209638           0
+      Macrophages     NKcells
+PAX5   0.00000000  0.04774281
+MS4A1  0.00170738 21.88245506
+> 
+> # ------------------------------------------------------------------------
+> # take intersection
+> # ------------------------------------------------------------------------
+> 
+> genes2use  = intersect(EPIC_sigmat$geneSymbol, SKCM_TPM_filtered$geneSymbol)
+> length(genes2use)
+[1] 98
+> match.TCGA = match(genes2use, SKCM_TPM_filtered$geneSymbol)
+> match.EPIC = match(genes2use, EPIC_sigmat$geneSymbol)
+> 
+> SKCM_TPM_EPIC = SKCM_TPM_filtered[match.TCGA,]
+> dim(SKCM_TPM_EPIC)
+[1]  98 473
+> SKCM_TPM_EPIC[1:2,1:5]
+                   geneSymbol TCGA.D3.A8GB.06A TCGA.WE.A8ZN.06A
+ENSG00000196092.11       PAX5         2.770264       0.03354202
+ENSG00000156738.16      MS4A1        19.183083       0.31056319
+                   TCGA.ER.A2NF.01A TCGA.HR.A2OH.06A
+ENSG00000196092.11         1.077108         0.364842
+ENSG00000156738.16         7.229854         1.586406
+> 
+> EPIC_sigmat = EPIC_sigmat[match.EPIC,] 
+> dim(EPIC_sigmat)
+[1] 98  8
+> EPIC_sigmat[1:2,1:5]
+      geneSymbol    Bcells      CAFs CD4_Tcells  CD8_Tcells
+PAX5        PAX5  103.9573 0.0000000  0.1775816  0.08245734
+MS4A1      MS4A1 1384.8772 0.1524954 11.1786113 31.01209638
+> 
+> table(SKCM_TPM_EPIC$geneSymbol == EPIC_sigmat$geneSymbol)
+
+TRUE 
+  98 
+> 
+> # ------------------------------------------------------------------------
+> # write out input for CIBERSORT
+> # ------------------------------------------------------------------------
+> 
+> CBSTfolder = "../CIBERSORT"
+> sig_file_EPIC = file.path(CBSTfolder, "signature_gene_EPIC.txt")
+> mix_file_EPIC = file.path(CBSTfolder, "TCGA_SKCM_TPM_EPIC.txt")
+> 
+> # generate matrices as input for CIBERSORT online
+> write.table(SKCM_TPM_EPIC, file = mix_file_EPIC, quote = FALSE,
++             row.names = FALSE, sep="\t")
+> 
+> write.table(EPIC_sigmat, file = sig_file_EPIC, quote = FALSE,
++             row.names = FALSE, sep="\t")
+> 
+> 
+> gc()
+           used  (Mb) gc trigger  (Mb) limit (Mb)  max used  (Mb)
+Ncells   577380  30.9     942698  50.4         NA    721053  38.6
+Vcells 33835128 258.2  114255626 871.8      32768 114253657 871.7
+> sessionInfo()
+R version 4.0.3 (2020-10-10)
+Platform: x86_64-apple-darwin17.0 (64-bit)
+Running under: macOS Catalina 10.15.7
+
+Matrix products: default
+BLAS:   /Library/Frameworks/R.framework/Versions/4.0/Resources/lib/libRblas.dylib
+LAPACK: /Library/Frameworks/R.framework/Versions/4.0/Resources/lib/libRlapack.dylib
+
+locale:
+[1] en_US.UTF-8/en_US.UTF-8/en_US.UTF-8/C/en_US.UTF-8/en_US.UTF-8
+
+attached base packages:
+[1] stats     graphics  grDevices utils     datasets  methods   base     
+
+other attached packages:
+[1] data.table_1.13.6
+
+loaded via a namespace (and not attached):
+[1] compiler_4.0.3
+> 
+> 
+> proc.time()
+   user  system elapsed 
+  3.397   0.529   3.988 
