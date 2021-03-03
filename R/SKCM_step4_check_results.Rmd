@@ -6,7 +6,7 @@ output:
 ---
 
 # Load required library
-```{r warning=FALSE, echo = TRUE, results = 'hide', warning = FALSE, message = FALSE}
+```{r warning=FALSE, echo = TRUE, results = 'hide', message = FALSE}
 library(data.table)
 library(ggplot2)
 library(ggrepel)

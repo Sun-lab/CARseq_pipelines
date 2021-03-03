@@ -169,7 +169,11 @@ pvals = merge(pval.SCZ, pval.ASD, by="gene_id",
 dim(pvals)
 pvals[1:2,]
 
-names(pvals)
+names(pvals)[3:8]
+names(pvals)[17:22]
+
+names(pvals)[10:15]
+names(pvals)[24:29]
 
 
 cr1 = cor(-log10(pvals[,3:8]), -log10(pvals[,17:22]), 
@@ -177,6 +181,9 @@ cr1 = cor(-log10(pvals[,3:8]), -log10(pvals[,17:22]),
 
 cr1.sp = cor(-log10(pvals[,3:8]), -log10(pvals[,17:22]), 
           use="pairwise.complete.obs", method="spearman")
+
+csv_nm = "Fig5A_sp_corr_SCZ_vs_ASD_CARseq_pval.csv"
+write.csv(cr1.sp, paste0("../results/_figures_data/", csv_nm))
 
 cr2 = cor(-log10(pvals[,10:15]), -log10(pvals[,24:29]), 
           use="pairwise.complete.obs")
