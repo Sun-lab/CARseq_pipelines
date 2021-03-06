@@ -248,6 +248,10 @@ for (n in n_list) {
 
 effect_sizes$method = gsub("_", " ", effect_sizes$method)
 label_data_frame$method = gsub("_", " ", label_data_frame$method)
+
+# store the data illustrated in Fig 3 of the main text
+write.csv(effect_sizes, file = "../results/_figures_data/Fig3.csv")
+
 pdf(sprintf("../figures/reproducibility_DE_pattern_2_1_1_replicate_1.pdf", n), width=8.5, height=7.2)  # 6.5, 2.2
 ggplot(effect_sizes, aes(x=first_half, y=second_half)) +
   geom_pointdensity(size = .25) + scale_color_viridis_c() +

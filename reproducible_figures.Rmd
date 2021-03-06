@@ -2226,6 +2226,9 @@ annotation_col = data.frame(Method=factor(c(rep("CARseq", ncol(res_CARseq$p)), r
                                           levels=c("CARseq", "TOAST", "DESeq2")),
                             CellType=factor(c(rep(colnames(res_CARseq$p), times=2), "bulk")))
 rownames(annotation_col) = colnames(pathway_log10qvalue_matrix)
+# Fig 4D data
+write.csv(pathway_log10qvalue_matrix, file = "results/_figures_data/Fig4D.csv")
+
 g_scz_4 = pheatmap(pathway_log10qvalue_matrix,
                    cluster_rows = F, cluster_cols = F,
                    border_color ="grey60", na_col = "white", angle_col = "90",
@@ -2659,6 +2662,10 @@ opar = par(cex.axis = 0.7)
 boxplot(log_depth~Institution+Project.ID, colData(rse_filtered))
 par(opar)
 
+# Fig 4A data
+write.csv(cellular_proportions_longtable[, !(names(cellular_proportions_longtable) %in% "Exc_prop")],
+          file = "results/_figures_data/Fig4A.csv")
+
 g_scz_1_SCZ = ggplot(data=cellular_proportions_longtable %>% subset(group %in% "SCZ"), aes(x=reorder(samples, Exc_prop), y=`cellular proportions`, fill=`cell type`)) +
     geom_bar(stat = "identity", width=1) +
     ggtitle("SCZ samples") +
@@ -2778,6 +2785,8 @@ for (cell_type in names(summary_ICeDT)) {
 summary_table$method = factor(summary_table$method, levels=c("ICeDT", "CIBERSORT"))
 summary_table$pval_formatted = sprintf("%.3f", summary_table$pval)
 summary_table
+# Fig 4B data
+write.csv(summary_table, file = "results/Fig4B.csv")
 
 # The errorbars overlapped, so use position_dodge to move them horizontally
 pd = position_dodge(0.2) # move them x.x to the left and right

@@ -106,6 +106,14 @@ dfL[1:2,]
 tapply(dfL$Exc, dfL$react_pathway, summary)
 tapply(dfL$Inh, dfL$react_pathway, summary)
 
+# Fig 4C data
+write.csv(dfL[which(dfL$Exc < 0.05),
+              c("react_pathway", "SCZ_vs_Control.Exc")],
+          file = "../results/_figures_data/Fig4C_Exc.csv")
+write.csv(dfL[which(dfL$Inh < 0.05),
+              c("react_pathway", "SCZ_vs_Control.Inh")],
+          file = "../results/_figures_data/Fig4C_Inh.csv")
+
 p1 = ggplot(dfL[which(dfL$Exc < 0.05),], 
             aes(x=react_pathway, y=SCZ_vs_Control.Exc)) + 
   geom_boxplot(outlier.shape = NA) + coord_flip() + 

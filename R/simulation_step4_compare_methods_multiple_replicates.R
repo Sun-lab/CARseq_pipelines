@@ -757,6 +757,15 @@ metrics_without_covariates$method = as.factor(metrics_without_covariates$method)
 metrics_with_covariates$method = as.factor(sapply(metrics_with_covariates$method, function(x) {strsplit(as.character(x), split="_")[[1]][1]}))
 metrics_without_covariates$method = as.factor(sapply(metrics_without_covariates$method, function(x) {strsplit(as.character(x), split="_")[[1]][1]}))
 metrics_without_covariates$method = factor(metrics_without_covariates$method, levels=c("CARseq", "TOAST", "csSAM"))
+
+# store the data illustrated in Fig 2 of the main text
+write.csv(metrics_with_covariates[, c("n", "method", "DE_pattern", "sensitivity")],
+          file = "../results/_figures_data/Fig2A_with_covariates.csv",
+          row.names = FALSE)
+write.csv(metrics_without_covariates[, c("n", "method", "DE_pattern", "sensitivity")],
+          file = "../results/_figures_data/Fig2A_without_covariates.csv",
+          row.names = FALSE)
+
 library(ggpubr)
 library(wesanderson)
 g1_with_covariates = ggplot(metrics_with_covariates, aes(x = fdr, y = sensitivity)) +
@@ -853,9 +862,10 @@ metrics_ratio_of_sensitivity = metrics_ratio_of_sensitivity[metrics_ratio_of_sen
 metrics_ratio_of_sensitivity$n = factor(metrics_ratio_of_sensitivity$n)
 library(ggpubr)
 library(wesanderson)
+set.seed(1000)
 g_ratio_of_sensitivity = ggplot(metrics_ratio_of_sensitivity, aes(x = n, y = ratio_of_sensitivity)) +
   geom_boxplot(aes(shape = method)) + 
-  geom_jitter(size = 0.5, col = "red", position=position_jitter(0.2)) +
+  geom_jitter(size = 1.5, pch = 21, fill = "red", alpha = 0.8, position=position_jitter(0.4)) +
   facet_grid(rows = vars(DE_pattern)) +
   scale_y_continuous(limits = c(0, 1)) +
   # scale_color_manual(values=wes_palette(name="Darjeeling1")) +
@@ -870,6 +880,10 @@ g_ratio_of_sensitivity = ggplot(metrics_ratio_of_sensitivity, aes(x = n, y = rat
         legend.position = "bottom",
         axis.text.x = element_text(size=8, angle=90),
         axis.text.y = element_text(size=8))
+# store the data illustrated in Fig 2A of the main text
+write.csv(metrics_ratio_of_sensitivity[, c("n", "method", "DE_pattern", "ratio_of_sensitivity")],
+          file = "../results/_figures_data/Fig2A_ratio.csv",
+          row.names = FALSE)
 
 pdf("../figures/ratio_of_sensitivity_TOAST_over_CARseq_p1.pdf", height=4, width=2)
   g_ratio_of_sensitivity %+% subset(metrics_ratio_of_sensitivity, DE_pattern_index == 1)
