@@ -2786,7 +2786,7 @@ summary_table$method = factor(summary_table$method, levels=c("ICeDT", "CIBERSORT
 summary_table$pval_formatted = sprintf("%.3f", summary_table$pval)
 summary_table
 # Fig 4B data
-write.csv(summary_table, file = "results/Fig4B.csv")
+write.csv(summary_table, file = "results/_figures_data/Fig4B.csv")
 
 # The errorbars overlapped, so use position_dodge to move them horizontally
 pd = position_dodge(0.2) # move them x.x to the left and right
